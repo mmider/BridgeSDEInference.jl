@@ -10,8 +10,7 @@ function conjugateDraw(θ, XX, P, prior, ::updtIdx) where updtIdx
     𝓦 = zeros(n, n)
     μ = zeros(n)
     PT = P[1].Target
-    temp = nonidx(updtIdx(), Val(3))
-    ϑ = SVector{length(temp)+1}([1.0, temp...])
+    ϑ = SVector(1.0, (θ[i] for i in nonidx(updtIdx()))...)
 
     for X in XX
         for i in 1:length(X)-1

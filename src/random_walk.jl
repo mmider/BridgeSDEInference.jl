@@ -17,6 +17,7 @@ mutable struct RandomWalk{T, S}
     ϵ::T
     pos::S
     RandomWalk(θ::T, ϵ::T, pos::S) where {T,S} = new{T,S}(θ,ϵ,pos)
+    RandomWalk(rw::RandomWalk{T,S}, θ) where {T,S} = new{T,S}(θ, rw.ϵ, rw.pos)
 end
 
 additiveStep = (x,pos)->pos ? 0.0 : x

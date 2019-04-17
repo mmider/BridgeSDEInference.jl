@@ -33,23 +33,22 @@ julia> idx(Val((true, false, false, true, true)))
 ```
 """
 function idx(::Val{T}) where T
-    Tuple([i for i in 1:length(T) if T[i]])
+    tuple((i for i in 1:length(T) if T[i])...)
 end
 
 """
     nonidx(::Val{T},::Val{N}) where {T, N}
 
-Return a tuple containing indices out of the first N parameters, which are not
-selected by Val{T}
+Return a tuple containing indices which are not selected by Val{T}
 
 # Examples
 ```julia-repl
-julia> nonidx(Val((true, false, false, true, false)), Val(3))
-(2, 3)
+julia> nonidx(Val((true, false, false, true, false)))
+(2, 3, 5)
 ```
 """
-function nonidx(::Val{T},::Val{N}) where {T, N}
-    Tuple([i for i in 1:N if !T[i]])
+function nonidx(::Val{T}) where T
+    tuple((i for i in 1:length(T) if !T[i])...)
 end
 
 """

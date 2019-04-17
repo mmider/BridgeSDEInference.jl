@@ -56,7 +56,7 @@ elseif parametrisation in (:simpleConjug, :complexConjug)
     complements φ.
     """
     @generated function 𝜙(::Val{T}, args...) where T
-        z = Expr(:tuple, (:(phi(Val($i), args...)) for i in 0:length(T) if i==0 || (i<4 && !T[i]))...)
+        z = Expr(:tuple, (:(phi(Val($i), args...)) for i in 0:length(T) if i==0 || !T[i])...)
         return z
     end
 
@@ -64,6 +64,8 @@ elseif parametrisation in (:simpleConjug, :complexConjug)
     phi(::Val{1}, t, x, P::FitzhughDiffusion) = x[1]-x[1]^3+(1-3*x[1]^2)*x[2]
     phi(::Val{2}, t, x, P::FitzhughDiffusion) = one(x[1])
     phi(::Val{3}, t, x, P::FitzhughDiffusion) = -x[1]
+    phi(::Val{4}, t, x, P::FitzhughDiffusion) = 0.0
+    phi(::Val{5}, t, x, P::FitzhughDiffusion) = 0.0
 end
 
 
@@ -167,12 +169,7 @@ end
 constdiff(::FitzhughDiffusionAux) = true
 b(t, x, P::FitzhughDiffusionAux) = B(t,P) * x + β(t,P)
 a(t, P::FitzhughDiffusionAux) = σ(t,P) * σ(t, P)'
-"""
 
-Transform point from observation under :regular parametrisation to :alter(...)
-parametrisation
-"""
-regularToAlter(P::FitzhughDiffusion)
 """
     clone(P::FitzhughDiffusionAux, θ)
 

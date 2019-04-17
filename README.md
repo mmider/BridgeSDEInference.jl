@@ -20,7 +20,7 @@ It finds the posterior distribution of the unknown parameters given the discrete
 
 First load the dependencies:
 ```julia
-outdir="output/"
+outdir="output"
 
 using Bridge, StaticArrays, Distributions
 using Test, Statistics, Random, LinearAlgebra
@@ -90,7 +90,8 @@ end
 # decide if first passage time observations or partially observed diffusion
 fptObsFlag = false
 (df, x0, obs, obsTime, fpt,
-    fptOrPartObs) = readData(Val(fptObsFlag), outdir*"path_part_obs_conj.csv")
+    fptOrPartObs) = readData(Val(fptObsFlag),
+                             joinpath(outdir,"path_part_obs_conj.csv"))
 ```
 The first-passage time observation regime is not fully tested and falls outside of the scope of this project so might be removed in future iterations. The data can be generated easily with the code written in the file `simulate_data.jl`.
 
@@ -101,15 +102,15 @@ We can now set the initial guess for parameter θ₀:
 Define the target and auxiliary law:
 ```julia
 # Target law
-P˟=FitzhughDiffusion(θ₀...)
+P˟ = FitzhughDiffusion(θ₀...)
 # Auxiliary law
-P̃=[FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
-    in zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
+P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
+      in zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
 ```
 Define the observational operator and covariance matrix of the noise at each observation time:
 ```julia
-Ls=[L for _ in P̃]
-Σs=[Σ for _ in P̃]
+Ls = [L for _ in P̃]
+Σs = [Σ for _ in P̃]
 ```
 The time-change function used for numerical purposes:
 ```julia
@@ -123,13 +124,13 @@ tKernel=RandomWalk(θ₀, [3.0, 5.0, 5.0, 0.01, 0.5],
 ```
 Finally, we specify the priors:
 ```julia
-priors=((MvNormal([0.0,0.0,0.0],
-                  diagm(0=>[1000.0, 1000.0, 1000.0])),),
-        #(ImproperPrior(),),
-        #(ImproperPrior(),),
-        #(ImproperPrior(),),
-        (ImproperPrior(),),
-        )
+priors = ((MvNormal([0.0,0.0,0.0],
+                    diagm(0=>[1000.0, 1000.0, 1000.0])),),
+          #(ImproperPrior(),),
+          #(ImproperPrior(),),
+          #(ImproperPrior(),),
+          (ImproperPrior(),),
+          )
 ```
 These are supposed to be in a format: ((prior11, prior12, ...), (prior21, prior22, ...), ...). The parameter updates are done in a cycling fashion, so that first (prior11, prior12, ...) are used at first iteration of MCMC, in the second step (prior21, prior22, ...) are used etc. until all priors in the prior's vector are exhausted and then in the next mcmc step ((prior11, prior12, ...) are used again and the cycle is repeated. Each container (priori1, priori2, ...) must contain all relevant priors for a given MCMC update and in case the update samples from full-conditionals, the conjugate prior must be on the first place, i.e. it must be priori1.
 
@@ -181,8 +182,8 @@ elseif parametrisation in (:simpleConjug, :complexConjug)
     x0 = conjugToRegular(x0, chain[1][1], 0)
 end
 
-df2 = savePathsToFile(pathsToSave, time_, outdir*"sampled_paths.csv")
-df3 = saveChainToFile(chain, outdir*"chain.csv")
+df2 = savePathsToFile(pathsToSave, time_, joinpath(outdir, "sampled_paths.csv"))
+df3 = saveChainToFile(chain, joinpath(outdir, "chain.csv"))
 ```
 
 Lastly, we can make some diagnostic plots:
@@ -197,10 +198,10 @@ else
     plotPaths(df2, obs=[Float64.(df.x1), [x0[2]]],
               obsTime=[Float64.(df.time), [0.0]],obsCoords=[1,2])
 end
-plotChain(df3,coords=[1])
-plotChain(df3,coords=[2])
-plotChain(df3,coords=[3])
-plotChain(df3,coords=[5])
+plotChain(df3, coords=[1])
+plotChain(df3, coords=[2])
+plotChain(df3, coords=[3])
+plotChain(df3, coords=[5])
 ```
 Here are the results, the sampled paths:
 

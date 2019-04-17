@@ -5,16 +5,17 @@ using DataFrames
 using CSV
 
 POSSIBLE_PARAMS = [:regular, :simpleAlter, :simpleConjug]
-parametrisation = POSSIBLE_PARAMS[1]
+parametrisation = POSSIBLE_PARAMS[3]
 include("src/fitzHughNagumo.jl")
-P = FitzhughDiffusion(0.1, 0.0, 1.5, 0.8, 0.3)
-#P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
+#P = FitzhughDiffusion(0.1, 0.0, 1.5, 0.8, 0.3)
+P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
 x0 = ℝ{2}(-0.5, -0.6)
-if parametrisation == :simpleConjug
-    x0 = ℝ{2}(x0[1], (x0[1] - x0[1]^3 - x0[2]) * P.ϵ )#+ P.s)
+if parametrisation == :simpleAlter
+    x0 = regularToAlter(x0, P.ϵ, 0.0)
+elseif parametrisation == :simpleConjug
+    x0 = regularToConjug(x0, P.ϵ, 0.0)
 end
 L = @SMatrix [1. 0.]
-
 
 dt = 1/50000
 T = 2.0
@@ -34,13 +35,13 @@ end
 
 XX, _ = simulateSegment(0.0, tt)
 
-skip=5000
+skip = 5000
 Time = collect(tt)[1:skip:end]
 x1 = [(L*x)[1] for x in XX.yy[1:skip:end]]
 x2 = [NaN for t in Time]
 x2[1] = x0[2]
 df = DataFrame(time=Time, x1=x1, x2=x2)
-CSV.write(outdir*"path_part_obs_short.csv", df)
+CSV.write(outdir*"path_part_obs_"*String(parametrisation)*".csv", df)
 
 # --------------------------------- #
 #  First passage time observations  #
