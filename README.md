@@ -14,7 +14,7 @@ mcmc(::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, numSteps,
      skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
      solver::ST=Ralston3())
 ```
-It finds the posterior distribution of the unknown parameters given the discrete time observations of the underlying process. The file `main.jl` contains an example of a script which reads the data from the file, sets up the observational scheme, calls `mcmc` function and plots the results. The same steps but in greater detail are recounted below.
+It finds the posterior distribution of the unknown parameters given discrete time observations of the underlying process. The file `main.jl` contains an example of a script which reads the data from the file, sets up the observational scheme, calls `mcmc` function and plots the results. The same steps but in greater detail are recounted below.
 
 ## Example
 

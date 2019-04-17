@@ -5,7 +5,7 @@ outdir="output"
 
 using Bridge, StaticArrays, Distributions
 using Test, Statistics, Random, LinearAlgebra
-using Bridge.Models: ℝ # possibly not needed
+using Bridge.Models: ℝ
 using DataFrames
 using CSV
 
@@ -103,7 +103,6 @@ Random.seed!(4)
                                    ),
                          skipForSave=10^1,
                          solver=Vern7())
-
 
 print("imputation acceptance rate: ", accRateImp,
       ", parameter update acceptance rate: ", accRateUpdt)

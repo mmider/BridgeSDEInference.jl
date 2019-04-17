@@ -13,7 +13,7 @@ abstract type ODESolverType end
 """
     ImproperPrior
 
-Temporary solution for testing
+Flat prior
 """
 struct ImproperPrior end
 logpdf(::ImproperPrior, θ) = 0.0

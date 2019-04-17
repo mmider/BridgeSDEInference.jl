@@ -11,11 +11,19 @@ function conjugateDraw(θ, XX, P, prior, ::updtIdx) where updtIdx
     μ = zeros(n)
     PT = P[1].Target
     ϑ = SVector(1.0, (θ[i] for i in nonidx(updtIdx()))...)
+    μ, 𝓦 = _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx())
+    Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
+    Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
+    μₚₒₛₜ = Σ * (μ + Vector(prior.Σ\prior.μ))
+    rand(MvNormal(μₚₒₛₜ, Matrix{Float64}(Σ)))
+end
 
+
+function _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
     for X in XX
         for i in 1:length(X)-1
-            φₜ = SVector(φ(updtIdx(), X.tt[i], X.yy[i], PT))
-            𝜙ₜ = SVector(𝜙(updtIdx(), X.tt[i], X.yy[i], PT))
+            φₜ = SVector(φ(updtIdx, X.tt[i], X.yy[i], PT))
+            𝜙ₜ = SVector(𝜙(updtIdx, X.tt[i], X.yy[i], PT))
             dt = X.tt[i+1] - X.tt[i]
             dy = X.yy[i+1][2]-X.yy[i][2]
             μ = μ + φₜ*dy - φₜ*dot(ϑ, 𝜙ₜ)*dt
@@ -24,9 +32,5 @@ function conjugateDraw(θ, XX, P, prior, ::updtIdx) where updtIdx
     end
     μ = μ/PT.σ^2
     𝓦 = 𝓦/PT.σ^2
-
-    Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
-    Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
-    μₚₒₛₜ = Σ * (μ + Vector(prior.Σ\prior.μ))
-    rand(MvNormal(μₚₒₛₜ, Matrix{Float64}(Σ)))
+    μ, 𝓦
 end

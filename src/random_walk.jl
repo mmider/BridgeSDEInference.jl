@@ -12,12 +12,11 @@ values. For elements restricted to take positive values, the update is done via:
 x⁽ⁿᵉʷ⁾ <- x⁽ᵒˡᵈ⁾eᵁ, where U ∼ Unif(-ϵ,ϵ). For unrestricted:
 x⁽ⁿᵉʷ⁾ <- x⁽ᵒˡᵈ⁾ + U, where U ∼ Unif(-ϵ,ϵ).
 """
-mutable struct RandomWalk{T, S}
+struct RandomWalk{T, S}
     θ::T
     ϵ::T
     pos::S
     RandomWalk(θ::T, ϵ::T, pos::S) where {T,S} = new{T,S}(θ,ϵ,pos)
-    RandomWalk(rw::RandomWalk{T,S}, θ) where {T,S} = new{T,S}(θ, rw.ϵ, rw.pos)
 end
 
 additiveStep = (x,pos)->pos ? 0.0 : x

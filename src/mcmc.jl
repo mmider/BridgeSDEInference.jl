@@ -394,7 +394,7 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, ::UpdtIdx,
             XX[i], XXᵒ[i] = XXᵒ[i], XX[i]
             P[i], Pᵒ[i] = Pᵒ[i], P[i]
         end
-        tKern.θ = copy(θᵒ)
+        tKern.θ .= copy(θᵒ)
         return llᵒ, true
     else
         return ll, false
@@ -438,7 +438,7 @@ function updateParam!(::PartObs, ::ConjugateUpdt, tKern, ::UpdtIdx,
     verbose && print("update: ", it, " ll ", round(ll, digits=3), " ",
                      round(llᵒ, digits=3), " diff_ll: ",
                      round(llᵒ-ll,digits=3), "\n")
-    tKern.θ = copy(θᵒ)
+    tKern.θ .= copy(θᵒ)
     return llᵒ, true
 end
 
