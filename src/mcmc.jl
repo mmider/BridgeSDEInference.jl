@@ -1,5 +1,5 @@
 #NOTE this import is bad programming, will need to change
-import Main: clone, conjugateDraw, dependsOnParams
+import Main: clone, conjugateDraw, dependsOnParams, params
 
 #dependsOnParams(::ContinuousTimeProcess) = (,)
 
@@ -334,8 +334,8 @@ end
 
 
 """
-    updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, ::UpdtIdx, y, WW,
-                 Pᵒ, P, XXᵒ, XX, ll, prior, fpt, recomputeODEs;
+    updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtIdx, y,
+                 WW, Pᵒ, P, XXᵒ, XX, ll, prior, fpt, recomputeODEs;
                  solver::ST=Ralston3(), verbose=false,
                  it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
                  -> acceptedLogLikhd, acceptDecision
@@ -345,6 +345,7 @@ Update parameters
 - `::ObsScheme`: observation scheme---first-passage time or partial observations
 - `::MetropolisHastingsUpdt()`: type of the parameter update
 - `tKern`: transition kernel
+- `θ`: current value of the parameter
 - `updtIdx`: object declaring indices of the updated parameter
 - `y`: starting point of the diffusion path
 - `WW`: containers with Wiener paths
@@ -360,12 +361,12 @@ Update parameters
 - `it`: iteration index of the MCMC algorithm
 ...
 """
-function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, ::UpdtIdx,
+function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtIdx,
                       y, WW, Pᵒ, P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
                       solver::ST=Ralston3(), verbose=false,
                       it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
     m = length(WW)
-    θᵒ = rand(tKern, UpdtIdx())
+    θᵒ = rand(tKern, θ, UpdtIdx())
     for i in 1:m
         Pᵒ[i] = GuidPropBridge(Pᵒ[i], θᵒ)
     end
@@ -384,9 +385,9 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, ::UpdtIdx,
     llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, m, fpt) ? llᵒ : -Inf
     verbose && print("update: ", it, " ll ", round(ll, digits=3), " ",
                      round(llᵒ, digits=3), " diff_ll: ", round(llᵒ-ll,digits=3))
-    llr = ( llᵒ - ll + logpdf(tKern, θᵒ, tKern.θ) - logpdf(tKern, tKern.θ, θᵒ) )
+    llr = ( llᵒ - ll + logpdf(tKern, θᵒ, θ) - logpdf(tKern, θ, θᵒ) )
     for prior in priors
-        llr += logpdf(prior, θᵒ) - logpdf(prior, tKern.θ)
+        llr += logpdf(prior, θᵒ) - logpdf(prior, θ)
     end
     recomputeODEs && (llr += lobslikelihood(Pᵒ[1], y) - lobslikelihood(P[1], y))
     if acceptSample(llr, verbose)
@@ -394,10 +395,9 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, ::UpdtIdx,
             XX[i], XXᵒ[i] = XXᵒ[i], XX[i]
             P[i], Pᵒ[i] = Pᵒ[i], P[i]
         end
-        tKern.θ .= copy(θᵒ)
-        return llᵒ, true
+        return llᵒ, true, θᵒ
     else
-        return ll, false
+        return ll, false, θ
     end
 end
 
@@ -406,20 +406,20 @@ end
 # but the practicality of this is untested, so supports only ::PartObs
 # for now
 """
-    updateParam!(::PartObs, ::ConjugateUpdt, tKern, ::UpdtIdx, y, WW, Pᵒ, P,
+    updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx, y, WW, Pᵒ, P,
                  XXᵒ, XX, ll, priors, fpt, recomputeODEs; solver::ST=Ralston3(),
                  verbose=false, it=NaN) -> acceptedLogLikhd, acceptDecision
 Update parameters
 see the definition of  updateParam!(…, ::MetropolisHastingsUpdt, …) for the
 explanation of the arguments.
 """
-function updateParam!(::PartObs, ::ConjugateUpdt, tKern, ::UpdtIdx,
+function updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx,
                       y, WW, Pᵒ, P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
                       solver::ST=Ralston3(), verbose=false,
                       it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
     m = length(P)
-    ϑ = conjugateDraw(tKern.θ, XX, P, priors[1], UpdtIdx())
-    θᵒ = moveToProperPlace(ϑ, tKern.θ, UpdtIdx())
+    ϑ = conjugateDraw(θ, XX, P, priors[1], UpdtIdx())
+    θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())
 
     for i in 1:m
         P[i] = GuidPropBridge(P[i], θᵒ)
@@ -438,8 +438,7 @@ function updateParam!(::PartObs, ::ConjugateUpdt, tKern, ::UpdtIdx,
     verbose && print("update: ", it, " ll ", round(ll, digits=3), " ",
                      round(llᵒ, digits=3), " diff_ll: ",
                      round(llᵒ-ll,digits=3), "\n")
-    tKern.θ .= copy(θᵒ)
-    return llᵒ, true
+    return llᵒ, true, θᵒ
 end
 
 """
@@ -491,8 +490,9 @@ function mcmc(::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, numSteps,
     Paths = []
     accImpCounter = 0
     accUpdtCounter = [0 for i in 1:updtLen]
-    θchain = Vector{typeof(tKernel.θ)}(undef, numSteps+1)
-    θchain[1] = copy(tKernel.θ)
+    θ = params(P˟)
+    θchain = Vector{typeof(θ)}(undef, numSteps+1)
+    θchain[1] = copy(θ)
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
         savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
@@ -503,13 +503,13 @@ function mcmc(::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, numSteps,
             imod = 1+i%updtLen
             recomputeODEs = any([e in dependsOnParams(P[1].Pt) for e
                                                        in idx(updtCoord[imod])])
-            ll, acc = updateParam!(ObsScheme(), updtType[imod], tKernel,
-                                   updtCoord[imod], y, WW, Pᵒ, P, XXᵒ, XX, ll,
-                                   priors[imod], fpt, recomputeODEs;
-                                   solver=ST(), verbose=verbose, it=i)
+            ll, acc, θ = updateParam!(ObsScheme(), updtType[imod], tKernel, θ,
+                                      updtCoord[imod], y, WW, Pᵒ, P, XXᵒ, XX,
+                                      ll, priors[imod], fpt, recomputeODEs;
+                                      solver=ST(), verbose=verbose, it=i)
             accUpdtCounter[imod] += 1*acc
         end
-        θchain[i+1] = copy(tKernel.θ)
+        θchain[i+1] = copy(θ)
     end
     Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))
     θchain, accImpCounter/numSteps, accUpdtCounter./numSteps.*updtLen, Paths, Time

@@ -36,20 +36,6 @@ function idx(::Val{T}) where T
     tuple((i for i in 1:length(T) if T[i])...)
 end
 
-"""
-    nonidx(::Val{T},::Val{N}) where {T, N}
-
-Return a tuple containing indices which are not selected by Val{T}
-
-# Examples
-```julia-repl
-julia> nonidx(Val((true, false, false, true, false)))
-(2, 3, 5)
-```
-"""
-function nonidx(::Val{T}) where T
-    tuple((i for i in 1:length(T) if !T[i])...)
-end
 
 """
     moveToProperPlace(ϑ, θ, ::Val{T}) where {T}

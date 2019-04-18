@@ -1,7 +1,7 @@
 module MCMCBridge
 
 # types.jl
-export ImproperPrior, idx, nonidx
+export ImproperPrior, idx
 
 # mcmc.jl
 export mcmc, PartObs, FPT, FPTInfo, ConjugateUpdt, MetropolisHastingsUpdt

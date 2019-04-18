@@ -73,4 +73,4 @@ df = DataFrame(time=upCrossingTimes,
                upCross=upCross,
                downCross=downCross,
                x2=x2)
-CSV.write(outdir*"up_crossing_times.csv", df)
+CSV.write(outdir*"up_crossing_times_"*String(parametrisation)*".csv", df)

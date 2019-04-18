@@ -126,7 +126,7 @@ struct GuidPropBridge{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T
     Σ::S3               # covariance matrix of the noise at observation
 end
 ```
-stores all information that is necessary for drawing guided proposals
+stores all information that is necessary for drawing guided proposals.
 
     GuidPropBridge(tt_, P, Pt, L::S1, v::S2, Σ::S3 = Bridge.outer(zero(v)),
                    H⁽ᵀ⁺⁾::TH = zero(typeof(L'*L)),

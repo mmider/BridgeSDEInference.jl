@@ -51,7 +51,7 @@ end
 fptObsFlag = false
 (df, x0, obs, obsTime, fpt,
     fptOrPartObs) = readData(Val(fptObsFlag),
-                             joinpath(outdir,"path_part_obs_conj.csv"))
+                             joinpath(outdir, "path_part_obs_conj.csv"))
 
 
 # Initial parameter guess.
@@ -67,9 +67,9 @@ Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
 numSteps=3*10^4
-tKernel = RandomWalk(θ₀, [3.0, 5.0, 5.0, 0.01, 0.5],
+tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
-#tKernel=RandomWalk(θ₀, [0.01, 0.1, 0.5, 0.01, 0.1],
+#tKernel=RandomWalk([0.01, 0.1, 0.5, 0.01, 0.1],
 #                   [false, false, false, false, true])
 priors = ((MvNormal([0.0,0.0,0.0],
                     diagm(0=>[1000.0, 1000.0, 1000.0])),),
@@ -111,7 +111,7 @@ print("imputation acceptance rate: ", accRateImp,
 if parametrisation in (:simpleAlter, :complexAlter)
     pathsToSave = [[alterToRegular(e, θ[1], θ[2]) for e in path] for (path,θ)
                                       in zip(paths, chain[1:3*10^2:end][2:end])]
-    # only one out of many starting points will be drawn
+    # only one out of many starting points will be plotted
     x0 = alterToRegular(x0, chain[1][1], chain[1][2])
 elseif parametrisation in (:simpleConjug, :complexConjug)
     pathsToSave = [[conjugToRegular(e, θ[1], 0) for e in path] for (path,θ)

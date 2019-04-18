@@ -50,12 +50,12 @@ elseif parametrisation in (:simpleConjug, :complexConjug)
     end
 
     """
-        𝜙(::Val{T}, args...)
+        φᶜ(::Val{T}, args...)
 
-    Compute the 𝜙 function appearing in the Girsanov formula. This function
+    Compute the φᶜ function appearing in the Girsanov formula. This function
     complements φ.
     """
-    @generated function 𝜙(::Val{T}, args...) where T
+    @generated function φᶜ(::Val{T}, args...) where T
         z = Expr(:tuple, (:(phi(Val($i), args...)) for i in 0:length(T) if i==0 || !T[i])...)
         return z
     end
@@ -64,14 +64,16 @@ elseif parametrisation in (:simpleConjug, :complexConjug)
     phi(::Val{1}, t, x, P::FitzhughDiffusion) = x[1]-x[1]^3+(1-3*x[1]^2)*x[2]
     phi(::Val{2}, t, x, P::FitzhughDiffusion) = one(x[1])
     phi(::Val{3}, t, x, P::FitzhughDiffusion) = -x[1]
-    phi(::Val{4}, t, x, P::FitzhughDiffusion) = 0.0
-    phi(::Val{5}, t, x, P::FitzhughDiffusion) = 0.0
+    phi(::Val{4}, t, x, P::FitzhughDiffusion) = zero(x[1])
+    phi(::Val{5}, t, x, P::FitzhughDiffusion) = zero(x[1])
 end
 
 
 constdiff(::FitzhughDiffusion) = true
 
 clone(::FitzhughDiffusion, θ) = FitzhughDiffusion(θ...)
+
+params(P::FitzhughDiffusion) = [P.ϵ, P.s, P.γ, P.β, P.σ]
 
 """
     regularToAlter(x, ϵ, offset=0)
