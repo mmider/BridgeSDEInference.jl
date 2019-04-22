@@ -1,4 +1,5 @@
-using Bridge, Bridge.Models
+using Bridge
+#Bridge.Models
 using StaticArrays
 import Bridge: b, σ, B, β, a, constdiff
 
@@ -10,12 +11,12 @@ print("Chosen parametrisation: ", parametrisation)
 
 Struct defining FitzHugh-Nagumo model
 """
-struct FitzhughDiffusion <: ContinuousTimeProcess{ℝ{2}}
-    ϵ::Float64
-    s::Float64
-    γ::Float64
-    β::Float64
-    σ::Float64
+struct FitzhughDiffusion{T} <: ContinuousTimeProcess{ℝ{2,T}}
+    ϵ::T
+    s::T
+    γ::T
+    β::T
+    σ::T
 end
 
 if parametrisation == :regular
@@ -118,16 +119,16 @@ end
 Struct defining proposal diffusion (proposal for sampling from FitzHugh-Nagumo
 diffusion)
 """
-struct FitzhughDiffusionAux <: ContinuousTimeProcess{ℝ{2}}
-    ϵ::Float64
-    s::Float64
-    γ::Float64
-    β::Float64
-    σ::Float64
+struct FitzhughDiffusionAux{T,S} <: ContinuousTimeProcess{ℝ{2,T}}
+    ϵ::T
+    s::T
+    γ::T
+    β::T
+    σ::T
     t::Float64
-    u::Float64
+    u::S
     T::Float64
-    v::Float64
+    v::S
 end
 
 if parametrisation == :regular

@@ -43,7 +43,7 @@ ODE satisfied by `Q`, i.e. d`Q` = `update`(...)dt
 """
 update(::QScalar, t, H, Hν, c, Q, P) = -0.5*tr(H * a(t, P))
 
-createTableau(::T) where T = NaN
+createTableau(::T) where T = throw(ArgumentError())
 createTableau(::Tsit5) = Tsit5Tableau()
 createTableau(::Vern7) = Vern7Tableau()
 
@@ -148,36 +148,36 @@ point to the old memory locations. Additionally, `P.Target` and `P.Pt` are
 deleted and substituted with their clones that use different value of parameter
 `θ`.
 """
-struct GuidPropBridge{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T}
+struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T}
     Target::R           # Law of the target diffusion
     Pt::R2              # Law of the proposal diffusion
     tt::Vector{Float64} # grid of time points
     H::Vector{TH}       # Matrix H evaluated at time-points `tt`
     H⁻¹::Vector{TH⁻¹}   # currently not used
     Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
-    c::Vector{Float64}  # scalar c evaluated at time-points `tt`
-    Q::Vector{Float64}  # scalar Q evaluated at time-points `tt`
+    c::Vector{K}  # scalar c evaluated at time-points `tt`
+    Q::Vector{K}  # scalar Q evaluated at time-points `tt`
     L::S1               # observation operator (for observation at the end-pt)
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
 
-    function GuidPropBridge(tt_, P, Pt, L::S1, v::S2,
-                            Σ::S3 = Bridge.outer(zero(v)),
-                            H⁽ᵀ⁺⁾::TH = zero(typeof(L'*L)),
-                            Hν⁽ᵀ⁺⁾::Tν = zero(typeof(L'[:,1])),
-                            c⁽ᵀ⁺⁾ = 0.0,
-                            Q⁽ᵀ⁺⁾ = 0.0;
+    function GuidPropBridge(::Type{K}, tt_, P, Pt, L::S1, v::S2,
+                            Σ::S3 = Bridge.outer(zero(K)*zero(v)),
+                            H⁽ᵀ⁺⁾::TH = zero(typeof(zero(K)*L'*L)),
+                            Hν⁽ᵀ⁺⁾::Tν = zero(typeof(zero(K)*L'[:,1])),
+                            c⁽ᵀ⁺⁾ = zero(K),
+                            Q⁽ᵀ⁺⁾ = zero(K);
                             # H⁻¹prot is currently not used
                             H⁻¹prot::TH⁻¹ = SVector{prod(size(TH))}(rand(prod(size(TH)))),
                             solver::ST = Ralston3()
-                            ) where {Tν,TH,TH⁻¹,S1,S2,S3,ST}
+                            ) where {K,Tν,TH,TH⁻¹,S1,S2,S3,ST}
         tt = collect(tt_)
         N = length(tt)
         H = zeros(TH, N)
         H⁻¹ = zeros(TH⁻¹, N)
         Hν = zeros(Tν, N)
-        c = zeros(Float64, N)
-        Q = zeros(Float64, N)
+        c = zeros(K, N)
+        Q = zeros(K, N)
 
         gpupdate!(tt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, Q⁽ᵀ⁺⁾, H, Hν, c, Q,
                   Pt, ST())
@@ -185,12 +185,12 @@ struct GuidPropBridge{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T
         T = Bridge.valtype(P)
         R = typeof(P)
         R2 = typeof(Pt)
-        new{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(P, Pt, tt, H, H⁻¹, Hν, c, Q, L, v, Σ)
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(P, Pt, tt, H, H⁻¹, Hν, c, Q, L, v, Σ)
     end
 
-    function GuidPropBridge(P::GuidPropBridge{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3},
-                            θ) where {T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}
-        new{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(clone(P.Target,θ), clone(P.Pt,θ), P.tt,
+    function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3},
+                            θ) where {T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(clone(P.Target,θ), clone(P.Pt,θ), P.tt,
                                         P.H, P.H⁻¹, P.Hν, P.c, P.Q, P.L, P.v,
                                         P.Σ)
     end
@@ -222,8 +222,8 @@ integral, evaluating f(xᵢ), i=1,… at the left limit of intervals and skippin
 function llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)
     tt = X.tt
     xx = X.yy
-
-    som::Float64 = 0.
+    som = 0.0 # hopefully this instability gets optimised away
+    # som::Float64 = 0.0
     for i in 1:length(tt)-1-skip #skip last value, summing over n-1 elements
         s = tt[i]
         x = xx[i]
