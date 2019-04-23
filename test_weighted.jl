@@ -1,0 +1,133 @@
+mkpath("output/")
+outdir="output"
+
+
+using Bridge, StaticArrays, Distributions
+using Test, Statistics, Random, LinearAlgebra
+using Bridge.Models: ℝ
+using DataFrames
+using CSV
+
+L = @SMatrix [1.0]
+Σ = @SMatrix[10^(-5)]
+
+include("src/sinDiffusion.jl")
+include("src/types.jl")
+include("src/ralston3.jl")
+include("src/rk4.jl")
+include("src/tsit5.jl")
+include("src/vern7.jl")
+
+include("src/guid_prop_bridge.jl")
+include("src/random_walk.jl")
+include("src/mcmc.jl")
+
+include("src/save_to_files.jl")
+
+include("src/ladders.jl")
+include("src/temperature_mcmc.jl")
+
+x0 = ℝ{1}(0.0)
+
+fptOrPartObs = PartObs()
+θ₀ = [2.0, -2.0, 8.0, 0.5]
+P˟ = SinDiffusion(θ₀...)
+
+Random.seed!(4)
+function simulateSegment(::S) where S
+    freq = 50000
+    x0 = SVector(0.0)
+    dt = 1/freq
+    T = 8.0
+    tt = 0.0:dt:T
+    Wnr = Wiener{S}()
+    WW = Bridge.samplepath(tt, zero(S))
+    sample!(WW, Wnr)
+    XX = solve(Euler(), x0, WW, P˟)
+
+    XX.yy[1:freq:end], XX.tt[1:freq:end]
+end
+obs, obsTime = simulateSegment(0.0)
+#obs
+#obs = ℝ{1}.([0.0, 0.0])
+#obsTime = [0.0, 8.0]
+
+P̃ = [SinDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀, T, u, v) in
+        zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
+Ls = [L for _ in P̃]
+Σs = [Σ for _ in P̃]
+τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
+numSteps=1*10^4
+tKernel = RandomWalk([1.0, 1.0, 1.0, 1.0], [false, false, false, true])
+priors = ((#(ImproperPrior(),),
+           #(ImproperPrior(),),
+           #(ImproperPrior(),),
+           (ImproperPrior(),),      # within each gibbs update one set for each updated parameter
+          ),                        # within temperature, one set for each Gibbs site update
+         )                          # one set for each temperature
+
+logpdf(P::Normal, θ) = -0.5*log(2.0*π*P.σ^2) - 0.5*((θ[4]-P.μ)/P.σ)^2
+biasedPriors = (((Normal(7.0, 1.0),),),)
+fpt = [NaN for _ in P̃]
+
+mcmcParams = MCMCParams(obs=obs, obsTimes=obsTime, priors=priors, fpt=fpt,
+                        ρ=0.9, dt=1/5000, saveIter=3*10^2, verbIter=10^2,
+                        updtCoord=(#Val((true, false, false, false)),
+                                   #Val((false, true, false, false)),
+                                   #Val((false, false, true, false)),
+                                   Val((false, false, false, true)),
+                                   ),
+                        paramUpdt=true, skipForSave=10^1,
+                        updtType=(#MetropolisHastingsUpdt(),
+                                  #MetropolisHastingsUpdt(),
+                                  #MetropolisHastingsUpdt(),
+                                  MetropolisHastingsUpdt(),
+                                  ),
+                        cs=NaN,
+                        biasedPriors=priors,
+                        ladderOfPriors=NaN,
+                        𝓣Ladder=NaN
+                        )
+
+Random.seed!(4)
+(chain, 𝓣chain, logωs, accRateImp, accRateUpdt, accptRate𝓣, paths, 𝓣chainPth,
+    time_) = wmcmc(BiasingOfPriors(), fptOrPartObs, x0, 0.0, P˟, P̃, Ls, Σs,
+                   numSteps, tKernel, τ, mcmcParams; solver=Vern7())
+
+print("imputation acceptance rate: ", accRateImp,
+      ", parameter update acceptance rate: ", accRateUpdt)
+
+
+df2 = savePathsToFile(paths, time_, joinpath(outdir, "sampled_paths.csv"))
+df3 = saveChainToFile(chain, joinpath(outdir, "chain.csv"))
+
+include("src/plots.jl")
+# make some plots
+set_default_plot_size(30cm, 20cm)
+
+plot(df2, x=:time, y=:x1, color=:idx, Geom.line,
+     Scale.color_continuous(colormap=Scale.lab_gradient("#fceabb", "#a2acae",
+                                                        "#36729e")))
+
+
+
+plot(df3, y=:x1, Geom.line)
+plot(df3, y=:x1_1, Geom.line)
+plot(df3, y=:x1_2, Geom.line)
+plot(df3, y=:x1_3, Geom.line)
+
+f1(x) = x
+f2(x) = sin(x)
+f3(x) = x^2
+
+
+
+ωs = exp.(logωs)
+testsM = [mean(f.(df3.x1_3) .* ωs) for f in [f1, f2, f3]]
+testsW = [sum(f.(df3.x1_3) .* ωs)/sum(ωs) for f in [f1, f2, f3]]
+for i in 1:10
+    js = rand(1:length(ωs), 10000)
+    print([sum(f.(df3.x1_3[js]) .* ωs[js])/sum(ωs[js]) for f in [f1, f2, f3]], "\n")
+end
+
+tests = [mean(f.(df3.x1_3)) for f in [f1, f2, f3]]

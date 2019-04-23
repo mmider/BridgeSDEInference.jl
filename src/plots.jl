@@ -33,7 +33,7 @@ function plotPaths(df; obs=[], obsTime=[], obsCoords=[])
 
         plots = vstack(plots, p)
     end
-    draw(SVGJS("temp.js.svg", 40cm, 30cm), plots)
+    #draw(SVGJS("temp.js.svg", 40cm, 30cm), plots)
     display(plots)
 end
 

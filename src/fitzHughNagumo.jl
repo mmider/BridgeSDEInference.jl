@@ -115,7 +115,7 @@ end
 """
     struct FitzhughDiffusionAux <: ContinuousTimeProcess{ℝ{2}}
 
-Struct defining proposal diffusion (proposal for sampling from FitzHugh-Nagumo
+Struct defining auxiliary diffusion (for sampling from FitzHugh-Nagumo
 diffusion)
 """
 struct FitzhughDiffusionAux <: ContinuousTimeProcess{ℝ{2}}
