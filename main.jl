@@ -5,7 +5,6 @@ outdir="output"
 
 using Bridge, StaticArrays, Distributions
 using Test, Statistics, Random, LinearAlgebra
-#using Bridge.Models: ℝ
 using DataFrames
 using CSV
 const ℝ = SVector{N,T} where {N,T}
