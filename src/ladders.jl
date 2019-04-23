@@ -1,13 +1,12 @@
 
-struct EmptyLadder end
+struct EmptyLadder
+    prior::Priors
+end
 
-struct BiasedPr{Tp,Tbp}
-    prior::Tp
-    bPrior::Tbp
 
-    function BiasedPr(priors::Tp, bPriors::Tbp) where {Tp,Tbp}
-        new{Tp, Tbp}(priors, bPriors)
-    end
+struct BiasedPr
+    prior::Priors
+    bPrior::Priors
 end
 
 struct SimTempLadder{Tl,Tc,TP,TXX}
@@ -19,46 +18,49 @@ struct SimTempLadder{Tl,Tc,TP,TXX}
     count::Array{Int64,2}
     accpt::Array{Int64,2}
     m::Int64
+    prior::Priors
 
-    function SimTempLadder(ladder::Tl, c::Tc, P::TP, XX::TXX
+    function SimTempLadder(ladder::Tl, c::Tc, P::TP, XX::TXX, priors::Priors
                            ) where {Tl,Tc,TP,TXX}
         κ = length(ladder)
         new{Tl,Tc,TP,TXX}(κ, ladder, c, deepcopy(P), deepcopy(XX),
-                          fill(0, (κ, κ)), fill(0, (κ, κ)), length(XX))
+                          fill(0, (κ, κ)), fill(0, (κ, κ)), length(XX), priors)
     end
 end
 
-struct SimTempPrLadder{Tl, Tc}
-    κ::Float64
-    ladder::Tl
+struct SimTempPrLadder{Tc}
+    κ::Int64
+    ladder::LadderOfPriors
     c::Tc
     count::Array{Int64,2}
     accpt::Array{Int64,2}
 
-    function SimTempPrLadder(ladder::Tl, c::Tc) where {Tl,Tc}
+    function SimTempPrLadder(ladder::LadderOfPriors, c::Tc) where {Tc}
         κ = length(ladder)
-        new{Tl,Tc}(κ, ladder, c, fill(0, (κ, κ)), fill(0, (κ, κ)))
+        new{Tc}(κ, ladder, c, fill(0, (κ, κ)), fill(0, (κ, κ)))
     end
 end
 
 struct ParTempLadder{Tl,TP,TXX}
-    κ::Float64
+    κ::Int64
     ladder::Tl
     Ps::TP
     XXs::TXX
     count::Array{Int64,2}
     accpt::Array{Int64,2}
     m::Int64
+    prior::Priors
 
-    function ParTempLadder(ladder::Tl, Ps::TP, XXs::TXX) where {Tl,TP,TXX}
+    function ParTempLadder(ladder::Tl, Ps::TP, XXs::TXX, prior::Priors
+                           ) where {Tl,TP,TXX}
         κ = length(ladder)
         new{Tl,TP,TXX}(κ, ladder, deepcopy(Ps), deepcopy(XXs),
-                       fill(0, (κ, κ)), fill(0, (κ, κ)), length(XXs[1]))
+                       fill(0, (κ, κ)), fill(0, (κ, κ)), length(XXs[1]), priors)
     end
 end
 
 struct ParTempPrLadder{Tl}
-    κ::Float64
+    κ::Int64
     ladder::Tl
     count::Array{Int64,2}
     accpt::Array{Int64,2}
@@ -68,6 +70,13 @@ struct ParTempPrLadder{Tl}
         new{Tl}(κ, ladder, fill(0, (κ, κ)), fill(0, (κ, κ)))
     end
 end
+
+prior(ℒ::EmptyLadder, ι, updtIdx) = ℒ.prior[updtIdx]
+prior(ℒ::BiasedPr, ι, updtIdx) = ℒ.bPrior[updtIdx]
+prior(ℒ::SimTempLadder, ι, updtIdx) = ℒ.prior[updtIdx]
+prior(ℒ::SimTempPrLadder, ι, updtIdx) = ℒ.ladder[ι][updtIdx]
+prior(ℒ::ParTempLadder, idx, updtIdx) = ℒ.prior[updtIdx]
+prior(ℒ::ParTempPrLadder, idx, updtIdx) = ℒ.ladder[idx][updtIdx]
 
 Ladders = Union{SimTempLadder,ParTempLadder,SimTempPrLadder,ParTempPrLadder}
 Non𝓣Ladders = Union{EmptyLadder,BiasedPr,SimTempPrLadder,ParTempPrLadder}
@@ -98,13 +107,7 @@ function llikelihood!(ℒ::T, θ, y, WW, P, XX, ι, ::ST=Ralston3()
     llᵒ
 end
 
-function computeLogWeight!(ℒ::BiasedPr, θ)
-    logWeight = 0.0
-    for (prior, bprior) in zip(ℒ.prior, ℒ.bPrior)
-        logWeight = logpdf(prior, θ) - logpdf(bprior, θ)
-    end
-    logWeight
-end
+computeLogWeight!(ℒ::BiasedPr, θ) = logpdf(ℒ.prior, θ) - logpdf(ℒ.bPrior, θ)
 
 function computeLogWeight!(ℒ::SimTempLadder, θ, y, WW, ι, ll, ::ST=Ralston3()) where ST
     ι == 1 && return 0.0
@@ -114,11 +117,7 @@ end
 
 function computeLogWeight(ℒ::SimTempPrLadder, θ, ι)
     ι == 1 && return 0.0
-    logWeight = 0.0
-    for (prior, priorᵒ) in zip(ℒ.ladder[1], ℒ.ladder[ι])
-        logWeight = logpdf(prior, θ) - logpdf(priorᵒ, θ)
-    end
-    logWeight
+    logpdf(ℒ.ladder[1], θ) - logpdf(ℒ.ladder[ι], θ)
 end
 
 function computeLogWeight!(ℒ::ParTempLadder, θ, y, WW, ι, idx, ll, ::ST=Ralston3()) where ST
@@ -129,11 +128,7 @@ end
 
 function computeLogWeight(ℒ::ParTempPrLadder, θs, ι, idx)
     idx == 1 && return 0.0
-    logWeight = 0.0
-    for (prior, priorᵒ) in zip(ℒ.ladder[1], ℒ.ladder[idx])
-        logWeight = logpdf(prior, θs[ι[idx]]) - logpdf(priorᵒ, θs[ι[idx]])
-    end
-    logWeight
+    logpdf(ℒ.ladder[1], θs[ι[idx]]) - logpdf(ℒ.ladder[idx], θs[ι[idx]])
 end
 
 function update!(ℒ::SimTempLadder, θ, y, WW, ι, ll, ::ST=Ralston3();
@@ -158,15 +153,13 @@ end
 
 function update!(ℒ::SimTempPrLadder, θ, ι, ::ST=Ralston3(); verbose=false,
                  it=NaN) where ST
-    ιᵒ = rand([max(ι-1, 1), min(ι+1, κ)])
+    ιᵒ = rand([max(ι-1, 1), min(ι+1, ℒ.κ)])
     ℒ.count[ι, ιᵒ] += 1
     if ιᵒ == ι
         llr = 0.0
     else
         llr = log(ℒ.c[ιᵒ]) - log(ℒ.c[ι])
-        for (prior, priorᵒ) in zip(ℒ.ladder[ι], ℒ.ladder[ιᵒ])
-            llr += logpdf(priorᵒ, θ) - logpdf(prior, θ)
-        end
+        llr += logpdf(ℒ.ladder[ιᵒ], θ) - logpdf(ℒ.ladder[ι], θ)
     end
     verbose && print("prior index update: ", it, " diff_ll: ",
                      round(llr, digits=3))
@@ -199,18 +192,17 @@ function update!(ℒ::ParTempLadder, θs, ys, WWs, ι, lls, ::ST=Ralston3();
     end
 end
 
-function update!(ℒ::SimTempPrLadder, θs, ι, ::ST=Ralston3(); verbose=false,
+function update!(ℒ::ParTempPrLadder, θs, ι, ::ST=Ralston3(); verbose=false,
                  it=NaN) where ST
     idx = rand(1:length(ι)-1)
     ιᵒ = copy(ι)
     ιᵒ[idx], ιᵒ[idx+1] = ιᵒ[idx+1], ιᵒ[idx]
 
     ℒ.count[idx, idx+1] += 1
-    llr = 0.0
-    for (prior, priorNext) in zip(ℒ.ladder[idx], ℒ.ladder[idx+1])
-        llr += ( logpdf(prior, θs[ιᵒ[idx]]) + logpdf(priorNext, θs[ιᵒ[idx]+1])
-                 - logpdf(prior, θs[ι[idx]]) + logpdf(priorNext, θs[ι[idx]+1]) )
-    end
+    llr = ( logpdf(ℒ.ladder[idx], θs[ιᵒ[idx]])
+           + logpdf(ℒ.ladder[idx+1], θs[ιᵒ[idx]+1])
+           - logpdf(ℒ.ladder[idx], θs[ι[idx]])
+           - logpdf(ℒ.ladder[idx+1], θs[ι[idx]+1]) )
 
     verbose && print("prior index update: ", it, " diff_ll: ",
                      round(llr, digits=3))

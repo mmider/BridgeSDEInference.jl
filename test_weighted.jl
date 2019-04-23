@@ -18,6 +18,7 @@ include("src/rk4.jl")
 include("src/tsit5.jl")
 include("src/vern7.jl")
 
+include("src/priors.jl")
 include("src/guid_prop_bridge.jl")
 include("src/random_walk.jl")
 include("src/mcmc.jl")
@@ -59,15 +60,17 @@ Ls = [L for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
 numSteps=1*10^4
 tKernel = RandomWalk([1.0, 1.0, 1.0, 1.0], [false, false, false, true])
-priors = ((#(ImproperPrior(),),
-           #(ImproperPrior(),),
-           #(ImproperPrior(),),
-           (ImproperPrior(),),      # within each gibbs update one set for each updated parameter
-          ),                        # within temperature, one set for each Gibbs site update
-         )                          # one set for each temperature
 
+priors = Priors((Normal(1.0, 1000.0),))
 logpdf(P::Normal, θ) = -0.5*log(2.0*π*P.σ^2) - 0.5*((θ[4]-P.μ)/P.σ)^2
-biasedPriors = (((Normal(7.0, 1.0),),),)
+biasedPriors = Priors((Normal(6.0, 1.0),))
+ladderOfPriors = LadderOfPriors((Priors((Normal(1.0, 10.0),)),
+                                 Priors((Normal(7.0, 5.0),)),
+                                 Priors((Normal(7.0, 2.0),)),
+                                 Priors((Normal(7.0, 1.0),)),
+                                 Priors((Normal(7.0, 1.0),)),
+                                ))
+cs = [1.0, 2.0, 300.0, 4000.0, 5000.0]
 fpt = [NaN for _ in P̃]
 
 mcmcParams = MCMCParams(obs=obs, obsTimes=obsTime, priors=priors, fpt=fpt,
@@ -83,20 +86,20 @@ mcmcParams = MCMCParams(obs=obs, obsTimes=obsTime, priors=priors, fpt=fpt,
                                   #MetropolisHastingsUpdt(),
                                   MetropolisHastingsUpdt(),
                                   ),
-                        cs=NaN,
+                        cs=cs,
                         biasedPriors=priors,
-                        ladderOfPriors=NaN,
+                        ladderOfPriors=ladderOfPriors,
                         𝓣Ladder=NaN
                         )
 
 Random.seed!(4)
 (chain, 𝓣chain, logωs, accRateImp, accRateUpdt, accptRate𝓣, paths, 𝓣chainPth,
-    time_) = wmcmc(BiasingOfPriors(), fptOrPartObs, x0, 0.0, P˟, P̃, Ls, Σs,
+    time_) = wmcmc(SimulatedTemperingPriors(), fptOrPartObs, x0, 0.0, P˟, P̃, Ls, Σs,
                    numSteps, tKernel, τ, mcmcParams; solver=Vern7())
 
 print("imputation acceptance rate: ", accRateImp,
-      ", parameter update acceptance rate: ", accRateUpdt)
-
+      ", parameter update acceptance rate: ", accRateUpdt,
+      ", temperature acceptance rate: "); display(accptRate𝓣)
 
 df2 = savePathsToFile(paths, time_, joinpath(outdir, "sampled_paths.csv"))
 df3 = saveChainToFile(chain, joinpath(outdir, "chain.csv"))
@@ -108,13 +111,15 @@ set_default_plot_size(30cm, 20cm)
 plot(df2, x=:time, y=:x1, color=:idx, Geom.line,
      Scale.color_continuous(colormap=Scale.lab_gradient("#fceabb", "#a2acae",
                                                         "#36729e")))
-
+ιchain = [ι for (ι,_,_) in  𝓣chain]
 
 
 plot(df3, y=:x1, Geom.line)
 plot(df3, y=:x1_1, Geom.line)
 plot(df3, y=:x1_2, Geom.line)
 plot(df3, y=:x1_3, Geom.line)
+plot(y=ιchain, Geom.line)
+
 
 f1(x) = x
 f2(x) = sin(x)

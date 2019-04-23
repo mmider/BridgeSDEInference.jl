@@ -70,14 +70,14 @@ Initialise:
 ...
 """
 function initTemperature(::VanillaMCMC, N, mcmcParams, ::Any, ::Any)
-    ℒ = EmptyLadder()
+    @unpack priors = mcmcParams
+    ℒ = EmptyLadder(priors)
     1, fill(1, N), ℒ
 end
 
 function initTemperature(::BiasingOfPriors, N, mcmcParams, ::Any, ::Any)
     @unpack priors, biasedPriors = mcmcParams
-    ℒ = BiasedPr(Tuple(prior[1] for prior in priors[1]),
-                 Tuple(prior[1] for prior in biasedPriors[1]))
+    ℒ = BiasedPr(priors, biasedPriors)
 
     1, fill(1, N), ℒ
 end
@@ -97,9 +97,9 @@ function initTemperature(::SimulatedTemperingPriors, N, mcmcParams, ::Any, ::Any
 end
 
 function initTemperature(::SimulatedTempering, N, mcmcParams, P, XX)
-    @unpack cs, 𝓣Ladder = mcmcParams
+    @unpack priors, cs, 𝓣Ladder = mcmcParams
     ι, ιchain = ιForSimulated(N)
-    ℒ = SimTempLadder(𝓣Ladder, cs, P, XX)
+    ℒ = SimTempLadder(𝓣Ladder, cs, P, XX, priors)
     ι, ιchain, ℒ
 end
 
@@ -118,9 +118,9 @@ function initTemperature(::ParallelTemperingPriors, N, mcmcParams, ::Any, ::Any)
 end
 
 function initTemperature(::ParallelTempering, N, mcmcParams, Ps, XXs)
-    @unpack 𝓣Ladder = mcmcParams
+    @unpack priors, 𝓣Ladder = mcmcParams
     ι, ιchain = ιForParallel(𝓣Ladder, N)
-    ℒ = ParTempLadder(𝓣Ladder, Ps, XXs)
+    ℒ = ParTempLadder(𝓣Ladder, Ps, XXs, priors)
     ι, ιchain, ℒ
 end
 
@@ -134,7 +134,7 @@ function computeLogWeight!(ℒ::BiasedPr, θ, y, WW, ι, ll, ::ST) where ST
 end
 
 function computeLogWeight!(ℒ::SimTempPrLadder, θ, y, WW, ι, ll, ::ST) where ST
-    computeLogWeight!(ℒ, θ, ι)
+    computeLogWeight(ℒ, θ, ι)
 end
 
 function computeLogWeight!(ℒ::SimTempLadder, θ, y, WW, ι, ll, ::ST) where ST
@@ -142,7 +142,7 @@ function computeLogWeight!(ℒ::SimTempLadder, θ, y, WW, ι, ll, ::ST) where ST
 end
 
 function computeLogWeight!(ℒ::ParTempPrLadder, θ, y, WW, ι, idx, ll, ::ST) where ST
-    computeLogWeight!(ℒ, θ, ι)
+    computeLogWeight(ℒ, θ, ι)
 end
 
 function computeLogWeight!(ℒ::ParTempLadder, θ, y, WW, ι, idx, ll, ::ST) where ST
@@ -158,19 +158,19 @@ function update!(ℒ::BiasedPr, θ, y, WW, ι, ll, ::ST, verbose, it) where ST
 end
 
 function update!(ℒ::SimTempPrLadder, θ, y, WW, ι, ll, ::ST, verbose, it) where ST
-    update!(ℒ, θ, ι, ST(); verbose=vebose, it=it)
+    update!(ℒ, θ, ι, ST(); verbose=verbose, it=it)
 end
 
 function update!(ℒ::SimTempLadder, θ, y, WW, ι, ll, ::ST, verbose, it) where ST
-    update!(ℒ, θ, y, WW, ι, ll, ST(); verbose=vebose, it=it)
+    update!(ℒ, θ, y, WW, ι, ll, ST(); verbose=verbose, it=it)
 end
 
 function update!(ℒ::ParTempPrLadder, θs, ys, WWs, ι, lls, ::ST, verbose, it) where ST
-    update!(ℒ, θs, ι, ST(); verbose=vebose, it=it)
+    update!(ℒ, θs, ι, ST(); verbose=verbose, it=it)
 end
 
 function update!(ℒ::ParTempLadder, θs, ys, WWs, ι, lls, ::ST, verbose, it) where ST
-    udpate!(ℒ, θs, ys, WWs, ι, lls, ST(); verbose=vebose, it=it)
+    udpate!(ℒ, θs, ys, WWs, ι, lls, ST(); verbose=verbose, it=it)
 end
 
 function formatChains(ℒ::T, ιchain, logω, saveIter) where T
@@ -180,21 +180,20 @@ end
 function formatChains(ℒ::T, ιchain, logω, saveIter) where T <: SimLadders
     M = length(logω)
     m = length(ιchain)
-    𝓣chain = Vector{Tuple{Int64, Int64, Float64}}(undef, M)
-    𝓣chainPth = Vector{Tuple{Int64, Int64, Float64}}(undef, div(m, saveIter))
+    𝓣chain = Vector{Tuple{Int64, Float64, Float64}}(undef, M)
+    𝓣chainPth = Vector{Tuple{Int64, Float64, Float64}}(undef, div(m, saveIter))
     updtLen = div(M-1, m-1)
-
-    𝓣chain[1] = (ιchain[1], get𝓣(ℒ, 𝓣Ladder, 1), logω[1])
+    𝓣chain[1] = (ιchain[1], 𝓣ladder(ℒ, 1), logω[1])
     idx = 1
     pIdx = 1
-    for i in 1:m
+    for i in 1:m-1
         if i % saveIter == 0
-            𝓣chainPth[pIdx] = (ιchain[i], 𝓣Ladder(ℒ, ιchain[i]), logω[idx])
+            𝓣chainPth[pIdx] = (ιchain[i], 𝓣ladder(ℒ, ιchain[i]), logω[idx])
             pIdx += 1
         end
         for j in 1:updtLen
             idx += 1
-            𝓣chain[idx] = (ιchain[i], 𝓣Ladder(ℒ, ιchain[i]), logω[idx])
+            𝓣chain[idx] = (ιchain[i], 𝓣ladder(ℒ, ιchain[i]), logω[idx])
         end
     end
     𝓣chain, 𝓣chainPth
@@ -224,7 +223,7 @@ function wmcmc(::MCMCType, ::ObsScheme, y, w, P˟, P̃, Ls, Σs,
                numSteps, tKernel, τ, mcmcParams; solver::ST=Ralston3()
                ) where {MCMCType, ObsScheme <: AbstractObsScheme, ST}
     (@unpack obs, obsTimes, fpt, ρ, dt, saveIter, verbIter, updtCoord,
-             paramUpdt, skipForSave, updtType, biasedPriors = mcmcParams)
+             paramUpdt, skipForSave, updtType = mcmcParams)
     P = findProposalLaw(obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST())
     m = length(obs)-1
     updtLen = length(updtCoord)
@@ -253,18 +252,18 @@ function wmcmc(::MCMCType, ::ObsScheme, y, w, P˟, P̃, Ls, Σs,
             for j in 1:updtLen
                 ll, acc, θ = updateParam!(ObsScheme(), updtType[j], tKernel, θ,
                                           updtCoord[j], y, WW, Pᵒ, P, XXᵒ, XX,
-                                          ll, biasedPriors[ι][j], fpt, recomputeODEs[j];
+                                          ll, prior(ℒ,ι,j), fpt, recomputeODEs[j];
                                           solver=ST(), verbose=verbose, it=i)
                 numAccUpdt[j] += 1*acc
                 step += 1
                 logωs[step] = computeLogWeight!(ℒ, θ, y, WW, ι, ll, ST())
                 θchain[step] = copy(θ)
             end
+            ι = update!(ℒ, θ, y, WW, ι, ll, ST(), verbose, i)
+            ιchain[i+1] = ι
             verbose && print("------------------------------------------------",
                              "------\n")
         end
-        ι = update!(ℒ, θ, y, WW, ι, ll, ST(), verbose, i)
-        ιchain[i+1] = ι
     end
     Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))
     𝓣chain, 𝓣chainPth = formatChains(ℒ, ιchain, logωs, saveIter)
