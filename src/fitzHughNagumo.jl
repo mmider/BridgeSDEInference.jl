@@ -1,5 +1,4 @@
 using Bridge
-#Bridge.Models
 using StaticArrays
 import Bridge: b, σ, B, β, a, constdiff
 

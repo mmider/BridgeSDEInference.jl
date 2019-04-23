@@ -43,7 +43,7 @@ ODE satisfied by `Q`, i.e. d`Q` = `update`(...)dt
 """
 update(::QScalar, t, H, Hν, c, Q, P) = -0.5*tr(H * a(t, P))
 
-createTableau(::T) where T = throw(ArgumentError())
+createTableau(::T) where T = nothing
 createTableau(::Tsit5) = Tsit5Tableau()
 createTableau(::Vern7) = Vern7Tableau()
 
@@ -223,7 +223,6 @@ function llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)
     tt = X.tt
     xx = X.yy
     som = 0.0 # hopefully this instability gets optimised away
-    # som::Float64 = 0.0
     for i in 1:length(tt)-1-skip #skip last value, summing over n-1 elements
         s = tt[i]
         x = xx[i]

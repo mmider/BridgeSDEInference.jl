@@ -1,6 +1,5 @@
 import Base.valtype
 
-#const 𝕂 = ForwardDiff.Dual{Nothing,Float64,1}
 
 """
     ODESolverType
