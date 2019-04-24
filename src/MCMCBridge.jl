@@ -19,12 +19,17 @@ export RandomWalk
 # save_to_files.jl
 export savePathsToFile, saveChainToFile
 
+# priors.jl
+export Priors
+
 
 include("types.jl")
 include("ralston3.jl")
 include("rk4.jl")
 include("tsit5.jl")
 include("vern7.jl")
+
+include("priors.jl")
 
 include("guid_prop_bridge.jl")
 include("random_walk.jl")

@@ -389,6 +389,7 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtId
     for prior in priors
         llr += logpdf(prior, θᵒ) - logpdf(prior, θ)
     end
+
     recomputeODEs && (llr += lobslikelihood(Pᵒ[1], y) - lobslikelihood(P[1], y))
     if acceptSample(llr, verbose)
         for i in 1:m
@@ -491,8 +492,12 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
     accImpCounter = 0
     accUpdtCounter = [0 for i in 1:updtLen]
     θ = params(P˟)
-    θchain = Vector{typeof(θ)}(undef, numSteps+1)
+    θchain = Vector{typeof(θ)}(undef, numSteps*updtLen+1)
     θchain[1] = copy(θ)
+    recomputeODEs = [any([e in dependsOnParams(P[1].Pt) for e
+                         in idx(uc)]) for uc in updtCoord]
+
+    updtStepCounter = 1
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
         savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
@@ -500,17 +505,19 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
                           ρ=ρ, verbose=verbose, it=i)
         accImpCounter += 1*acc
         if paramUpdt
-            imod = 1+i%updtLen
-            recomputeODEs = any([e in dependsOnParams(P[1].Pt) for e
-                                                       in idx(updtCoord[imod])])
-            ll, acc, θ = updateParam!(ObsScheme(), updtType[imod], tKernel, θ,
-                                      updtCoord[imod], y, WW, Pᵒ, P, XXᵒ, XX,
-                                      ll, priors[imod], fpt, recomputeODEs;
-                                      solver=ST(), verbose=verbose, it=i)
-            accUpdtCounter[imod] += 1*acc
+            for j in 1:updtLen
+                ll, acc, θ = updateParam!(ObsScheme(), updtType[j], tKernel, θ,
+                                          updtCoord[j], y, WW, Pᵒ, P, XXᵒ, XX,
+                                          ll, priors[j], fpt, recomputeODEs[j];
+                                          solver=ST(), verbose=verbose, it=i)
+                accUpdtCounter[j] += 1*acc
+                updtStepCounter += 1
+                θchain[updtStepCounter] = copy(θ)
+            end
+            verbose && print("------------------------------------------------",
+                             "------\n")
         end
-        θchain[i+1] = copy(θ)
     end
     Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))
-    θchain, accImpCounter/numSteps, accUpdtCounter./numSteps.*updtLen, Paths, Time
+    θchain, accImpCounter/numSteps, accUpdtCounter./numSteps, Paths, Time
 end
