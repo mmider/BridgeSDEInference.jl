@@ -31,6 +31,8 @@ include("src/rk4.jl")
 include("src/tsit5.jl")
 include("src/vern7.jl")
 
+include("src/priors.jl")
+
 include("src/guid_prop_bridge.jl")
 include("src/random_walk.jl")
 include("src/mcmc.jl")
@@ -83,13 +85,16 @@ tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 #tKernel=RandomWalk([0.01, 0.1, 0.5, 0.01, 0.1],
 #                   [false, false, false, false, true])
-priors = ((MvNormal([0.0,0.0,0.0],
-                    diagm(0=>[1000.0, 1000.0, 1000.0])),),
-          #(ImproperPrior(),),
-          #(ImproperPrior(),),
-          #(ImproperPrior(),),
-          (ImproperPrior(),),
-          )
+#priors = ((MvNormal([0.0,0.0,0.0],
+#                    diagm(0=>[1000.0, 1000.0, 1000.0])),),
+#          #(ImproperPrior(),),
+#          #(ImproperPrior(),),
+#          #(ImproperPrior(),),
+#          (ImproperPrior(),),
+#          )
+
+priors = Priors((Normal(7.0, 5.0),))
+
 
 Random.seed!(4)
 (chain, accRateImp, accRateUpdt,
