@@ -174,16 +174,16 @@ end
 Initialise the object with proposal law and all the necessary containers needed
 for the simulation of the guided proposals
 """
-function findProposalLaw(xx, tt, P˟, P̃, Ls, Σs, τ; dt=1/5000,
-                         solver::ST=Ralston3()) where ST
-    m = length(xx)-1
+function findProposalLaw(::Type{K}, xx, tt, P˟, P̃, Ls, Σs, τ; dt=1/5000,
+                         solver::ST=Ralston3()) where {K,ST}
+    m = length(xx) - 1
     P = Array{ContinuousTimeProcess,1}(undef,m)
     for i in m:-1:1
         numPts = Int64(ceil((tt[i+1]-tt[i])/dt))+1
         t = τ(tt[i], tt[i+1]).( range(tt[i], stop=tt[i+1], length=numPts) )
-        P[i] = ( (i==m) ? GuidPropBridge(t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i];
+        P[i] = ( (i==m) ? GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i];
                                          solver=ST()) :
-                          GuidPropBridge(t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i],
+                          GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i],
                                          P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1],
                                          P[i+1].Q[1]; solver=ST()) )
     end
@@ -319,8 +319,8 @@ function impute!(::ObsScheme, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt;
     end
     llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, m, fpt) ? llᵒ : -Inf
 
-    verbose && print("impute: ", it, " ll ", round(ll, digits=3), " ",
-                     round(llᵒ, digits=3), " diff_ll: ", round(llᵒ-ll,digits=3))
+    verbose && print("impute: ", it, " ll ", round(value(ll), digits=3), " ",
+                     round(value(llᵒ), digits=3), " diff_ll: ", round(value(llᵒ-ll),digits=3))
     if acceptSample(llᵒ-ll, verbose)
         for i in 1:m
             XX[i], XXᵒ[i] = XXᵒ[i], XX[i]
@@ -435,9 +435,9 @@ function updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx,
     for i in 1:m
         llᵒ += llikelihood(LeftRule(), XX[i], P[i])
     end
-    verbose && print("update: ", it, " ll ", round(ll, digits=3), " ",
-                     round(llᵒ, digits=3), " diff_ll: ",
-                     round(llᵒ-ll,digits=3), "\n")
+    verbose && print("update: ", it, " ll ", round(value(ll), digits=3), " ",
+                     round(value(llᵒ), digits=3), " diff_ll: ",
+                     round(value(llᵒ-ll),digits=3), "\n")
     return llᵒ, true, θᵒ
 end
 
@@ -477,13 +477,13 @@ unknown coordinates of the parameter vector (the latter only if paramUpdt==true)
 - `solver`: numerical solver used for computing backward ODEs
 ...
 """
-function mcmc(::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, numSteps,
+function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, numSteps,
               tKernel, priors, τ; fpt=fill(NaN, length(obsTimes)-1), ρ=0.0,
               dt=1/5000, saveIter=NaN, verbIter=NaN,
               updtCoord=(Val((true,)),), paramUpdt=true,
               skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
-              solver::ST=Ralston3()) where {ObsScheme <: AbstractObsScheme, ST}
-    P = findProposalLaw(obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST())
+              solver::ST=Ralston3()) where {K, ObsScheme <: AbstractObsScheme, ST}
+    P = findProposalLaw(K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST())
     m = length(obs)-1
     updtLen = length(updtCoord)
     Wnr, WWᵒ, WW, XXᵒ, XX, Pᵒ, ll = initialise(ObsScheme(), P, m, y, w, fpt)

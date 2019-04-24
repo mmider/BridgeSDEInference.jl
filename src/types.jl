@@ -1,5 +1,6 @@
 import Base.valtype
 
+
 """
     ODESolverType
 
@@ -58,7 +59,7 @@ julia> moveToProperPlace([10,20,30], [1,2,3,4,5],
 function moveToProperPlace(ϑ, θ, ::Val{T}) where {T}
     v = valtype(Val{T}())
     m = length(v)
-    θᵒ = zeros(m)
+    θᵒ = zero(θ)
     idxNew = [i for i in 1:m if v[i]]
     idxOld = [i for i in 1:m if !v[i]]
     θᵒ[idxNew] .= ϑ
