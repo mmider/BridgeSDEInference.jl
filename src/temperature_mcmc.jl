@@ -55,19 +55,9 @@ struct ParallelTempering <: MCMCSampler end
 
 
 """
-    initTemperature(::T, N, 𝓣Ladder, κ)
+    initTemperature(::VanillaMCMC, N, mcmcParams, ::Any, ::Any)
 
-Initialise:
- - ι (current index on a ladder)
- - ιchain (history of ι)
-
-...
-# Arguments
-- `::T`: type of MCMC sampler
-- `N`: length with which ``ιchain` is to be initialised
-- `𝓣Ladder`: temperature ladder
-- `κ`: number of elements in a ladder
-...
+Set a ladder variable ℒ to a placeholder with information about a prior
 """
 function initTemperature(::VanillaMCMC, N, mcmcParams, ::Any, ::Any)
     @unpack priors = mcmcParams
@@ -75,6 +65,12 @@ function initTemperature(::VanillaMCMC, N, mcmcParams, ::Any, ::Any)
     1, fill(1, N), ℒ
 end
 
+"""
+    initTemperature(::BiasingOfPriors, N, mcmcParams, ::Any, ::Any)
+
+Set a ladder variable ℒ to a placeholder with information about a prior and a
+biased prior
+"""
 function initTemperature(::BiasingOfPriors, N, mcmcParams, ::Any, ::Any)
     @unpack priors, biasedPriors = mcmcParams
     ℒ = BiasedPr(priors, biasedPriors)
@@ -82,6 +78,11 @@ function initTemperature(::BiasingOfPriors, N, mcmcParams, ::Any, ::Any)
     1, fill(1, N), ℒ
 end
 
+"""
+    ιForSimulated(N)
+
+Set ι (index on a ladder) and ιchain (history of ι's)
+"""
 function ιForSimulated(N)
     ι = 1
     ιchain = Vector{Int64}(undef, N)
@@ -89,6 +90,13 @@ function ιForSimulated(N)
     ι, ιchain
 end
 
+
+"""
+    initTemperature(::SimulatedTemperingPriors, N, mcmcParams, ::Any, ::Any)
+
+Set a ladder of priors ℒ, starting ι (index on a ladder) and ιchain (history of
+ι's)
+"""
 function initTemperature(::SimulatedTemperingPriors, N, mcmcParams, ::Any, ::Any)
     @unpack ladderOfPriors = mcmcParams
     ι, ιchain = ιForSimulated(N)
@@ -124,15 +132,42 @@ function initTemperature(::ParallelTempering, N, mcmcParams, Ps, XXs)
     ι, ιchain, ℒ
 end
 
+function createθchain(::T, θ, numSteps, updtLen
+                      ) where T <: Union{VanillaMCMC,BiasingOfPriors}
+    Vector{typeof(θ)}(undef, numSteps*updtLen+1)
+end
 
+function createθchain(::T, θ, numSteps, updtLen
+                      ) where T <: Union{SimulatedTemperingPriors,
+                                         SimulatedTempering,
+                                         ParallelTemperingPriors,
+                                         ParallelTempering}
+    Vector{typeof(θ)}(undef, numSteps*(updtLen+1)+1)
+end
+
+"""
+    computeLogWeight!(ℒ::EmptyLadder, θ, y, WW, ι, ll, ::ST)
+
+Find a logarithm of weight for a sample (θ, y, WW, ι)
+"""
 function computeLogWeight!(ℒ::EmptyLadder, θ, y, WW, ι, ll, ::ST) where ST
     0.0
 end
 
+"""
+    computeLogWeight!(ℒ::BiasedPr, θ, y, WW, ι, ll, ::ST)
+
+Find a logarithm of weight for a sample (θ, y, WW, ι)
+"""
 function computeLogWeight!(ℒ::BiasedPr, θ, y, WW, ι, ll, ::ST) where ST
     computeLogWeight!(ℒ, θ)
 end
 
+"""
+    computeLogWeight!(ℒ::SimTempPrLadder, θ, y, WW, ι, ll, ::ST)
+
+Find a logarithm of weight for a sample (θ, y, WW, ι)
+"""
 function computeLogWeight!(ℒ::SimTempPrLadder, θ, y, WW, ι, ll, ::ST) where ST
     computeLogWeight(ℒ, θ, ι)
 end
@@ -149,14 +184,29 @@ function computeLogWeight!(ℒ::ParTempLadder, θ, y, WW, ι, idx, ll, ::ST) whe
     computeLogWeight!(ℒ, θ, y, WW, ι, idx, ll, ST())
 end
 
+"""
+    update!(ℒ::EmptyLadder, θ, y, WW, ι, ll, ::ST, verbose, it)
+
+No ladder, no need to update anything
+"""
 function update!(ℒ::EmptyLadder, θ, y, WW, ι, ll, ::ST, verbose, it) where ST
     ι
 end
 
+"""
+    update!(ℒ::BiasedPr, θ, y, WW, ι, ll, ::ST, verbose, it)
+
+No ladder, no need to update anything
+"""
 function update!(ℒ::BiasedPr, θ, y, WW, ι, ll, ::ST, verbose, it) where ST
     ι
 end
 
+"""
+    update!(ℒ::SimTempPrLadder, θ, y, WW, ι, ll, ::ST, verbose, it)
+
+Update ι---a position on a ladder
+"""
 function update!(ℒ::SimTempPrLadder, θ, y, WW, ι, ll, ::ST, verbose, it) where ST
     update!(ℒ, θ, ι, ST(); verbose=verbose, it=it)
 end
@@ -173,29 +223,25 @@ function update!(ℒ::ParTempLadder, θs, ys, WWs, ι, lls, ::ST, verbose, it) w
     udpate!(ℒ, θs, ys, WWs, ι, lls, ST(); verbose=verbose, it=it)
 end
 
-function formatChains(ℒ::T, ιchain, logω, saveIter) where T
+"""
+    formatChains(ℒ::T, ιchain, logω, savedAtIdx)
+
+No ladder, no need to return ladder positions and temperatures
+"""
+function formatChains(ℒ::T, ιchain, logω, savedAtIdx) where T
     NaN, NaN
 end
 
-function formatChains(ℒ::T, ιchain, logω, saveIter) where T <: SimLadders
-    M = length(logω)
-    m = length(ιchain)
-    𝓣chain = Vector{Tuple{Int64, Float64, Float64}}(undef, M)
-    𝓣chainPth = Vector{Tuple{Int64, Float64, Float64}}(undef, div(m, saveIter))
-    updtLen = div(M-1, m-1)
-    𝓣chain[1] = (ιchain[1], 𝓣ladder(ℒ, 1), logω[1])
-    idx = 1
-    pIdx = 1
-    for i in 1:m-1
-        if i % saveIter == 0
-            𝓣chainPth[pIdx] = (ιchain[i], 𝓣ladder(ℒ, ιchain[i]), logω[idx])
-            pIdx += 1
-        end
-        for j in 1:updtLen
-            idx += 1
-            𝓣chain[idx] = (ιchain[i], 𝓣ladder(ℒ, ιchain[i]), logω[idx])
-        end
-    end
+"""
+    formatChains(ℒ::T, ιchain, logω, savedAtIdx)
+
+Format a chain with history of (ι, 𝓣, logω) corresponding to samples on a θchain
+(ι, 𝓣, logω) are respectively position on a ladder, temperature level and
+log-weight. Do the same for the saved paths.
+"""
+function formatChains(ℒ::T, ιchain, logωs, savedAtIdx) where T <: SimLadders
+    𝓣chain = [(ι, 𝓣ladder(ℒ, ι), logω) for (ι, logω) in zip(ιchain, logωs)]
+    𝓣chainPth = 𝓣chain[savedAtIdx]
     𝓣chain, 𝓣chainPth
 end
 
@@ -218,6 +264,13 @@ end
     𝓣Ladder = NaN
 end
 
+function updateι(::T) where T
+    true
+end
+
+function updateι(::T) where T <: Union{VanillaMCMC, BiasingOfPriors}
+    false
+end
 
 function wmcmc(::MCMCType, ::ObsScheme, y, w, P˟, P̃, Ls, Σs,
                numSteps, tKernel, τ, mcmcParams; solver::ST=Ralston3()
@@ -232,19 +285,23 @@ function wmcmc(::MCMCType, ::ObsScheme, y, w, P˟, P̃, Ls, Σs,
     numAccImp = 0
     numAccUpdt = [0 for i in 1:updtLen]
     θ = params(P˟)
-    θchain = Vector{typeof(θ)}(undef, numSteps*updtLen+1)
+    θchain = createθchain(MCMCType(), θ, numSteps, updtLen)
     θchain[1] = copy(θ)
     recomputeODEs = [any([e in dependsOnParams(P[1].Pt) for e
                          in idx(uc)]) for uc in updtCoord]
 
-    ι, ιchain, ℒ = initTemperature(MCMCType(), numSteps+1, mcmcParams, P, XX)
-    logωs = Vector{Float64}(undef, numSteps*updtLen+1)
+    ι, ιchain, ℒ = initTemperature(MCMCType(), length(θchain), mcmcParams, P, XX)
+    logωs = Vector{Float64}(undef, length(θchain))
     logωs[1] = 0.0
 
     step = 1
+    savedAtIdx = []
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
         savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
+        if (i % saveIter == 0)
+            push!(savedAtIdx, step)
+        end
         ll, acc = impute!(ObsScheme(), Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt,
                           ρ=ρ, verbose=verbose, it=i)
         numAccImp += 1*acc
@@ -258,15 +315,22 @@ function wmcmc(::MCMCType, ::ObsScheme, y, w, P˟, P̃, Ls, Σs,
                 step += 1
                 logωs[step] = computeLogWeight!(ℒ, θ, y, WW, ι, ll, ST())
                 θchain[step] = copy(θ)
+                ιchain[step] = ι
             end
-            ι = update!(ℒ, θ, y, WW, ι, ll, ST(), verbose, i)
-            ιchain[i+1] = ι
+            if updateι(MCMCType())
+                ι = update!(ℒ, θ, y, WW, ι, ll, ST(), verbose, i)
+                step += 1
+                logωs[step] = computeLogWeight!(ℒ, θ, y, WW, ι, ll, ST())
+                θchain[step] = copy(θ)
+                ιchain[step] = ι
+            end
+
             verbose && print("------------------------------------------------",
                              "------\n")
         end
     end
     Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))
-    𝓣chain, 𝓣chainPth = formatChains(ℒ, ιchain, logωs, saveIter)
+    𝓣chain, 𝓣chainPth = formatChains(ℒ, ιchain, logωs, savedAtIdx)
     (θchain, 𝓣chain, logωs, numAccImp/numSteps, numAccUpdt./numSteps, accptRate(ℒ),
      Paths, 𝓣chainPth, Time)
 end

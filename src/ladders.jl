@@ -3,7 +3,6 @@ struct EmptyLadder
     prior::Priors
 end
 
-
 struct BiasedPr
     prior::Priors
     bPrior::Priors

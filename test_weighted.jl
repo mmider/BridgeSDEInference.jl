@@ -61,16 +61,18 @@ Ls = [L for _ in P̃]
 numSteps=1*10^4
 tKernel = RandomWalk([1.0, 1.0, 1.0, 1.0], [false, false, false, true])
 
-priors = Priors((Normal(1.0, 1000.0),))
+priors = Priors((Normal(1.0, 10.0),)) # 1.0, 1000.0
 logpdf(P::Normal, θ) = -0.5*log(2.0*π*P.σ^2) - 0.5*((θ[4]-P.μ)/P.σ)^2
-biasedPriors = Priors((Normal(6.0, 1.0),))
+biasedPriors = Priors((Normal(7.0, 5.0),))# 6.0, 1.0
 ladderOfPriors = LadderOfPriors((Priors((Normal(1.0, 10.0),)),
-                                 Priors((Normal(7.0, 5.0),)),
-                                 Priors((Normal(7.0, 2.0),)),
-                                 Priors((Normal(7.0, 1.0),)),
-                                 Priors((Normal(7.0, 1.0),)),
+                                 Priors((Normal(7.0, 5.0),)),#7,5
+                                 #Priors((Normal(7.0, 3.0),)),
+                                 #Priors((Normal(7.0, 2.0),)),
+                                 #Priors((Normal(7.0, 1.5),)),
+                                 #Priors((Normal(7.0, 1.2),)),
+                                 #Priors((Normal(7.0, 1.0),)),
                                 ))
-cs = [1.0, 2.0, 300.0, 4000.0, 5000.0]
+cs = [1.0, 2.0]#, 5.0, 8.0*10^1, 2.0*10^3, 1.0*10^5]#, 1.7*10^6]
 fpt = [NaN for _ in P̃]
 
 mcmcParams = MCMCParams(obs=obs, obsTimes=obsTime, priors=priors, fpt=fpt,
@@ -87,14 +89,14 @@ mcmcParams = MCMCParams(obs=obs, obsTimes=obsTime, priors=priors, fpt=fpt,
                                   MetropolisHastingsUpdt(),
                                   ),
                         cs=cs,
-                        biasedPriors=priors,
+                        biasedPriors=biasedPriors,
                         ladderOfPriors=ladderOfPriors,
                         𝓣Ladder=NaN
                         )
 
 Random.seed!(4)
 (chain, 𝓣chain, logωs, accRateImp, accRateUpdt, accptRate𝓣, paths, 𝓣chainPth,
-    time_) = wmcmc(SimulatedTemperingPriors(), fptOrPartObs, x0, 0.0, P˟, P̃, Ls, Σs,
+    time_) = wmcmc(BiasingOfPriors(), fptOrPartObs, x0, 0.0, P˟, P̃, Ls, Σs,
                    numSteps, tKernel, τ, mcmcParams; solver=Vern7())
 
 print("imputation acceptance rate: ", accRateImp,
@@ -119,7 +121,11 @@ plot(df3, y=:x1_1, Geom.line)
 plot(df3, y=:x1_2, Geom.line)
 plot(df3, y=:x1_3, Geom.line)
 plot(y=ιchain, Geom.line)
-
+θchain = [θ[4] for θ in chain]
+θchain1 = [θ[4] for (θ,(ι,_,_)) in  zip(chain, 𝓣chain) if ι == 1]
+θchain2 = [θ[4] for (θ,(ι,_,_)) in  zip(chain, 𝓣chain) if ι == 2]
+plot(y=θchain1, Geom.line)
+plot(y=θchain2, Geom.line)
 
 f1(x) = x
 f2(x) = sin(x)
@@ -128,11 +134,20 @@ f3(x) = x^2
 
 
 ωs = exp.(logωs)
+plot(x=ωs, Geom.histogram)
 testsM = [mean(f.(df3.x1_3) .* ωs) for f in [f1, f2, f3]]
 testsW = [sum(f.(df3.x1_3) .* ωs)/sum(ωs) for f in [f1, f2, f3]]
 for i in 1:10
-    js = rand(1:length(ωs), 10000)
+    js = rand(1:length(ωs), 1000)
     print([sum(f.(df3.x1_3[js]) .* ωs[js])/sum(ωs[js]) for f in [f1, f2, f3]], "\n")
 end
 
 tests = [mean(f.(df3.x1_3)) for f in [f1, f2, f3]]
+
+for i in 1:10
+    js = rand(1:length(θchain1), 100)
+    teston1 = [mean(f.(θchain1[js])) for f in [f1, f2, f3]]
+    print(teston1, "\n")
+end
+
+teston1 = [mean(f.(θchain1)) for f in [f1, f2, f3]]
