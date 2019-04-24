@@ -1,3 +1,4 @@
+using GaussianDistributions
 """
     conjugateDraw(θ, XX, P, prior, ::updtIdx)
 
@@ -15,7 +16,7 @@ function conjugateDraw(θ, XX, P, prior, updtIdx)
     Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
     Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
     μₚₒₛₜ = Σ * (μ + Vector(prior.Σ\prior.μ))
-    rand(MvNormal(μₚₒₛₜ, Matrix{Float64}(Σ)))
+    rand(Gaussian(μₚₒₛₜ, Σ))
 end
 mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
 @generated function thetaex(::Val{T}, θ) where T

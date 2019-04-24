@@ -1,5 +1,9 @@
 module MCMCBridge
 
+using ForwardDiff
+using ForwardDiff: value
+
+
 # types.jl
 export ImproperPrior, idx
 

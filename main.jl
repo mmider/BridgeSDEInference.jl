@@ -5,10 +5,9 @@ outdir="output"
 
 using Bridge, StaticArrays, Distributions
 using Test, Statistics, Random, LinearAlgebra
-using Bridge.Models: ℝ
 using DataFrames
 using CSV
-
+const ℝ = SVector{N,T} where {N,T}
 # specify observation scheme
 L = @SMatrix [1. 0.]
 Σdiagel = 10^(-10)
@@ -81,7 +80,7 @@ priors = ((MvNormal([0.0,0.0,0.0],
 
 Random.seed!(4)
 (chain, accRateImp, accRateUpdt,
-    paths, time_) = mcmc(fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
+    paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.995,
