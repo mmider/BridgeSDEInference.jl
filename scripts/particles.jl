@@ -37,26 +37,30 @@ col = [Node(RGBA{Float32}(0.0, 0.0, 0.0, 0.0)) for i in 1:k]
 c = 1
 ms = 0.01
 i = 1;
-p = Scene(resolution=(1000,1000))
+R = 2.0
+p = Scene(resolution=(1000,1000), limits=FRect(-R, -R, 2R, 2R))
 for i in randperm(k)
     scatter!(p, x[i], color = col[i], markersize = ms)
 end
 display(p)
 
-function update!(t, x, y, dt, P, W)
+rebirth(α, R) = x -> (rand() > α  ? x : (2rand(typeof(x)) .- 1)*R)
+function update!(t, x, y, dt, P, W, jump)
     for i in eachindex(x)
-        y[i] = x[i] + b(t, x[i], P)*dt + σ(t, x[i], P)*rand(increment(dt, W))
+        y[i] = jump(x[i])
+        y[i] = y[i] + b(t, y[i], P)*dt + σ(t, y[i], P)*rand(increment(dt, W))
     end
     y
 end
 
-update!(x, y, dt, P, W) = update!(NaN, x, y, dt, P, W)
+update!(x, y, dt, P, W, jump = indentity) = update!(NaN, x, y, dt, P, W, jump)
 sleep(1)
 N = 3000
+jump = rebirth(0.001, R)
 for i in 1:N
     global c
     cnew = mod1(c+1, k)
-    update!(x[c][], x[cnew][], dt, P, Wnr)
+    update!(x[c][], x[cnew][], dt, P, Wnr, jump)
     c = cnew
     x[c][] = x[cnew][]
 
