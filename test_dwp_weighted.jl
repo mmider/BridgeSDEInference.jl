@@ -1,7 +1,6 @@
 mkpath("output/")
 outdir="output"
 
-
 using Bridge, StaticArrays, Distributions
 using Test, Statistics, Random, LinearAlgebra
 using Bridge.Models: ℝ
@@ -9,9 +8,9 @@ using DataFrames
 using CSV
 
 L = @SMatrix [1.0]
-Σ = @SMatrix[10^(-4)]
+Σ = @SMatrix[10^(-6)]
 
-include("src/sinDiffusion.jl")
+include("src/double_well_potential.jl")
 include("src/types.jl")
 include("src/ralston3.jl")
 include("src/rk4.jl")
@@ -31,8 +30,8 @@ include("src/temperature_mcmc.jl")
 x0 = ℝ{1}(0.0)
 
 fptOrPartObs = PartObs()
-θ₀ = [2.0, -2.0, 8.0, 0.5]
-P˟ = SinDiffusion(θ₀...)
+θ₀ = [1.0, 2.0, 0.5]
+P˟ = DoubleWellPotential(θ₀...)
 
 Random.seed!(4)
 function simulateSegment(::S) where S
@@ -53,16 +52,16 @@ obs, obsTime = simulateSegment(0.0)
 #obs = ℝ{1}.([0.0, 0.0])
 #obsTime = [0.0, 8.0]
 
-P̃ = [SinDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀, T, u, v) in
+P̃ = [DoubleWellPotentialAux(θ₀..., t₀, u[1], T, v[1]) for (t₀, T, u, v) in
         zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^5
-tKernel = RandomWalk([1.0, 1.0, 1.0, 1.0], [false, false, false, true])
+numSteps=1*10^4
+tKernel = RandomWalk([1.0, 1.0, 1.0], [false, false, true])
 
 priors = Priors((Normal(1.0, 10.0),)) # 1.0, 1000.0
-logpdf(P::Normal, θ) = -0.5*log(2.0*π*P.σ^2) - 0.5*((θ[4]-P.μ)/P.σ)^2
+logpdf(P::Normal, θ) = -0.5*log(2.0*π*P.σ^2) - 0.5*((θ[3]-P.μ)/P.σ)^2
 biasedPriors = Priors((Normal(7.0, 5.0),))# 6.0, 1.0
 ladderOfPriors = LadderOfPriors((Priors((Normal(1.0, 10.0),)),
                                  Priors((Normal(7.0, 5.0),)),#7,5
@@ -80,7 +79,7 @@ mcmcParams = MCMCParams(obs=obs, obsTimes=obsTime, priors=priors, fpt=fpt,
                         updtCoord=(#Val((true, false, false, false)),
                                    #Val((false, true, false, false)),
                                    #Val((false, false, true, false)),
-                                   Val((false, false, false, true)),
+                                   Val((false, false, true)),
                                    ),
                         paramUpdt=true, skipForSave=10^1,
                         updtType=(#MetropolisHastingsUpdt(),
@@ -96,7 +95,7 @@ mcmcParams = MCMCParams(obs=obs, obsTimes=obsTime, priors=priors, fpt=fpt,
 
 Random.seed!(4)
 (chain, 𝓣chain, logωs, accRateImp, accRateUpdt, accptRate𝓣, paths, 𝓣chainPth,
-    time_) = wmcmc(SimulatedTemperingPriors(), fptOrPartObs, x0, 0.0, P˟, P̃, Ls, Σs,
+    time_) = wmcmc(VanillaMCMC(), fptOrPartObs, x0, 0.0, P˟, P̃, Ls, Σs,
                    numSteps, tKernel, τ, mcmcParams; solver=Vern7())
 
 print("imputation acceptance rate: ", accRateImp,
@@ -121,9 +120,9 @@ plot(df3, y=:x1_1, Geom.line)
 plot(df3, y=:x1_2, Geom.line)
 plot(df3, y=:x1_3, Geom.line)
 plot(y=ιchain, Geom.line)
-θchain = [θ[4] for θ in chain]
-θchain1 = [θ[4] for (θ,(ι,_,_)) in  zip(chain, 𝓣chain) if ι == 1]
-θchain2 = [θ[4] for (θ,(ι,_,_)) in  zip(chain, 𝓣chain) if ι == 2]
+θchain = [θ[3] for θ in chain]
+θchain1 = [θ[3] for (θ,(ι,_,_)) in  zip(chain, 𝓣chain) if ι == 1]
+θchain2 = [θ[3] for (θ,(ι,_,_)) in  zip(chain, 𝓣chain) if ι == 2]
 plot(y=θchain1, Geom.line)
 plot(y=θchain2, Geom.line)
 
@@ -145,7 +144,7 @@ end
 tests = [mean(f.(df3.x1_3)) for f in [f1, f2, f3]]
 
 for i in 1:10
-    js = rand(1:length(θchain1), 1000)
+    js = rand(1:length(θchain1), 100)
     teston1 = [mean(f.(θchain1[js])) for f in [f1, f2, f3]]
     print(teston1, "\n")
 end
