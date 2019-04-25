@@ -31,14 +31,14 @@ X, _ = simulateSegment(0.0, tt, x0, P, Wnr)
 k = 50
 
 
-xraw = [X.x[1:10:end] for i in 1:k]
+xraw = [X.x[1:20:end] for i in 1:k]
 x = [Node(xraw[i]) for i in 1:k]
 col = [Node(RGBA{Float32}(0.0, 0.0, 0.0, 0.0)) for i in 1:k]
 c = 1
 ms = 0.01
 i = 1;
 R = 2.0
-p = Scene(resolution=(1000,1000), limits=FRect(-R, -R, 2R, 2R))
+p = Scene(resolution=(800,800), limits=FRect(-R, -R, 2R, 2R))
 for i in randperm(k)
     scatter!(p, x[i], color = col[i], markersize = ms)
 end
@@ -55,8 +55,9 @@ end
 
 update!(x, y, dt, P, W, jump = indentity) = update!(NaN, x, y, dt, P, W, jump)
 sleep(1)
-N = 3000
+N = 300
 jump = rebirth(0.001, R)
+#record(p, "output/fitzhugh.mp4", 1:N) do i
 for i in 1:N
     global c
     cnew = mod1(c+1, k)
@@ -70,18 +71,3 @@ for i in 1:N
     end
     sleep(1e-8)
 end
-#=
-record(p, "output/fitzhugh.mp4", 1:N) do i
-    global c
-    cnew = mod1(c+1, k)
-    update!(x[c][], x[cnew][], dt, P, Wnr)
-    c = cnew
-    x[c][] = x[cnew][]
-    #f = mod1(i, 3k)/3k
-    #col[mod1(c, k)][] = RGB{Float32}(f, f, 1-f)
-    for i in 0:k-1
-        f = (i + 5*(i!=0))/(k+5)
-        col[mod1(c-i, k)][] = RGB{Float32}(f, f, 1.0)
-    end
-end
-=#
