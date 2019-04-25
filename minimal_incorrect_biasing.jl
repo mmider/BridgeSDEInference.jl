@@ -7,7 +7,7 @@ using ForwardDiff: value
 const ℝ = SVector{N,T} where {N,T}
 # specify observation scheme
 L = @SMatrix [1.0]
-Σdiagel = 10^(-5)
+Σdiagel = 10^(-4)
 Σ = @SMatrix [Σdiagel]
 
 include("src/sin_diffusion.jl")
@@ -101,7 +101,7 @@ straightMean = [mean(f.(σchain)) for f in [f1, f2, f3]]
 P˟ = SinDiffusion(θ₀...)
 P̃ = [SinDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀, T, u, v) in
         zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
-biasedPriors = Priors((Normal(7.0, 5.0),))
+biasedPriors = Priors((Normal(100.0, 5.0),))
 Random.seed!(4)
 (chainB, accRateImpB, accRateUpdtB,
     pathsB, time_B) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
@@ -128,5 +128,6 @@ Random.seed!(4)
 
 σchainB = [θ[4] for θ in chainB]
 # these are weights
+straightMeanB = [mean(f.(σchainB)) for f in [f1, f2, f3]]
 ωs = exp.(logpdf.(priors[1], chainB)-logpdf.(biasedPriors[1], chainB))
 weightedMean = [sum(f.(σchainB) .* ωs)/sum(ωs) for f in [f1, f2, f3]]
