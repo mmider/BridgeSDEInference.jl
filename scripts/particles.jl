@@ -7,6 +7,7 @@ using Colors
 import Trajectories: Trajectory
 using Random
 Trajectory(X::SamplePath) = Trajectory(X.tt, X.yy)
+RECORD = false
 
 const parametrisation = :regular
 include("../src/fitzHughNagumo.jl")
