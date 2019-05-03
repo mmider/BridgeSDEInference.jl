@@ -8,7 +8,7 @@ import Trajectories: Trajectory
 using Random
 Trajectory(X::SamplePath) = Trajectory(X.tt, X.yy)
 RECORD = false
-
+const ℝ = SVector
 const parametrisation = :regular
 include("../src/fitzHughNagumo.jl")
 P = FitzhughDiffusion(0.1, 0.0, 1.5, 0.8, 0.3)
@@ -17,7 +17,7 @@ Wnr = Wiener()
 x0 = ℝ{2}(-0.5, -0.6)
 L = @SMatrix [1. 0.]
 
-dt = 1e-3
+dt = 5e-4
 T = 30.0
 tt = 0.0:dt:T
 
@@ -30,14 +30,14 @@ end
 
 X, _ = simulateSegment(0.0, tt, x0, P, Wnr)
 
-k = 50
-n = 500
+k = 250
+n = 2500
 pts = rand(X.x, n)
 xraw = [copy(pts) for i in 1:k]
 x = [Node(xraw[i]) for i in 1:k]
 col = [Node(RGBA{Float32}(0.0, 0.0, 0.0, 0.0)) for i in 1:k]
 c = 1
-ms = 0.03
+ms = 0.02
 i = 1;
 R = 1.5
 limits = FRect(-R, -R, 2R, 2R)
@@ -66,7 +66,7 @@ end
 update!(x, y, dt, P, W, jump = indentity) = update!(NaN, x, y, dt, P, W, jump)
 sleep(1)
 N = 4000
-jump = rebirth(0.001, R)
+jump = rebirth(0.0001, R)
 for i in 1:N
     global c
     cnew = mod1(c+1, k)
@@ -76,9 +76,9 @@ for i in 1:N
 
     for i in 0:k-1
         f = (i + 5*(i!=0))/(k+5)
-        col[mod1(c-i, k)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-0.7f)/2)
+        col[mod1(c-i, k)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-sqrt(f))/3)
     end
-    sleep(1e-8)
+    sleep(1e-10)
 end
 
 if RECORD
@@ -91,7 +91,7 @@ record(p, "output/fitzhugh.mp4", 1:(N÷10)) do i
 
     for i in 0:k-1
         f = (i + 5*(i!=0))/(k+5)
-        col[mod1(c-i, k)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-0.7f)/2)
+        col[mod1(c-i, k)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-sqrt(f))/3)
     end
     sleep(1e-8)
 end
