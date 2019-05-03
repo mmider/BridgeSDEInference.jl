@@ -7,7 +7,7 @@ using Bridge, StaticArrays, Distributions
 using Test, Statistics, Random, LinearAlgebra
 using DataFrames
 using CSV
-const ℝ = SVector{N,T} where {N,T}
+const ℝ = SVector
 # specify observation scheme
 L = @SMatrix [1. 0.]
 Σdiagel = 10^(-10)
