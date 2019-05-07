@@ -194,6 +194,13 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess
                                         P.H, P.H⁻¹, P.Hν, P.c, P.Q, P.L, P.v,
                                         P.Σ)
     end
+
+    function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3},
+                            L::S1, v::S2,
+                            Σ::S3) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3}
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(P.Target, P.Pt, P.tt, P.H, P.H⁻¹,
+                                          P.Hν, P.c, P.Q, L, v, Σ)
+    end
 end
 
 

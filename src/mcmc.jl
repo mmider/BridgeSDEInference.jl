@@ -49,6 +49,13 @@ Flag for performing update according to Metropolis Hastings step
 """
 struct MetropolisHastingsUpdt <: ParamUpdateType end
 
+
+setBlocking(𝔅::NoBlocking, ::Any, ::Any, ::Any, ::Any) = 𝔅
+
+function setBlocking(::ChequeredBlocking, blockingParams, P, WW, XX)
+    ChequeredBlocking(blockingParams..., P, WW, XX)
+end
+
 """
     FPTInfo{S,T}
 
@@ -482,7 +489,8 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
               dt=1/5000, saveIter=NaN, verbIter=NaN,
               updtCoord=(Val((true,)),), paramUpdt=true,
               skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
-              solver::ST=Ralston3()) where {K, ObsScheme <: AbstractObsScheme, ST}
+              blocking::Blocking=NoBlocking(), blockingParams=([], 0.1),
+              solver::ST=Ralston3()) where {K, ObsScheme <: AbstractObsScheme, ST, Blocking}
     P = findProposalLaw(K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST())
     m = length(obs)-1
     updtLen = length(updtCoord)
@@ -493,6 +501,10 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
     θ = params(P˟)
     θchain = Vector{typeof(θ)}(undef, numSteps+1)
     θchain[1] = copy(θ)
+
+    𝔅 = setBlocking(blocking, blockingParams, P, WW, XX)
+    display(𝔅)
+
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
         savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
