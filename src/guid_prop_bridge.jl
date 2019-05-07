@@ -155,8 +155,8 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess
     H::Vector{TH}       # Matrix H evaluated at time-points `tt`
     H⁻¹::Vector{TH⁻¹}   # currently not used
     Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
-    c::Vector{K}  # scalar c evaluated at time-points `tt`
-    Q::Vector{K}  # scalar Q evaluated at time-points `tt`
+    c::Vector{K}        # scalar c evaluated at time-points `tt`
+    Q::Vector{K}        # scalar Q evaluated at time-points `tt`
     L::S1               # observation operator (for observation at the end-pt)
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
