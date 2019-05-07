@@ -1,6 +1,6 @@
 #NOTE this import is bad programming, will need to change
 import Main: clone, conjugateDraw, dependsOnParams, params
-
+using ForwardDiff: value
 #dependsOnParams(::ContinuousTimeProcess) = (,)
 
 """
@@ -302,9 +302,10 @@ Imputation step of the MCMC scheme.
 - `headStart`: flag for whether to 'ease into' fpt conditions
 ...
 """
-function impute!(::ObsScheme, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt;
-                 ρ=0.0, verbose=false, it=NaN, headStart=false) where
-                 ObsScheme <: AbstractObsScheme
+function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll,
+                 fpt; ρ=0.0, verbose=false, it=NaN, headStart=false,
+                 solver::ST=Ralston3()) where
+                 {ObsScheme <: AbstractObsScheme, ST}
     m = length(WWᵒ)
     for i in 1:m
         sample!(WWᵒ[i], Wnr)
@@ -337,6 +338,74 @@ function impute!(::ObsScheme, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt;
     else
         return ll, false
     end
+end
+
+
+# should be easily parallelisable, currently FPT is not supported
+# (an easy fix involves changing definition of function checkFullPathFpt())
+function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P,
+                 ll, fpt; ρ=0.0, verbose=false, it=NaN, headStart=false,
+                 solver::ST=Ralston3()) where
+                 {ObsScheme <: AbstractObsScheme, ST}
+    θ = params(P[1].Target)
+    𝔅 = next(𝔅, XX, θ)
+    solveBackRec!(𝔅.P, ST())
+
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            XX[i], 𝔅.XX[i] = 𝔅.XX[i], XX[i]
+        end
+    end
+
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            invSolve!(Euler(), 𝔅.XX[i], 𝔅.WW[i], 𝔅.P[i])
+        end
+    end
+
+    for block in 𝔅.blocks[𝔅.idx]
+        y₀ = copy(𝔅.XX[block[1]].yy[1])
+        for i in block
+            sample!(𝔅.WWᵒ[i], Wnr)
+            𝔅.WWᵒ[i].yy .= sqrt(1-ρ)*𝔅.WWᵒ[i].yy + sqrt(ρ)*𝔅.WW[i].yy
+            solve!(Euler(), 𝔅.XXᵒ[i], y₀, 𝔅.WWᵒ[i], 𝔅.P[i])
+            y₀ = 𝔅.XXᵒ[i].yy[end]
+        end
+
+        llᵒ = 0.0
+        llPrev = 0.0
+        for i in block
+            llᵒ += llikelihood(LeftRule(), 𝔅.XXᵒ[i], 𝔅.P[i])
+            llPrev += llikelihood(LeftRule(), 𝔅.XX[i], 𝔅.P[i])
+        end
+        verbose && print("impute: ", it, " ll ", round(value(llPrev), digits=3), " ",
+                         round(value(llᵒ), digits=3), " diff_ll: ", round(value(llᵒ-llPrev),digits=3))
+        if acceptSample(llᵒ-llPrev, verbose)
+            for i in block
+                𝔅.XX[i], 𝔅.XXᵒ[i] = 𝔅.XXᵒ[i], 𝔅.XX[i]
+            end
+        end
+    end
+
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            XX[i], 𝔅.XX[i] = 𝔅.XX[i], XX[i]
+        end
+    end
+
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            invSolve!(Euler(), XX[i], WW[i], P[i])
+        end
+    end
+
+    ll = 0.0
+    for i in length(P)
+        ll += llikelihood(LeftRule(), XX[i], P[i])
+    end
+
+    # acceptance indicator is nonsensicacl, should be proportion of acceptance
+    return ll, true
 end
 
 
@@ -508,8 +577,8 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
         savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
-        ll, acc = impute!(ObsScheme(), Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt,
-                          ρ=ρ, verbose=verbose, it=i)
+        ll, acc = impute!(ObsScheme(), 𝔅, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt,
+                          ρ=ρ, verbose=verbose, it=i, solver=ST())
         accImpCounter += 1*acc
         if paramUpdt
             imod = 1+i%updtLen

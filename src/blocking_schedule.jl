@@ -15,6 +15,7 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     vs
     Σs
     knots::Tuple{Vector{Int64}, Vector{Int64}}
+    blocks::Tuple{Vector{Vector{Int64}}, Vector{Vector{Int64}}}
     idx::Int64
 
     function ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64, P::TP, WW::TWW,
@@ -35,35 +36,48 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
         ΣsA = findΣ(knotsA)
         ΣsB = findΣ(knotsB)
 
+        function knotsToBlocks(knots, idxLast, i)
+            M = length(knots)
+            if M >= i > 1
+                return (knots[i-1]+1):knots[i]
+            elseif i == 1
+                return 1:knots[1]
+            else
+                return (knots[M]+1):idxLast
+            end
+        end
+        blocks = ([collect(knotsToBlocks(knotsA, length(P), i)) for i in 1:length(knotsA)+1],
+                  [collect(knotsToBlocks(knotsB, length(P), i)) for i in 1:length(knotsB)+1])
+
         new{TP,TWW,TXX}(deepcopy(P), deepcopy(WW), deepcopy(WW), deepcopy(XX),
                         deepcopy(XX), (LsA, LsB), vs, (ΣsA, ΣsB),
-                        (knotsA, knotsB), 1)
+                        (knotsA, knotsB), blocks, 1)
     end
 
     function ChequeredBlocking(𝔅::ChequeredBlocking{TP̃, TWW, TXX}, P::TP,
                                idx::Int64) where {TP̃,TP,TWW,TXX}
-        new{TP,TWW,TXX}(P, 𝔅.XX, 𝔅.XXᵒ, 𝔅.WW, 𝔅.WWᵒ, 𝔅.Ls, 𝔅.vs, 𝔅.Σs,
-                        𝔅.knots, idx)
+        new{TP,TWW,TXX}(P, 𝔅.WW, 𝔅.WWᵒ, 𝔅.XX, 𝔅.XXᵒ, 𝔅.Ls, 𝔅.vs, 𝔅.Σs,
+                        𝔅.knots, 𝔅.blocks, idx)
     end
 
     function ChequeredBlocking()
         new{Nothing, Nothing, Nothing}(nothing, nothing, nothing, nothing,
                                        nothing, nothing, nothing, nothing,
-                                       ([0.],[0.]), 1)
+                                       ([0],[0]),([[0]],[[0]]), 1)
     end
 end
 
 function findEndPts(𝔅::ChequeredBlocking, XX, idx)
-    [( k in 𝔅.knots[idx] ? 𝔅.vs[k] : X[end]) for (k,X) in enumerate(XX)]
+    [( k in 𝔅.knots[idx] ? X.yy[end] : 𝔅.vs[k]) for (k,X) in enumerate(XX)]
 end
 
-function next(𝔅::ChequeredBlocking, XX)
+function next(𝔅::ChequeredBlocking, XX, θ)
     newIdx = (𝔅.idx % 2) + 1
     vs = findEndPts(𝔅, XX, newIdx)
     Ls = 𝔅.Ls[newIdx]
     Σs = 𝔅.Σs[newIdx]
 
-    P = [GuidPropBridge(𝔅.P[i], Ls[i], vs[i], Σs[i]) for (i,_) in enumerate(𝔅.P)]
+    P = [GuidPropBridge(𝔅.P[i], Ls[i], vs[i], Σs[i], θ) for (i,_) in enumerate(𝔅.P)]
 
     ChequeredBlocking(𝔅, P, newIdx)
 end

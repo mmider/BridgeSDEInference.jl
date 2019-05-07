@@ -35,6 +35,7 @@ include("src/guid_prop_bridge.jl")
 include("src/random_walk.jl")
 include("src/blocking_schedule.jl")
 include("src/mcmc.jl")
+include("src/path_to_wiener.jl")
 
 include("src/save_to_files.jl")
 
@@ -79,7 +80,7 @@ P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^1
+numSteps=1*10^3
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 #tKernel=RandomWalk([0.01, 0.1, 0.5, 0.01, 0.1],
@@ -112,7 +113,7 @@ blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-6))
                                     #Val((false, false, true, false, false)),
                                     Val((false, false, false, false, true)),
                                     ),
-                         paramUpdt=true,
+                         paramUpdt=false,
                          updtType=(ConjugateUpdt(),
                                    #MetropolisHastingsUpdt(),
                                    #MetropolisHastingsUpdt(),
@@ -152,7 +153,7 @@ else
     plotPaths(df2, obs=[Float64.(df.x1), [x0[2]]],
               obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
 end
-plotChain(df3, coords=[1])
-plotChain(df3, coords=[2])
-plotChain(df3, coords=[3])
-plotChain(df3, coords=[5])
+#plotChain(df3, coords=[1])
+#plotChain(df3, coords=[2])
+#plotChain(df3, coords=[3])
+#plotChain(df3, coords=[5])

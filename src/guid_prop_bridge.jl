@@ -81,6 +81,8 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, Q
     tableau = createTableau(ST())
 
     H[end] = H⁽ᵀ⁺⁾ + L' * (Σ \ L)
+    #print(L, ", ", Σ, ", ", v)
+
     Hν[end] = Hν⁽ᵀ⁺⁾ + L' * (Σ \ v)
     c[end] = c⁽ᵀ⁺⁾ + v' * (Σ \ v)
     Q[end] = Q⁽ᵀ⁺⁾ + 0.5*m*log(2.0*π) + 0.5*log(abs(det(Σ)))
@@ -196,10 +198,11 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess
     end
 
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3},
-                            L::S1, v::S2,
-                            Σ::S3) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3}
-        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(P.Target, P.Pt, P.tt, P.H, P.H⁻¹,
-                                          P.Hν, P.c, P.Q, L, v, Σ)
+                            L::S1, v::S2, Σ::S3,
+                            θ) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3}
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(clone(P.Target,θ), clone(P.Pt,θ),
+                                          P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.Q, L,
+                                          v, Σ)
     end
 end
 
