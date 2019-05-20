@@ -93,6 +93,6 @@ record(p, "output/fitzhugh.mp4", 1:(N÷10)) do i
         f = (i + 5*(i!=0))/(k+5)
         col[mod1(c-i, k)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-sqrt(f))/3)
     end
-    sleep(1e-8)
+    yield()
 end
 end
