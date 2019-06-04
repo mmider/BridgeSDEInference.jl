@@ -378,6 +378,7 @@ function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ,
             llᵒ += llikelihood(LeftRule(), 𝔅.XXᵒ[i], 𝔅.P[i])
             llPrev += llikelihood(LeftRule(), 𝔅.XX[i], 𝔅.P[i])
         end
+        
         verbose && print("impute: ", it, " ll ", round(value(llPrev), digits=3), " ",
                          round(value(llᵒ), digits=3), " diff_ll: ", round(value(llᵒ-llPrev),digits=3))
         if acceptSample(llᵒ-llPrev, verbose)

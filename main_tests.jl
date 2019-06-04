@@ -96,14 +96,14 @@ priors = ((MvNormal([0.0,0.0,0.0],
 Random.seed!(4)
 
 𝔅 = ChequeredBlocking()
-blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-6))
+blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-4))
 
 
 (chain, accRateImp, accRateUpdt,
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.995,
+                         ρ=0.5,
                          dt=1/5000,
                          saveIter=3*10^2,
                          verbIter=10^2,
