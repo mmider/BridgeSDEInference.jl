@@ -5,11 +5,12 @@ using DataFrames
 using CSV
 
 POSSIBLE_PARAMS = [:regular, :simpleAlter, :simpleConjug]
-parametrisation = POSSIBLE_PARAMS[3]
+parametrisation = POSSIBLE_PARAMS[1]
 include("src/fitzHughNagumo.jl")
-#P = FitzhughDiffusion(0.1, 0.0, 1.5, 0.8, 0.3)
-P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
-x0 = ℝ{2}(-0.5, -0.6)
+P = FitzhughDiffusion(0.1, 0.0, 1.5, 0.8, 0.3)
+#P = FitzhughDiffusion(0.4, 0.05, 1.2, 0.3, 0.2)
+#P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
+x0 = ℝ{2}(-0.9, 0.5)
 if parametrisation == :simpleAlter
     x0 = regularToAlter(x0, P.ϵ, 0.0)
 elseif parametrisation == :simpleConjug
@@ -18,7 +19,7 @@ end
 L = @SMatrix [1. 0.]
 
 dt = 1/50000
-T = 2.0
+T = 10.0
 tt = 0.0:dt:T
 
 # ------------------------------ #
@@ -41,14 +42,14 @@ x1 = [(L*x)[1] for x in XX.yy[1:skip:end]]
 x2 = [NaN for t in Time]
 x2[1] = x0[2]
 df = DataFrame(time=Time, x1=x1, x2=x2)
-CSV.write(outdir*"path_part_obs_"*String(parametrisation)*".csv", df)
+#CSV.write(outdir*"path_part_obs_"*String(parametrisation)*".csv", df)
 
 # --------------------------------- #
 #  First passage time observations  #
 # --------------------------------- #
 
-function findCrossings(XX, upLvl, downLvl)
-    upSearch=true
+function findCrossings(XX, upLvl, downLvl, upSearch=false)
+    upSearch=upSearch
     upCrossingTimes = Float64[0.0]
     for (x,t) in zip(XX.yy, XX.tt)
         if upSearch && x[1] > upLvl
@@ -58,19 +59,30 @@ function findCrossings(XX, upLvl, downLvl)
             upSearch = true
         end
     end
-    upCrossingTimes
+    upCrossingTimes, upSearch
 end
-XX, _ = simulateSegment(0.0, tt)
+
+recentlyUpSearch = true
+df_all = DataFrame(time=[], upCross=[], downCross=[], x2=[])
+tt_temp = copy(tt)
+
+XX, _ = simulateSegment(0.0, tt_temp)
 upLvl = 0.5
 downLvl = -0.5
-upCrossingTimes = findCrossings(XX, upLvl, downLvl)
+upCrossingTimes, recentlyUpSearch = findCrossings(XX, upLvl, downLvl, recentlyUpSearch)
 upCross = collect(Iterators.flatten([[x0[1]],
                                      fill(upLvl, length(upCrossingTimes)-1)]))
 downCross = fill(downLvl, length(upCrossingTimes))
 x2 = fill(NaN, length(upCrossingTimes))
 x2[1] = x0[2]
+
 df = DataFrame(time=upCrossingTimes,
                upCross=upCross,
                downCross=downCross,
                x2=x2)
-CSV.write(outdir*"up_crossing_times_"*String(parametrisation)*".csv", df)
+df_all = vcat(df_all, df)
+x0 = XX.yy[end]
+tt_temp = tt .+ tt_temp[end]
+
+df_all
+CSV.write(outdir*"up_crossing_times_exmple_"*String(parametrisation)*".csv", df_all)

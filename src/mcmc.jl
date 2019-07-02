@@ -101,7 +101,7 @@ function checkSingleCoordFpt(XXᵒ, c, cidx, fpt)
         for i in 1:k
             if !renewed && XXᵒ.yy[i][c] <= fpt.reset[cidx]
                 renewed = true
-            elseif renewed && XXᵒ.yy[i][c] > thrsd
+            elseif renewed && XXᵒ.yy[i][c] > thrsd + 0.0001 # prevents numerical issues
                 return false
             end
         end
@@ -109,12 +109,12 @@ function checkSingleCoordFpt(XXᵒ, c, cidx, fpt)
         for i in 1:k
             if !renewed && XXᵒ.yy[i][c] >= fpt.reset[cidx]
                 renewed = true
-            elseif renewed && XXᵒ.yy[i][c] < thrsd
+            elseif renewed && XXᵒ.yy[i][c] < thrsd - 0.0001 # prevents numerical issues
                 return false
             end
         end
     end
-    return true
+    return renewed
 end
 
 

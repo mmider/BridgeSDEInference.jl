@@ -64,7 +64,7 @@ end
 # decide if first passage time observations or partially observed diffusion
 fptObsFlag = true
 if fptObsFlag
-    filename = "up_crossing_times_regular.csv"
+    filename = "up_crossing_times_short_regular.csv"
 else
     filename = "path_part_obs_conj.csv"
 end
@@ -77,7 +77,7 @@ fpt
 # Initial parameter guess.
 #θ₀ = [0.2, 0.0, 1.5, 0.8, 0.3]
 #θ₀ = [10.0, 0.0, 10.0, 18.0, 3.0]
-θ₀ = [0.1, 0.0, 1.0, 0.8, 0.3]
+θ₀ = [0.1, 0.0, 1.5, 1.6, 0.3]
 #θ₀ = [0.4, 0.05, 1.2, 0.3, 0.2]
 #θ₀ = [0.4, 0.05, 1.8, 0.6, 0.2]
 # Target law
@@ -88,8 +88,8 @@ P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=2*10^5
-tKernel = RandomWalk([0.02, 5.0, 0.05, 0.1, 0.5],
+numSteps=2*10^4
+tKernel = RandomWalk([0.015, 5.0, 0.05, 0.05, 0.5],
                      [false, false, false, false, true])
 #tKernel=RandomWalk([0.005, 0.1, 0.1, 0.01, 0.1],
 #                   [false, false, false, false, true])
@@ -101,16 +101,16 @@ priors = Priors((ImproperPrior(),
                 #(ImproperPrior(),)
                 )
 
-Random.seed!(4)
+Random.seed!(5)
 (chain, accRateImp, accRateUpdt,
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.99,
+                         ρ=0.996,
                          dt=1/1000,
-                         saveIter=3*10^3,
+                         saveIter=1*10^0,
                          verbIter=10^2,
-                         updtCoord=(Val((false, false, true, false, false)),
+                         updtCoord=(Val((false, false, false, true, false)),
                                     #Val((true, false, false, false, false)),
                                     #Val((false, true, false, false, false)),
                                     #Val((false, false, true, false, false)),
@@ -118,9 +118,9 @@ Random.seed!(4)
                                     ),
                          paramUpdt=true,
                          updtType=(#ConjugateUpdt(),
+                                   #MetropolisHastingsUpdt(),
+                                   #MetropolisHastingsUpdt(),
                                    MetropolisHastingsUpdt(),
-                                   #MetropolisHastingsUpdt(),
-                                   #MetropolisHastingsUpdt(),
                                    #MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^1,
@@ -132,7 +132,7 @@ print("imputation acceptance rate: ", accRateImp,
 # save the results
 if parametrisation in (:simpleAlter, :complexAlter)
     pathsToSave = [[alterToRegular(e, θ[1], θ[2]) for e in path] for (path,θ)
-                                      in zip(paths, chain[1:length(priors)*3*10^3:end][2:end])]
+                                      in zip(paths, chain[1:length(priors)*1*10^0:end][2:end])]
     # only one out of many starting points will be plotted
     x0 = alterToRegular(x0, chain[1][1], chain[1][2])
 elseif parametrisation in (:simpleConjug, :complexConjug)
@@ -146,19 +146,19 @@ end
 #df2 = savePathsToFile(pathsToSave, time_, joinpath(outdir, "sampled_paths.csv"))
 #df3 = saveChainToFile(chain, joinpath(outdir, "chain.csv"))
 
-df2 = savePathsToFile(pathsToSave, time_, joinpath(outdir, "sampled_paths_fpt_gamma.csv"))
-df3 = saveChainToFile(chain, joinpath(outdir, "chain_fpt_gamma.csv"))
+df2 = savePathsToFile(pathsToSave, time_, joinpath(outdir, "sampled_paths_fpt_short_bridges.csv"))
+df3 = saveChainToFile(chain, joinpath(outdir, "chain_fpt_short_bridges.csv"))
 
 include("src/plots.jl")
 # make some plots
 set_default_plot_size(30cm, 20cm)
-if fptObsFlag
-    plotPaths(df2, obs=[Float64.(df.upCross), [x0[2]]],
-              obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
-else
-    plotPaths(df2, obs=[Float64.(df.x1), [x0[2]]],
-              obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
-end
+#if fptObsFlag
+#    plotPaths(df2, obs=[Float64.(df.upCross), [x0[2]]],
+#              obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
+#else
+#    plotPaths(df2, obs=[Float64.(df.x1), [x0[2]]],
+#              obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
+#end
 plotChain(df3, coords=[1])
 #plotChain(df3, coords=[2])
 plotChain(df3, coords=[3])

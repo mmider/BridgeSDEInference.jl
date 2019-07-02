@@ -163,7 +163,7 @@ elseif parametrisation == :simpleConjug
 elseif parametrisation == :complexConjug
     B(t, P::FitzhughDiffusionAux) = @SMatrix [0.0  1.0;
                                 (P.ϵ-P.γ-3.0*P.ϵ*P.v^2) (P.ϵ-1.0-3.0*P.ϵ*P.v^2)]
-    β(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, 2*P.ϵ*P.v^3+P.s)
+    β(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, 2*P.ϵ*P.v^3+P.s-P.β)#check later
     σ(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, P.σ)
     dependsOnParams(::FitzhughDiffusionAux) = (1, 2, 3, 4, 5)
 end
