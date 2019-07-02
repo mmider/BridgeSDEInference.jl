@@ -149,6 +149,16 @@ by using all internal containers of `P` and only defining new pointers that
 point to the old memory locations. Additionally, `P.Target` and `P.Pt` are
 deleted and substituted with their clones that use different value of parameter
 `θ`.
+
+    GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3}, L::S1,
+                   v::S2, Σ::S3, θ)
+
+Another clone constructor. It creates a new object `GuidPropBridge` from the old
+one `P` by using all internal containers of `P` and only defining new pointers
+that point to the old memory locations. `P.Target` and `P.Pt` are deleted
+and substituted with their clones that use different value of parameter `θ`.
+Additionally, the observational operator `L`, covariance of the additive noise
+at the observation time `Σ`, as well as the observation `v`  are all changed.
 """
 struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T}
     Target::R           # Law of the target diffusion

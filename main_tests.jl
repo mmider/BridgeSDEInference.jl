@@ -10,7 +10,7 @@ using CSV
 const ℝ = SVector
 # specify observation scheme
 L = @SMatrix [1. 0.]
-Σdiagel = 10^(-10)
+Σdiagel = 10^(-6)
 Σ = @SMatrix [Σdiagel]
 
 # choose parametrisation of the FitzHugh-Nagumo
@@ -67,7 +67,7 @@ fptObsFlag = false
     fptOrPartObs) = readData(Val(fptObsFlag),
                              joinpath(outdir, "path_part_obs_conj.csv"))
 
-
+x0
 # Initial parameter guess.
 #θ₀ = [0.1, 0.0, 1.5, 0.8, 0.3]
 θ₀ = [10.0, -8.0, 15.0, 0.0, 3.0]
@@ -80,7 +80,7 @@ P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^3
+numSteps=1*10^4
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 #tKernel=RandomWalk([0.01, 0.1, 0.5, 0.01, 0.1],
@@ -96,15 +96,14 @@ priors = ((MvNormal([0.0,0.0,0.0],
 Random.seed!(4)
 
 𝔅 = ChequeredBlocking()
-blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-4))
-
+blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-6))
 
 (chain, accRateImp, accRateUpdt,
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.5,
-                         dt=1/5000,
+                         ρ=0.8,
+                         dt=1/10000,
                          saveIter=3*10^2,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),

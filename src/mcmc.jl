@@ -50,8 +50,19 @@ Flag for performing update according to Metropolis Hastings step
 struct MetropolisHastingsUpdt <: ParamUpdateType end
 
 
+"""
+    setBlocking(𝔅::NoBlocking, ::Any, ::Any, ::Any, ::Any)
+
+No blocking is to be done, do nothing
+"""
 setBlocking(𝔅::NoBlocking, ::Any, ::Any, ::Any, ::Any) = 𝔅
 
+
+"""
+    setBlocking(::ChequeredBlocking, blockingParams, P, WW, XX)
+
+Blocking pattern is chosen to be a chequerboard.
+"""
 function setBlocking(::ChequeredBlocking, blockingParams, P, WW, XX)
     ChequeredBlocking(blockingParams..., P, WW, XX)
 end
@@ -279,11 +290,11 @@ end
 
 
 """
-    impute!(::ObsScheme, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt;
+    impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt;
             ρ=0.0, verbose=false, it=NaN, headStart=false) where
             ObsScheme <: AbstractObsScheme -> acceptedLogLikhd, acceptDecision
 
-Imputation step of the MCMC scheme.
+Imputation step of the MCMC scheme (without blocking).
 ...
 # Arguments
 - `::ObsScheme`: observation scheme---first-passage time or partial observations
@@ -328,21 +339,76 @@ function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P,
     llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, m, fpt) ? llᵒ : -Inf
 
     verbose && print("impute: ", it, " ll ", round(value(ll), digits=3), " ",
-                     round(value(llᵒ), digits=3), " diff_ll: ", round(value(llᵒ-ll),digits=3))
+                     round(value(llᵒ), digits=3), " diff_ll: ",
+                     round(value(llᵒ-ll),digits=3))
     if acceptSample(llᵒ-ll, verbose)
         for i in 1:m
             XX[i], XXᵒ[i] = XXᵒ[i], XX[i]
             WW[i], WWᵒ[i] = WWᵒ[i], WW[i]
         end
-        return llᵒ, true
+        return llᵒ, true, 𝔅
     else
-        return ll, false
+        return ll, false, 𝔅
     end
 end
 
 
+"""
+    swapXX!(𝔅::ChequeredBlocking, XX)
+
+Swap containers between `XX` and `𝔅.XX`
+"""
+function swapXX!(𝔅::BlockingSchedule, XX)
+    for block in 𝔅.blocks[𝔅.idx]    # iterate over blocks
+        for i in block              # iterate over intervals making up the block
+            XX[i], 𝔅.XX[i] = 𝔅.XX[i], XX[i] # move most recent path to workspace in 𝔅
+        end
+    end
+end
+
+
+"""
+    noiseFromPath!(𝔅::BlockingSchedule, XX, WW, P)
+
+Compute driving Wiener noise `WW` from path `XX` drawn under law `P`
+"""
+function noiseFromPath!(𝔅::BlockingSchedule, XX, WW, P)
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            invSolve!(Euler(), XX[i], WW[i], P[i])
+        end
+    end
+end
+
+
+
 # should be easily parallelisable, currently FPT is not supported
 # (an easy fix involves changing definition of function checkFullPathFpt())
+"""
+    impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll,
+            fpt; ρ=0.0, verbose=false, it=NaN, headStart=false) where
+            ObsScheme <: AbstractObsScheme -> acceptedLogLikhd, acceptDecision
+
+Imputation step of the MCMC scheme (without blocking).
+...
+# Arguments
+- `::ObsScheme`: observation scheme---first-passage time or partial observations
+- `𝔅`: object with relevant information about blocking
+- `Wnr`: type of the Wiener process
+- `y`: starting point of the diffusion path
+- `WWᵒ`: containers for proposal Wiener paths
+- `WW`: containers with old Wiener paths
+- `XXᵒ`: containers for proposal diffusion paths
+- `XX`: containers with old diffusion paths
+- `P`: laws of the diffusion path (proposal and target)
+- `11`: log-likelihood of the old (previously accepted) diffusion path
+- `fpt`: info about first-passage time conditioning
+- `ρ`: memory parameter for the Crank-Nicolson scheme
+- `verbose`: whether to print updates info while sampling
+- `it`: iteration index of the MCMC algorithm
+- `headStart`: flag for whether to 'ease into' fpt conditions
+...
+"""
 function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P,
                  ll, fpt; ρ=0.0, verbose=false, it=NaN, headStart=false,
                  solver::ST=Ralston3()) where
@@ -351,19 +417,10 @@ function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ,
     𝔅 = next(𝔅, XX, θ)
     solveBackRec!(𝔅.P, ST())
 
-    for block in 𝔅.blocks[𝔅.idx]
-        for i in block
-            XX[i], 𝔅.XX[i] = 𝔅.XX[i], XX[i]
-        end
-    end
+    swapXX!(𝔅, XX)
+    noiseFromPath!(𝔅, 𝔅.XX, 𝔅.WW, 𝔅.P)
 
-    for block in 𝔅.blocks[𝔅.idx]
-        for i in block
-            invSolve!(Euler(), 𝔅.XX[i], 𝔅.WW[i], 𝔅.P[i])
-        end
-    end
-
-    for block in 𝔅.blocks[𝔅.idx]
+    for (blockIdx, block) in enumerate(𝔅.blocks[𝔅.idx])
         y₀ = copy(𝔅.XX[block[1]].yy[1])
         for i in block
             sample!(𝔅.WWᵒ[i], Wnr)
@@ -371,6 +428,8 @@ function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ,
             solve!(Euler(), 𝔅.XXᵒ[i], y₀, 𝔅.WWᵒ[i], 𝔅.P[i])
             y₀ = 𝔅.XXᵒ[i].yy[end]
         end
+        # manually set the end-point
+        𝔅.XXᵒ[block[end]].yy[end] = 𝔅.XX[block[end]].yy[end]
 
         llᵒ = 0.0
         llPrev = 0.0
@@ -378,35 +437,30 @@ function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ,
             llᵒ += llikelihood(LeftRule(), 𝔅.XXᵒ[i], 𝔅.P[i])
             llPrev += llikelihood(LeftRule(), 𝔅.XX[i], 𝔅.P[i])
         end
-        
-        verbose && print("impute: ", it, " ll ", round(value(llPrev), digits=3), " ",
-                         round(value(llᵒ), digits=3), " diff_ll: ", round(value(llᵒ-llPrev),digits=3))
+
+        verbose && print("impute: ", it, " ll ", round(value(llPrev), digits=3),
+                         " ", round(value(llᵒ), digits=3), " diff_ll: ",
+                         round(value(llᵒ-llPrev),digits=3))
         if acceptSample(llᵒ-llPrev, verbose)
             for i in block
                 𝔅.XX[i], 𝔅.XXᵒ[i] = 𝔅.XXᵒ[i], 𝔅.XX[i]
             end
+            registerAccpt!(𝔅, blockIdx, true)
+        else
+            registerAccpt!(𝔅, blockIdx, false)
         end
     end
 
-    for block in 𝔅.blocks[𝔅.idx]
-        for i in block
-            XX[i], 𝔅.XX[i] = 𝔅.XX[i], XX[i]
-        end
-    end
-
-    for block in 𝔅.blocks[𝔅.idx]
-        for i in block
-            invSolve!(Euler(), XX[i], WW[i], P[i])
-        end
-    end
+    swapXX!(𝔅, XX)
+    noiseFromPath!(𝔅, XX, WW, P)
 
     ll = 0.0
     for i in length(P)
         ll += llikelihood(LeftRule(), XX[i], P[i])
     end
 
-    # acceptance indicator is nonsensicacl, should be proportion of acceptance
-    return ll, true
+    # acceptance indicator does not matter for sampling with blocking
+    return ll, true, 𝔅
 end
 
 
@@ -578,8 +632,8 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
         savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
-        ll, acc = impute!(ObsScheme(), 𝔅, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll, fpt,
-                          ρ=ρ, verbose=verbose, it=i, solver=ST())
+        ll, acc, 𝔅 = impute!(ObsScheme(), 𝔅, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll,
+                             fpt, ρ=ρ, verbose=verbose, it=i, solver=ST())
         accImpCounter += 1*acc
         if paramUpdt
             imod = 1+i%updtLen
@@ -593,6 +647,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
         end
         θchain[i+1] = copy(θ)
     end
+    displayAcceptanceRate(𝔅)
     Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))
     θchain, accImpCounter/numSteps, accUpdtCounter./numSteps.*updtLen, Paths, Time
 end
