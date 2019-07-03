@@ -1,6 +1,6 @@
 [back to README](../README.md)
 # Blocking
-Currently only two choices of blocking are available:
+Currently two choices of blocking are available:
 * No blocking at all, in which case
 ```julia
 𝔅 = NoBlocking()
@@ -14,6 +14,3 @@ blockingParams = (collect(2:20)[1:2:end], 10^(-6))
 ```
 The first defines the blocking updating scheme (in the future there might be a larger choice). The second line places the knots on `[2,4,6,8,10,12,14,16,18,20]`. The splitting into appropriate subsets is done internally. `10^(-6)` is an artificial noise parameter that needs to be added for the numerical purposes. Ideally we want this to be as small as possible, however currently the algorithm sometimes has problems with dealing with very small values and some improvements to numerical ODE solvers are needed.
 
-
-## Example
-Consider the dataset with 10 observations of the FitzHugh-Nagumo model distanced by `1` time-unit. This is a moderately sparsely observed process.
