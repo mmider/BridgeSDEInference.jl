@@ -20,8 +20,10 @@ export RandomWalk
 export savePathsToFile, saveChainToFile
 
 # priors.jl
-export Priors
+export Priors, getindex
 
+# blocking_schedule.jl
+export NoBlocking, ChequeredBlocking
 
 include("types.jl")
 include("ralston3.jl")

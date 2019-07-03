@@ -29,10 +29,6 @@ using Test, Statistics, Random, LinearAlgebra
 using DataFrames
 using CSV
 ```
-and define some convenience name in accordance with the `Bridge` package convention
-```julia
-const ℝ = SVector
-```
 Suppose we are interested in a two-dimensional diffusions X and that we only observe its first coordinate without noise: V=LX, with ![equation](https://latex.codecogs.com/gif.latex?L%3D%281%2C0%29%5ET). For the numerical reasons we assume that we in fact observe V=LX+Z, where Z is Gaussian random variable with mean 0 and miniscule noise. To this end we set observational matrix L and covariance matrix Σ
 ```julia
 L = @SMatrix [1. 0.]
@@ -112,9 +108,8 @@ tKernel = RandomWalk([0.0, 0.0, 0.0, 0.0, 0.5],
 ```
 We also specify priors. We choose multivariate normals for conjugate update and an improper prior for the Metropolis-Hastings setp. For more information about convenience functions for priors see [this note](docs/priors.md).
 ```julia
-priors = (MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
-          ImproperPrior()
-          )
+priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
+                 ImproperPrior()))
 ```
 Finally, we set the blocking scheme. For this example we don't want any blocking:
 ```julia
@@ -129,14 +124,14 @@ Random.seed!(4)
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.8,
+                         ρ=0.975,
                          dt=1/10000,
                          saveIter=3*10^2,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),
                                     Val((false, false, false, false, true)),
                                     ),
-                         paramUpdt=false,
+                         paramUpdt=true,
                          updtType=(ConjugateUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),

@@ -1,3 +1,4 @@
+[back to README](../README.md)
 # Priors
 The package `MCMCBridge.jl` [defines](../src/priors.jl) some convenience functions for priors. Below we give a brief description of their functionality.
 

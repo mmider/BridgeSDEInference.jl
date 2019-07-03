@@ -4,29 +4,13 @@ using Bridge
 using DataFrames
 using CSV
 
-POSSIBLE_PARAMS = [:regular, :simpleAlter, :simpleConjug]
-parametrisation = POSSIBLE_PARAMS[1]
-include("src/fitzHughNagumo.jl")
-P = FitzhughDiffusion(0.1, 0.0, 1.5, 0.8, 0.3)
-#P = FitzhughDiffusion(0.4, 0.05, 1.2, 0.3, 0.2)
-#P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
-x0 = ℝ{2}(-0.9, 0.5)
-if parametrisation == :simpleAlter
-    x0 = regularToAlter(x0, P.ϵ, 0.0)
-elseif parametrisation == :simpleConjug
-    x0 = regularToConjug(x0, P.ϵ, 0.0)
-end
-L = @SMatrix [1. 0.]
 
-dt = 1/50000
-T = 10.0
-tt = 0.0:dt:T
+"""
+    simulateSegment(::S, x0, P, tt)
 
-# ------------------------------ #
-#  Partially observed diffusion  #
-# ------------------------------ #
-
-function simulateSegment(::S, tt) where S
+Simulate path of a target process `P`, started from `x0` on a time-grid `tt`
+"""
+function simulateSegment(::S, x0, P, tt) where S
     Wnr = Wiener{S}()
     WW = Bridge.samplepath(tt, zero(S))
     sample!(WW, Wnr)
@@ -34,20 +18,13 @@ function simulateSegment(::S, tt) where S
     XX, XX.yy[end]
 end
 
-XX, _ = simulateSegment(0.0, tt)
+"""
+    findCrossings(XX, upLvl, downLvl, upSearch=false)
 
-skip = 5000
-Time = collect(tt)[1:skip:end]
-x1 = [(L*x)[1] for x in XX.yy[1:skip:end]]
-x2 = [NaN for t in Time]
-x2[1] = x0[2]
-df = DataFrame(time=Time, x1=x1, x2=x2)
-#CSV.write(outdir*"path_part_obs_"*String(parametrisation)*".csv", df)
-
-# --------------------------------- #
-#  First passage time observations  #
-# --------------------------------- #
-
+Find times of first up-crossings of level `upLvl`. The timing starts only after
+the diffusion was brought below level `downLvl` first (or alternatively if
+`upSearch` flag is set to true)
+"""
 function findCrossings(XX, upLvl, downLvl, upSearch=false)
     upSearch=upSearch
     upCrossingTimes = Float64[0.0]
@@ -62,6 +39,43 @@ function findCrossings(XX, upLvl, downLvl, upSearch=false)
     upCrossingTimes, upSearch
 end
 
+# Set up process
+
+POSSIBLE_PARAMS = [:regular, :simpleAlter, :simpleConjug]
+parametrisation = POSSIBLE_PARAMS[3]
+include("src/fitzHughNagumo.jl")
+#P = FitzhughDiffusion(0.1, 0.0, 1.5, 0.8, 0.3)
+#P = FitzhughDiffusion(0.4, 0.05, 1.2, 0.3, 0.2)
+P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
+x0 = ℝ{2}(-0.5, 0.6)
+if parametrisation == :simpleAlter
+    x0 = regularToAlter(x0, P.ϵ, 0.0)
+elseif parametrisation == :simpleConjug
+    x0 = regularToConjug(x0, P.ϵ, 0.0)
+end
+L = @SMatrix [1. 0.]
+
+dt = 1/50000
+T = 10.0
+tt = 0.0:dt:T
+
+# ------------------------------ #
+#  Partially observed diffusion  #
+# ------------------------------ #
+XX, _ = simulateSegment(0.0, x0, P, tt)
+
+skip = 50000
+Time = collect(tt)[1:skip:end]
+x1 = [(L*x)[1] for x in XX.yy[1:skip:end]]
+x2 = [NaN for t in Time]
+x2[1] = x0[2]
+df = DataFrame(time=Time, x1=x1, x2=x2)
+CSV.write(outdir*"sparse_path_part_obs_"*String(parametrisation)*".csv", df)
+
+# --------------------------------- #
+#  First passage time observations  #
+# --------------------------------- #
+# NOTE DEPRECATED
 recentlyUpSearch = true
 df_all = DataFrame(time=[], upCross=[], downCross=[], x2=[])
 tt_temp = copy(tt)
