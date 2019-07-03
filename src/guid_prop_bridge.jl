@@ -81,6 +81,8 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, Q
     tableau = createTableau(ST())
 
     H[end] = H⁽ᵀ⁺⁾ + L' * (Σ \ L)
+    #print(L, ", ", Σ, ", ", v)
+
     Hν[end] = Hν⁽ᵀ⁺⁾ + L' * (Σ \ v)
     c[end] = c⁽ᵀ⁺⁾ + v' * (Σ \ v)
     Q[end] = Q⁽ᵀ⁺⁾ + 0.5*m*log(2.0*π) + 0.5*log(abs(det(Σ)))
@@ -147,6 +149,16 @@ by using all internal containers of `P` and only defining new pointers that
 point to the old memory locations. Additionally, `P.Target` and `P.Pt` are
 deleted and substituted with their clones that use different value of parameter
 `θ`.
+
+    GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3}, L::S1,
+                   v::S2, Σ::S3, θ)
+
+Another clone constructor. It creates a new object `GuidPropBridge` from the old
+one `P` by using all internal containers of `P` and only defining new pointers
+that point to the old memory locations. `P.Target` and `P.Pt` are deleted
+and substituted with their clones that use different value of parameter `θ`.
+Additionally, the observational operator `L`, covariance of the additive noise
+at the observation time `Σ`, as well as the observation `v`  are all changed.
 """
 struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T}
     Target::R           # Law of the target diffusion
@@ -155,8 +167,8 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess
     H::Vector{TH}       # Matrix H evaluated at time-points `tt`
     H⁻¹::Vector{TH⁻¹}   # currently not used
     Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
-    c::Vector{K}  # scalar c evaluated at time-points `tt`
-    Q::Vector{K}  # scalar Q evaluated at time-points `tt`
+    c::Vector{K}        # scalar c evaluated at time-points `tt`
+    Q::Vector{K}        # scalar Q evaluated at time-points `tt`
     L::S1               # observation operator (for observation at the end-pt)
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
@@ -193,6 +205,14 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess
         new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(clone(P.Target,θ), clone(P.Pt,θ), P.tt,
                                         P.H, P.H⁻¹, P.Hν, P.c, P.Q, P.L, P.v,
                                         P.Σ)
+    end
+
+    function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3},
+                            L::S1, v::S2, Σ::S3,
+                            θ) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3}
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(clone(P.Target,θ), clone(P.Pt,θ),
+                                          P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.Q, L,
+                                          v, Σ)
     end
 end
 
