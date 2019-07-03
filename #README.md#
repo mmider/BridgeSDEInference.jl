@@ -29,10 +29,6 @@ using Test, Statistics, Random, LinearAlgebra
 using DataFrames
 using CSV
 ```
-and define some convenience name in accordance with the `Bridge` package convention
-```julia
-const ℝ = SVector
-```
 Suppose we are interested in a two-dimensional diffusions X and that we only observe its first coordinate without noise: V=LX, with ![equation](https://latex.codecogs.com/gif.latex?L%3D%281%2C0%29%5ET). For the numerical reasons we assume that we in fact observe V=LX+Z, where Z is Gaussian random variable with mean 0 and miniscule noise. To this end we set observational matrix L and covariance matrix Σ
 ```julia
 L = @SMatrix [1. 0.]

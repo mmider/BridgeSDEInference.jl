@@ -33,7 +33,9 @@ include("priors.jl")
 
 include("guid_prop_bridge.jl")
 include("random_walk.jl")
+include("blocking_schedule.jl")
 include("mcmc.jl")
+include("path_to_wiener.jl")
 
 include("save_to_files.jl")
 
