@@ -64,9 +64,9 @@ end
 # decide if first passage time observations or partially observed diffusion
 fptObsFlag = false
 # pick dataset
-sparse = false
+sparse = true
 if sparse
-    filename = "sparse_path_part_obs_conj.csv"
+    filename = "sparse_path_part_obs_simpleConjug.csv"
 else
     filename = "path_part_obs_conj.csv"
 end
@@ -94,15 +94,16 @@ tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
 #                   [false, false, false, false, true])
 priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
                  ImproperPrior()))
-𝔅 = ChequeredBlocking()
-blockingParams = (collect(1:length(obs)-2)[1:1:end], 10^(-6))
-
+#𝔅 = ChequeredBlocking()
+#blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-6))
+𝔅 = NoBlocking()
+blockingParams = ([], 0.1)
 Random.seed!(4)
 (chain, accRateImp, accRateUpdt,
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.8,
+                         ρ=0.975,
                          dt=1/10000,
                          saveIter=3*10^2,
                          verbIter=10^2,
@@ -154,4 +155,4 @@ plotChain(df3, coords=[1])
 plotChain(df3, coords=[2])
 plotChain(df3, coords=[3])
 plotChain(df3, coords=[5])
-=##
+=#
