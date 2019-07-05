@@ -64,7 +64,7 @@ end
 # decide if first passage time observations or partially observed diffusion
 fptObsFlag = false
 # pick dataset
-sparse = true
+sparse = false
 if sparse
     filename = "sparse_path_part_obs_simpleConjug.csv"
 else
@@ -87,7 +87,7 @@ P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=3*10^3
+numSteps=3*10^4
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 #tKernel=RandomWalk([0.01, 0.1, 0.5, 0.01, 0.1],
@@ -99,6 +99,9 @@ priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
 𝔅 = NoBlocking()
 blockingParams = ([], 0.1)
 Random.seed!(4)
+
+start = time()
+
 (chain, accRateImp, accRateUpdt,
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
@@ -110,7 +113,7 @@ Random.seed!(4)
                          updtCoord=(Val((true, true, true, false, false)),
                                     Val((false, false, false, false, true)),
                                     ),
-                         paramUpdt=false,
+                         paramUpdt=true,
                          updtType=(ConjugateUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),
@@ -118,6 +121,9 @@ Random.seed!(4)
                          blocking=𝔅,
                          blockingParams=blockingParams,
                          solver=Vern7())
+
+elapsed = time() - start
+print("time elapsed: ", elapsed, "\n")
 
 print("imputation acceptance rate: ", accRateImp,
       ", parameter update acceptance rate: ", accRateUpdt)
@@ -150,9 +156,8 @@ else
     plotPaths(df2, obs=[Float64.(df.x1), [x0[2]]],
               obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
 end
-#=
+
 plotChain(df3, coords=[1])
 plotChain(df3, coords=[2])
 plotChain(df3, coords=[3])
 plotChain(df3, coords=[5])
-=#

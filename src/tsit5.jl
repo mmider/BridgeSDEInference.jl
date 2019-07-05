@@ -55,6 +55,9 @@ end
 
 struct Tsit5 <: ODESolverType end
 
+#=
+        FOUR components
+=#
 function update(::Tsit5, fs, t, A, B, C, D, dt, P, tableau)
     (@unpack c₁,c₂,c₃,c₄,c₅,c₆,a₂₁,a₃₁,a₃₂,a₄₁,a₄₂,a₄₃,a₅₁,a₅₂,a₅₃,a₅₄,a₆₁,a₆₂,
              a₆₃,a₆₄,a₆₅,a₇₁,a₇₂,a₇₃,a₇₄,a₇₅,a₇₆ = tableau)
@@ -117,4 +120,103 @@ function update(::Tsit5, fs, t, A, B, C, D, dt, P, tableau)
      B + dt*(a₇₁*kB1 + a₇₂*kB2 + a₇₃*kB3 + a₇₄*kB4 + a₇₅*kB5 + a₇₆*kB6),
      C + dt*(a₇₁*kC1 + a₇₂*kC2 + a₇₃*kC3 + a₇₄*kC4 + a₇₅*kC5 + a₇₆*kC6),
      D + dt*(a₇₁*kD1 + a₇₂*kD2 + a₇₃*kD3 + a₇₄*kD4 + a₇₅*kD5 + a₇₆*kD6))
+end
+
+
+#=
+        THREE components
+=#
+function update(::Tsit5, fs, t, A, B, C, dt, P, tableau)
+    (@unpack c₁,c₂,c₃,c₄,c₅,c₆,a₂₁,a₃₁,a₃₂,a₄₁,a₄₂,a₄₃,a₅₁,a₅₂,a₅₃,a₅₄,a₆₁,a₆₂,
+             a₆₃,a₆₄,a₆₅,a₇₁,a₇₂,a₇₃,a₇₄,a₇₅,a₇₆ = tableau)
+    kA1 = update(fs[1], t, A, B, C, P)
+    kB1 = update(fs[2], t, A, B, C, P)
+    kC1 = update(fs[3], t, A, B, C, P)
+
+    Ai = A + dt*a₂₁*kA1
+    Bi = B + dt*a₂₁*kB1
+    Ci = C + dt*a₂₁*kC1
+
+    kA2 = update(fs[1], t + c₁*dt, Ai, Bi, Ci, P)
+    kB2 = update(fs[2], t + c₁*dt, Ai, Bi, Ci, P)
+    kC2 = update(fs[3], t + c₁*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₃₁*kA1 + a₃₂*kA2)
+    Bi = B + dt*(a₃₁*kB1 + a₃₂*kB2)
+    Ci = C + dt*(a₃₁*kC1 + a₃₂*kC2)
+
+    kA3 = update(fs[1], t + c₂*dt, Ai, Bi, Ci, P)
+    kB3 = update(fs[2], t + c₂*dt, Ai, Bi, Ci, P)
+    kC3 = update(fs[3], t + c₂*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₄₁*kA1 + a₄₂*kA2 + a₄₃*kA3)
+    Bi = B + dt*(a₄₁*kB1 + a₄₂*kB2 + a₄₃*kB3)
+    Ci = C + dt*(a₄₁*kC1 + a₄₂*kC2 + a₄₃*kC3)
+
+    kA4 = update(fs[1], t + c₃*dt, Ai, Bi, Ci, P)
+    kB4 = update(fs[2], t + c₃*dt, Ai, Bi, Ci, P)
+    kC4 = update(fs[3], t + c₃*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₅₁*kA1 + a₅₂*kA2 + a₅₃*kA3 + a₅₄*kA4)
+    Bi = B + dt*(a₅₁*kB1 + a₅₂*kB2 + a₅₃*kB3 + a₅₄*kB4)
+    Ci = C + dt*(a₅₁*kC1 + a₅₂*kC2 + a₅₃*kC3 + a₅₄*kC4)
+
+    kA5 = update(fs[1], t + c₄*dt, Ai, Bi, Ci, P)
+    kB5 = update(fs[2], t + c₄*dt, Ai, Bi, Ci, P)
+    kC5 = update(fs[3], t + c₄*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₆₁*kA1 + a₆₂*kA2 + a₆₃*kA3 + a₆₄*kA4 + a₆₅*kA5)
+    Bi = B + dt*(a₆₁*kB1 + a₆₂*kB2 + a₆₃*kB3 + a₆₄*kB4 + a₆₅*kB5)
+    Ci = C + dt*(a₆₁*kC1 + a₆₂*kC2 + a₆₃*kC3 + a₆₄*kC4 + a₆₅*kC5)
+
+    kA6 = update(fs[1], t + c₅*dt, Ai, Bi, Ci, P)
+    kB6 = update(fs[2], t + c₅*dt, Ai, Bi, Ci, P)
+    kC6 = update(fs[3], t + c₅*dt, Ai, Bi, Ci, P)
+
+    (A + dt*(a₇₁*kA1 + a₇₂*kA2 + a₇₃*kA3 + a₇₄*kA4 + a₇₅*kA5 + a₇₆*kA6),
+     B + dt*(a₇₁*kB1 + a₇₂*kB2 + a₇₃*kB3 + a₇₄*kB4 + a₇₅*kB5 + a₇₆*kB6),
+     C + dt*(a₇₁*kC1 + a₇₂*kC2 + a₇₃*kC3 + a₇₄*kC4 + a₇₅*kC5 + a₇₆*kC6))
+end
+
+#=
+        TWO components
+=#
+function update(::Tsit5, fs, t, A, B, dt, P, tableau)
+    (@unpack c₁,c₂,c₃,c₄,c₅,c₆,a₂₁,a₃₁,a₃₂,a₄₁,a₄₂,a₄₃,a₅₁,a₅₂,a₅₃,a₅₄,a₆₁,a₆₂,
+             a₆₃,a₆₄,a₆₅,a₇₁,a₇₂,a₇₃,a₇₄,a₇₅,a₇₆ = tableau)
+    kA1 = update(fs[1], t, A, B, P)
+    kB1 = update(fs[2], t, A, B, P)
+
+    Ai = A + dt*a₂₁*kA1
+    Bi = B + dt*a₂₁*kB1
+
+    kA2 = update(fs[1], t + c₁*dt, Ai, Bi, P)
+    kB2 = update(fs[2], t + c₁*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₃₁*kA1 + a₃₂*kA2)
+    Bi = B + dt*(a₃₁*kB1 + a₃₂*kB2)
+
+    kA3 = update(fs[1], t + c₂*dt, Ai, Bi, P)
+    kB3 = update(fs[2], t + c₂*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₄₁*kA1 + a₄₂*kA2 + a₄₃*kA3)
+    Bi = B + dt*(a₄₁*kB1 + a₄₂*kB2 + a₄₃*kB3)
+
+    kA4 = update(fs[1], t + c₃*dt, Ai, Bi, P)
+    kB4 = update(fs[2], t + c₃*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₅₁*kA1 + a₅₂*kA2 + a₅₃*kA3 + a₅₄*kA4)
+    Bi = B + dt*(a₅₁*kB1 + a₅₂*kB2 + a₅₃*kB3 + a₅₄*kB4)
+
+    kA5 = update(fs[1], t + c₄*dt, Ai, Bi, P)
+    kB5 = update(fs[2], t + c₄*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₆₁*kA1 + a₆₂*kA2 + a₆₃*kA3 + a₆₄*kA4 + a₆₅*kA5)
+    Bi = B + dt*(a₆₁*kB1 + a₆₂*kB2 + a₆₃*kB3 + a₆₄*kB4 + a₆₅*kB5)
+
+    kA6 = update(fs[1], t + c₅*dt, Ai, Bi, P)
+    kB6 = update(fs[2], t + c₅*dt, Ai, Bi, P)
+
+    (A + dt*(a₇₁*kA1 + a₇₂*kA2 + a₇₃*kA3 + a₇₄*kA4 + a₇₅*kA5 + a₇₆*kA6),
+     B + dt*(a₇₁*kB1 + a₇₂*kB2 + a₇₃*kB3 + a₇₄*kB4 + a₇₅*kB5 + a₇₆*kB6))
 end

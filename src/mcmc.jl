@@ -202,8 +202,8 @@ function findProposalLaw(::Type{K}, xx, tt, P˟, P̃, Ls, Σs, τ; dt=1/5000,
         P[i] = ( (i==m) ? GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i];
                                          solver=ST()) :
                           GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i],
-                                         P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1],
-                                         P[i+1].Q[1]; solver=ST()) )
+                                         P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1];
+                                         solver=ST()) )
     end
     P
 end
@@ -283,8 +283,7 @@ function solveBackRec!(P, solver::ST=Ralston3()) where ST
     m = length(P)
     gpupdate!(P[m]; solver=ST())
     for i in (m-1):-1:1
-        gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1],
-                  P[i+1].Q[1]; solver=ST())
+        gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1]; solver=ST())
     end
 end
 
