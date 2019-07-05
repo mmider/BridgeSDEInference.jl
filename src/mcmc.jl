@@ -277,13 +277,30 @@ end
     solveBackRec!(P, solver::ST=Ralston3()) where ST
 
 Solve backward recursion to find H, Hν, c and Q, which together define r̃(t,x)
-and p̃(x, 𝓓) under the auxiliary law
+and p̃(x, 𝓓) under the auxiliary law, when no blocking is done
 """
-function solveBackRec!(P, solver::ST=Ralston3()) where ST
+function solveBackRec!(::NoBlocking, P, solver::ST=Ralston3()) where ST
     m = length(P)
     gpupdate!(P[m]; solver=ST())
     for i in (m-1):-1:1
         gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1]; solver=ST())
+    end
+end
+
+
+"""
+    solveBackRec!(P, solver::ST=Ralston3()) where ST
+
+Solve backward recursion to find H, Hν, c and Q, which together define r̃(t,x)
+and p̃(x, 𝓓) under the auxiliary law, when blocking is done
+"""
+function solveBackRec!(𝔅::BlockingSchedule, P, solver::ST=Ralston3()) where ST
+    m = length(P)
+    for block in reverse(𝔅.blocks[𝔅.idx])
+        gpupdate!(P[block[end]]; solver=ST())
+        for i in reverse(block[1:end-1])
+            gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1]; solver=ST())
+        end
     end
 end
 
@@ -414,7 +431,7 @@ function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ,
                  {ObsScheme <: AbstractObsScheme, ST}
     θ = params(P[1].Target)
     𝔅 = next(𝔅, XX, θ)
-    solveBackRec!(𝔅.P, ST())
+    solveBackRec!(𝔅, 𝔅.P, ST())
 
     swapXX!(𝔅, XX)
     noiseFromPath!(𝔅, 𝔅.XX, 𝔅.WW, 𝔅.P)
@@ -500,7 +517,7 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtId
     for i in 1:m
         Pᵒ[i] = GuidPropBridge(Pᵒ[i], θᵒ)
     end
-    recomputeODEs && solveBackRec!(Pᵒ, ST())
+    recomputeODEs && solveBackRec!(NoBlocking(), Pᵒ, ST())
 
     y₀ = copy(y)
     for i in 1:m
@@ -555,7 +572,7 @@ function updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx,
     for i in 1:m
         P[i] = GuidPropBridge(P[i], θᵒ)
     end
-    recomputeODEs && solveBackRec!(P, ST())
+    recomputeODEs && solveBackRec!(NoBlocking(), P, ST())
 
     for i in 1:m
         solve!(Euler(), XX[i], y, WW[i], P[i])

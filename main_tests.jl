@@ -109,7 +109,7 @@ Random.seed!(4)
                          updtCoord=(Val((true, true, true, false, false)),
                                     Val((false, false, false, false, true)),
                                     ),
-                         paramUpdt=true,
+                         paramUpdt=false,
                          updtType=(ConjugateUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),

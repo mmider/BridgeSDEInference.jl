@@ -10,6 +10,21 @@ schemes used for finding solutions to backward ODEs
 abstract type ODESolverType end
 
 
+abstract type ODEChangePt end
+
+struct NoChangePt <: ODEChangePt
+    λ::Int64
+    NoChangePt(λ=0) = new(λ)
+end
+
+struct SimpleChangePt <: ODEChangePt
+    λ::Int64
+    SimpleChangePt(λ=0) = new(λ)
+end
+
+getChangePt(changePt::ODEChangePt) = changePt.λ
+
+
 #TODO implement Jeffrey's priors
 """
     ImproperPrior
