@@ -48,8 +48,8 @@ end
 
 
 # Define traces zapping around the space
-trace_len = 250
-num_pts = 2500
+trace_len = 25
+num_pts = 250
 starting_pts = [Point2f0(2*R*rand(2).-R) for i in 1:num_pts]
 xraw = [copy(starting_pts) for i in 1:trace_len]
 x = [Node(xraw[i]) for i in 1:trace_len]
@@ -59,6 +59,15 @@ ms = 0.02
 limits = FRect(-R, -R, 2R, 2R)
 bg_col = RGB{Float32}(0.04, 0.11, 0.22)
 particles_canvas = Scene(resolution=(800,800), limits=limits, backgroundcolor = bg_col)
+r = range(-R, 2R, length=100)
+pline = lift(γ, β) do γ, β
+  [x for x in Point2f0.(r, γ*r .+ β) if x in limits]
+end
+
+lines!(particles_canvas, [x for x in Point2f0.(r, r - r.^3) if x in limits], color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
+lines!(particles_canvas, pline, color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
+
+
 for i in randperm(trace_len)
     scatter!(particles_canvas, x[i], color = col[i], markersize = ms, #=show_axis = true,limits=limits,=#  glowwidth = 0.005, glowcolor = :white)
 end

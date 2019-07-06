@@ -51,6 +51,9 @@ axis[:grid, :linewidth] =  (1, 1)
 axis[:grid, :linecolor] = (RGBA{Float32}(0.5, 0.7, 1.0, 0.5),RGBA{Float32}(0.5, 0.7, 1.0, 0.5))
 axis[:names][:textsize] = (0.0,0.0)
 axis[:ticks, :textcolor] = (RGBA{Float32}(0.5, 0.7, 1.0, 0.8),RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
+r = range(-R, 2R, length=100)
+lines!(p, [x for x in Point2f0.(r, r - r.^3) if x in limits], color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
+lines!(p, [x for x in Point2f0.(r, P.γ*r .+ P.β) if x in limits], color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
 
 display(p)
 
@@ -93,6 +96,6 @@ record(p, "output/fitzhugh.mp4", 1:(N÷10)) do i
         f = (i + 5*(i!=0))/(k+5)
         col[mod1(c-i, k)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-sqrt(f))/3)
     end
-    sleep(1e-8)
+    yield()
 end
 end
