@@ -5,9 +5,16 @@ using Colors
 
 RECORD = false
 R = 1.5 # ~size of the interesting region around the origin
-dt = 0.01
+dt = 0.005
 sq_dt = sqrt(dt)
 
+trace_len = 40
+num_pts = 250
+starting_pts = [Point2f0(2*R*rand(2).-R) for i in 1:num_pts]
+
+T = 8.0
+frame_time = collect(0:dt:T)
+frame_start = 0.0
 
 # One slider for each parameter
 s1, σ₂ = textslider(0.0f0:0.001f0:3.0f0, "σ₂", start = 0.3)
@@ -38,7 +45,7 @@ function update!(t, x, y, jump)
     end
     y
 end
-update!(x, y, jump = indentity) = update!(NaN, x, y, jump)
+update!(x, y, jump = identity) = update!(NaN, x, y, jump)
 
 function update(x)
     k = Point2f0(x)
@@ -48,13 +55,25 @@ end
 
 
 # Define traces zapping around the space
-trace_len = 25
-num_pts = 250
-starting_pts = [Point2f0(2*R*rand(2).-R) for i in 1:num_pts]
+fdecay(i, len) = (i + 5*(i!=0))/(len+5)
+
 xraw = [copy(starting_pts) for i in 1:trace_len]
 x = [Node(xraw[i]) for i in 1:trace_len]
 col = [Node(RGBA{Float32}(0.0, 0.0, 0.0, 0.0)) for i in 1:trace_len]
-ms = 0.02
+col1 = [RGBA{Float32}(0.0, 0.0, 0.0, 0.0) for i in frame_time]
+c = trace_len
+for i in 0:trace_len-1
+    f = fdecay(i, trace_len)
+    col[mod1(c-i, trace_len)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-sqrt(f))/3)
+end
+trace_len1 = length(frame_time)÷2
+c = length(frame_time)
+for i in 0:trace_len1-1
+        f = fdecay(i, trace_len1)
+        col1[mod1(c-i, length(frame_time))] = RGBA{Float32}(1.0, 0.7, 0.5, (1-sqrt(f))/2)
+end
+
+ms = 0.03
 
 limits = FRect(-R, -R, 2R, 2R)
 bg_col = RGB{Float32}(0.04, 0.11, 0.22)
@@ -64,8 +83,9 @@ pline = lift(γ, β) do γ, β
   [x for x in Point2f0.(r, γ*r .+ β) if x in limits]
 end
 
-lines!(particles_canvas, [x for x in Point2f0.(r, r - r.^3) if x in limits], color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
-lines!(particles_canvas, pline, color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
+# null klines
+lines!(particles_canvas, [x for x in Point2f0.(r, r - r.^3) if x in limits], color = RGBA{Float32}(0.5, 0.7, 1.0, 0.5))
+lines!(particles_canvas, pline, color = RGBA{Float32}(0.5, 0.7, 1.0, 0.5))
 
 
 for i in randperm(trace_len)
@@ -74,19 +94,27 @@ end
 
 
 # Define graph tracing history of each coordinate of a single particle
-T = 8.0
-frame_time = collect(0:dt:T)
-frame_start = 0.0
-frame_ys = zeros((2, length(frame_time)))
-for i in 1:length(frame_time)-1
-    frame_ys[:,i+1] = update(frame_ys[:,i])
-end
 
+frame_ts = frame_start .+ frame_time
+frame_ys = #nodes of vectors for first and second coordinate
+Node([starting_pts[1][1] for t in frame_time]),
+Node([starting_pts[1][2] for t in frame_time])
 
-graph_canvas = Scene(resolution=(400,800), backgroundcolor = bg_col)
-plotted_line1 = lines!(graph_canvas, frame_start .+ frame_time, frame_ys[1,:], color=:white)
+#for i in 1:trace_len1-1
+#    pi = update(Point2f0(frame_ys[1][][i], Point2f0(frame_ys[2][][i])))
+#    frame_ys[1][][i], frame_ys[2][][i] = pi
+#end
+
+#scatter!(particles_canvas, frame_ys..., color = col1, markersize = 1.41*ms, #=show_axis = true,limits=limits,=#  glowwidth = 0.01, glowcolor = :red)
+
+lines!(particles_canvas, frame_ys..., color = col1, linewidth=1.5)
+
+limits2 = FRect(frame_ts[1], -R, frame_ts[end]-frame_ts[1], 2R)
+
+graph_canvas = Scene(resolution=(400,800), #=limits=limits2 ,=# backgroundcolor = bg_col)
+plotted_line1 = lines!(graph_canvas, frame_ts, frame_ys[1], color=:white)
 plotted_line1 = plotted_line1[end]
-plotted_line2 = lines!(graph_canvas, frame_start .+ frame_time, frame_ys[2,:], color=:goldenrod)
+plotted_line2 = lines!(graph_canvas, frame_ts, frame_ys[2], color=:goldenrod)
 plotted_line2 = plotted_line2[end]
 
 lineplots = [plotted_line1, plotted_line2]
@@ -127,15 +155,24 @@ for i in 1:N
         col[mod1(c-i, trace_len)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-sqrt(f))/3)
     end
 
-    frame_ys[:,1:end-1] .= frame_ys[:,2:end]
-    frame_ys[:,end] = update(frame_ys[:,end-1])
-    for (l,j) in zip(lineplots, [1,2])
-        l[1] = frame_start .+ frame_time
-        l[2] = frame_ys[j,:]
+    frame_ys[1][][1:end-1] = frame_ys[1][][2:end]
+    frame_ys[2][][1:end-1] = frame_ys[2][][2:end]
+
+    p1 = x[c][][1]
+    for d in 1:2
+        frame_ys[d][] = [frame_ys[d][][1:end-1]; p1[d]]
     end
+
+    frame_start += dt
+    plotted_line1[1] = frame_start .+ frame_time
+    plotted_line2[1] = frame_start .+ frame_time
+
+    AbstractPlotting.update_limits!(graph_canvas)
+
     AbstractPlotting.update!(graph_canvas)
 
-    sleep(1e-10)
+    #yield()
+    sleep(0.001)
 end
 
 if RECORD
