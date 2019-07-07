@@ -13,10 +13,10 @@ struct FitzhughNagumoDiff{T}
 end
 
 R = 1.5f0 # size of the interesting region around the origin
-dt = 0.005 # time step
+dt = 0.002 # time step
 sq_dt = sqrt(dt)
 
-trace_len = 40 # number of points in the comets' tails
+trace_len = 80 # number of points in the comets' tails
 num_pts = 250 # number of comets
 
 # comets die and are reborn at random places
@@ -29,7 +29,7 @@ starting_pts = [rebirth(1.0, R)(zero(Point2f0)) for i in 1:num_pts]
 
 T = 8.0 # time frame for the rightmost panel
 graph_time = collect(0:dt:T)
-graph_starttime = 0.0
+graph_starttime = -T
 
 N = 4000 # run for N steps
 
@@ -84,18 +84,13 @@ fdecay(i, len) = (i + 5*(i!=0))/(len+5)
 # circular array of vectors of points,
 xraw = [copy(starting_pts) for i in 1:trace_len]
 x = [Node(xraw[i]) for i in 1:trace_len]
+
 # each vector contains points of the same age/color
+# set to invisible until a point is updated for the first time
 col = [Node(RGBA{Float32}(0.0, 0.0, 0.0, 0.0)) for i in 1:trace_len]
 
 # seperate color vector for special yellow comet tracking the right plot
 col1 = [RGBA{Float32}(0.0, 0.0, 0.0, 0.0) for i in graph_time]
-
-# compute vector of colors. At first, `c = end` is the newest vertex
-c = trace_len
-for i in 0:trace_len-1
-    f = fdecay(i, trace_len)
-    col[mod1(c-i, trace_len)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-sqrt(f))/3)
-end
 trace_len1 = length(graph_time)÷2
 c = length(graph_time)
 for i in 0:trace_len1-1
@@ -127,8 +122,8 @@ end
 
 graph_ts = graph_starttime .+ graph_time
 graph_ys = #nodes of vectors for first and second coordinate
-Node([starting_pts[1][1] for t in graph_time]),
-Node([starting_pts[1][2] for t in graph_time])
+Node([(t > 0.999T ? 1 : NaN )*starting_pts[1][1] for t in graph_time]),
+Node([(t > 0.999T ? 1 : NaN )*starting_pts[1][2] for t in graph_time])
 
 
 lines!(particles_canvas, graph_ys..., color = col1, linewidth=1.5)
@@ -177,6 +172,9 @@ for i in 1:N
     x[c][] = x[cnew][] # trigger repaint
 
     for i in 0:trace_len-1 # older planet location is dimmed down
+        if c - i < 0
+            continue # skip color update for points never updated
+        end
         f = (i + 5*(i!=0))/(trace_len+5)
         col[mod1(c-i, trace_len)][] = RGBA{Float32}(0.5, 0.7, 1.0, (1-sqrt(f))/3)
     end
@@ -198,5 +196,5 @@ for i in 1:N
     AbstractPlotting.update!(graph_canvas)
 
     #yield()
-    sleep(0.001) 
+    sleep(0.0001)
 end
