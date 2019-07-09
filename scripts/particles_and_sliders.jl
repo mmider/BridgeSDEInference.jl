@@ -44,15 +44,13 @@ s5, ϵ = textslider(0.001f0:0.001f0:3.0f0, "ϵ", start = 0.1)
 
 #import output statistical method
 #TODO I could not change the range of the x-axes [in Plot would be xlim] in order to match it with the slider
-#TODO line 50, 51 is just a temporary solution
+
 df = CSV.read("./output/chain.csv")
-d1 = plot(density, Float64.(df.x1_3), axis = (showgrid = false, showticks = false,)#= ,limits = FRect(0,0,10,10)=#)
-axis = d1[Axis]
-axis[:names][:axisnames] = (" " , " ")
-d2 = plot(density, Float64.(df.x1_4), axis = (showgrid = false, showticks = false,)#= ,limits = FRect(0,0,10,10)=#)
-d3 = plot(density, Float64.(df.x1_2), axis = (showgrid = false, showticks = false,)#= ,limits = FRect(0,0,10,10)=#)
-d4 = plot(density, Float64.(df.x1_1), axis = (showgrid = false, showticks = false,)#= ,limits = FRect(0,0,10,10)=#)
-d5 = plot(density, Float64.(df.x1), axis = (showgrid = false, showticks = false,) #= ,limits = FRect(0,0,10,10)=#)
+d1 = plot(density, Float64.(df.x1_3), show_axis = false#= ,limits = FRect(0,0,10,10)=#)
+d2 = plot(density, Float64.(df.x1_4), show_axis = false#= ,limits = FRect(0,0,10,10)=#)
+d3 = plot(density, Float64.(df.x1_2), show_axis = false#= ,limits = FRect(0,0,10,10)=#)
+d4 = plot(density, Float64.(df.x1_1), show_axis = false#= ,limits = FRect(0,0,10,10)=#)
+d5 = plot(density, Float64.(df.x1), show_axis = false #= ,limits = FRect(0,0,10,10)=#)
 
 
 
