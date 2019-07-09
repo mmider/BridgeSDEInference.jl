@@ -13,7 +13,6 @@ struct FitzhughNagumoDiff{T}
     σ₁::T
     σ₂::T
 end
-
 R = 1.5f0 # size of the interesting region around the origin
 dt = 0.002 # time step
 sq_dt = sqrt(dt)
