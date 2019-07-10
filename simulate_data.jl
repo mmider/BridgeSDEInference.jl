@@ -46,7 +46,7 @@ parametrisation = POSSIBLE_PARAMS[3]
 include("src/fitzHughNagumo.jl")
 #P = FitzhughDiffusion(0.1, 0.0, 1.5, 0.8, 0.3)
 #P = FitzhughDiffusion(0.4, 0.05, 1.2, 0.3, 0.2)
-P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
+P = FitzhughDiffusion(10.0, -8.0, 25.0, 0.0, 3.0)
 x0 = ℝ{2}(-0.5, 0.6)
 if parametrisation == :simpleAlter
     x0 = regularToAlter(x0, P.ϵ, 0.0)
@@ -80,7 +80,7 @@ recentlyUpSearch = true
 df_all = DataFrame(time=[], upCross=[], downCross=[], x2=[])
 tt_temp = copy(tt)
 
-XX, _ = simulateSegment(0.0, tt_temp)
+XX, _ = simulateSegment(0.0, x0, P, tt_temp)
 upLvl = 0.5
 downLvl = -0.5
 upCrossingTimes, recentlyUpSearch = findCrossings(XX, upLvl, downLvl, recentlyUpSearch)
@@ -89,7 +89,7 @@ upCross = collect(Iterators.flatten([[x0[1]],
 downCross = fill(downLvl, length(upCrossingTimes))
 x2 = fill(NaN, length(upCrossingTimes))
 x2[1] = x0[2]
-
+XX
 df = DataFrame(time=upCrossingTimes,
                upCross=upCross,
                downCross=downCross,

@@ -1,5 +1,3 @@
-#NOTE see README for explanations
-
 mkpath("output/")
 outdir="output"
 
@@ -64,9 +62,10 @@ function readData(::Val{false}, filename)
 end
 
 # decide if first passage time observations or partially observed diffusion
-fptObsFlag = false
+fptObsFlag = true
+# pick dataset
 if fptObsFlag
-    filename = "up_crossing_times_regular.csv"
+    filename = "up_crossing_times_exmple_simpleConjug.csv"
 else
     filename = "path_part_obs_conj.csv"
 end
@@ -74,9 +73,10 @@ end
     fptOrPartObs) = readData(Val(fptObsFlag),
                              joinpath(outdir, filename))
 
+
 # Initial parameter guess.
 #θ₀ = [0.1, 0.0, 1.5, 0.8, 0.3]
-θ₀ = [10.0, -8.0, 15.0, 0.0, 3.0]
+θ₀ = [10.0, -8.0, 25.0, 0.0, 3.0]
 
 # Target law
 P˟ = FitzhughDiffusion(θ₀...)
@@ -86,23 +86,27 @@ P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=3*10^3
+numSteps=1*10^4
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 #tKernel=RandomWalk([0.01, 0.1, 0.5, 0.01, 0.1],
 #                   [false, false, false, false, true])
 priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
                  ImproperPrior()))
-𝔅 = NoBlocking()# = ChequeredBlocking()
-blockingParams = ([], 0.1)#(collect(1:length(obs)-2)[1:1:end], 10^(-6))
-
+𝔅 = ChequeredBlocking()
+blockingParams = (collect(1:length(obs)-2)[1:1:end], 10^(-6))
+#𝔅 = NoBlocking()
+#blockingParams = ([], 0.1)
 Random.seed!(4)
+
+start = time()
+
 (chain, accRateImp, accRateUpdt,
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.97,
-                         dt=1/10000,
+                         ρ=0.975,
+                         dt=1/5000,
                          saveIter=3*10^2,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),
@@ -116,6 +120,9 @@ Random.seed!(4)
                          blocking=𝔅,
                          blockingParams=blockingParams,
                          solver=Vern7())
+
+elapsed = time() - start
+print("time elapsed: ", elapsed, "\n")
 
 print("imputation acceptance rate: ", accRateImp,
       ", parameter update acceptance rate: ", accRateUpdt)
@@ -148,6 +155,7 @@ else
     plotPaths(df2, obs=[Float64.(df.x1), [x0[2]]],
               obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
 end
+
 plotChain(df3, coords=[1])
 plotChain(df3, coords=[2])
 plotChain(df3, coords=[3])
