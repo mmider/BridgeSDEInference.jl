@@ -67,22 +67,23 @@ createTableau(::T) where T = nothing
 createTableau(::Tsit5) = Tsit5Tableau()
 createTableau(::Vern7) = Vern7Tableau()
 
-function reserveMemLM⁺μ(changePt::ODEChangePt, L::TL, Σ::TΣ, ::Tv) where {TL,TΣ,Tv}
+
+function reserveMemLM⁺μ(changePt::ODEChangePt, ::TH, ::THν) where {TH,THν}
     N = getChangePt(changePt)
-    L̃ = zeros(TL, N)
-    M̃⁺ = zeros(TΣ, N)
-    μ = zeros(Tv, N)
+    L̃ = zeros(TH, N) # NOTE: not TL
+    M̃⁺ = zeros(TH, N) # NOTE: n\underot
+    μ = zeros(THν, N)
     L̃, M̃⁺, μ
 end
 
+function initLM⁺μ!(::NoChangePt, ::Any, ::Any, ::Any, ::Any, ::Any) end
 
-function initLM⁺μ!(L̃::Vector{TL}, M̃⁺::Vector{TΣ}, μ::Vector{Tμ}, L::TL, Σ::TΣ
-                  ) where {TL,TΣ,Tμ}
+function initLM⁺μ!(::ODEChangePt, L̃::Vector{TL}, M̃⁺::Vector{TΣ}, μ::Vector{Tμ},
+                   L::TL, Σ::TΣ) where {TL,TΣ,Tμ}
     L̃[end] = L
     M̃⁺[end] = Σ
     μ[end] = zero(Tμ)
 end
-
 
 """
     gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, P,
@@ -165,20 +166,7 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H
     @assert size(L[:,1]) == (m,)
     @assert size(L*L') == size(Σ) == (m, m)
 
-    toUpdate = (LMatrix(), M⁺Matrix(), μVector())
-    λ = getChangePt(changePt)
-    N = length(t)
-    tableau = createTableau(ST())#solver(changePt))
-
-    initLM⁺μ!(L̃, M̃⁺, μ, L, Σ)
-
-    for i in λ-1:-1:1
-        dt = t[N-λ+i] - t[N-λ+i+1]
-        L̃[i], M̃⁺[i], μ[i] = update(ST(), toUpdate, t[N-λ+i+1], L̃[i+1], M̃⁺[i+1],
-                                   μ[i+1], dt, P, tableau)
-    end
-
-    HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
+    λ = _gpupdate!(changePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P, ST())
 
     toUpdate = (HMatrix(), HνVector(), cScalar())
     tableau = createTableau(ST())
@@ -189,6 +177,32 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H
                                    c[i+1], dt, P, tableau)
     end
 end
+
+
+function _gpupdate!(changePt::ODEChangePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P,
+                    solver::ST = Ralston3()) where ST
+    toUpdate = (LMatrix(), M⁺Matrix(), μVector())
+    λ = getChangePt(changePt)
+    N = length(t)
+    tableau = createTableau(ST())#solver(changePt))
+
+    initLM⁺μ!(changePt, L̃, M̃⁺, μ, L, Σ)
+
+    for i in λ-1:-1:1
+        dt = t[N-λ+i] - t[N-λ+i+1]
+        L̃[i], M̃⁺[i], μ[i] = update(ST(), toUpdate, t[N-λ+i+1], L̃[i+1], M̃⁺[i+1],
+                                   μ[i+1], dt, P, tableau)
+    end
+
+    HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
+    λ
+end
+
+function _gpupdate!(::NoChangePt, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any,
+                    ::Any, ::Any, ::Any, ::Any, ::Any, ::Any)
+    0
+end
+
 
 
 """
@@ -291,6 +305,7 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
         H⁻¹ = zeros(TH⁻¹, N)
         Hν = zeros(Tν, N)
         c = zeros(K, N)
+
         L̃, M̃⁺, μ = reserveMemLM⁺μ(changePt, L, Σ, v)
 
         gpupdate!(tt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, Pt,

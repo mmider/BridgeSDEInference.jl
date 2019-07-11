@@ -54,8 +54,7 @@ changePt = NoChangePt()
 P = GuidPropBridge(eltype(x0), tt, P˟, P̃, L, L*x0, Σ;
                    changePt=changePt, solver=Vern7())
 
-
 P₂ = GuidPropBridge(eltype(x0), tt, P˟, P̃, L, L*x0, Σ;
-                    changePt=SimpleChangePt(100), solver=Vern7())
+                    changePt=SimpleChangePt(1000), solver=Vern7())
 
 Hs = [h1 - h2 for (h1, h2) in zip(P.H,P₂.H)]

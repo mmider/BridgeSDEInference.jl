@@ -99,7 +99,7 @@ priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
 blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-6), SimpleChangePt(100))
 #𝔅 = NoBlocking()
 #blockingParams = ([], 0.1)
-changePt = NoChangePt()
+changePt = NoChangePt(100)
 
 
 Random.seed!(4)
