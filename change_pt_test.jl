@@ -7,9 +7,10 @@ using DataFrames
 using CSV
 #const ℝ = SVector
 # specify observation scheme
-L = @SMatrix [1. 0.]
-Σdiagel = 10^(-10)
-Σ = @SMatrix [Σdiagel]
+L = @SMatrix [1. 0.;
+              0. 1.]
+Σ = @SMatrix [10^(-5) 0.;
+     0. 10^(-5)]
 
 # choose parametrisation of the FitzHugh-Nagumo
 POSSIBLE_PARAMS = [:regular, :simpleAlter, :complexAlter, :simpleConjug,
@@ -42,7 +43,8 @@ t₀ = 1.0
 T = 2.0
 x0 = ℝ{2}(-0.5, 2.25)
 xT = ℝ{2}(1.0, 0.0)
-P̃ = FitzhughDiffusionAux(θ₀..., t₀, x0[1], T, xT[2])
+
+P̃ = FitzhughDiffusionAux(θ₀..., t₀, L*x0, T, L*xT)
 
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
 dt = 1/10000
@@ -57,4 +59,4 @@ P = GuidPropBridge(eltype(x0), tt, P˟, P̃, L, L*x0, Σ;
 P₂ = GuidPropBridge(eltype(x0), tt, P˟, P̃, L, L*x0, Σ;
                     changePt=SimpleChangePt(1000), solver=Vern7())
 
-Hs = [h1 - h2 for (h1, h2) in zip(P.H,P₂.H)]
+Hs = [(h1,h2) for (h1, h2) in zip(P.H,P₂.H)]

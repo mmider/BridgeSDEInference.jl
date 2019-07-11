@@ -95,6 +95,17 @@ function HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
     end
 end
 
+function _initHHνc!(changePt::NoChangePt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν,
+                    c, m)
+    H[end] = H⁽ᵀ⁺⁾ + L' * (Σ \ L)
+    Hν[end] = Hν⁽ᵀ⁺⁾ + L' * (Σ \ v)
+    c[end] = c⁽ᵀ⁺⁾ + 0.5*v'*(Σ \ v)  + 0.5*m*log(2.0*π) + 0.5*log(abs(det(Σ)))
+end
+
+function _initHHνc!(::ODEChangePt, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any,
+                    ::Any, ::Any, ::Any, ::Any)
+end
+
 
 """
     gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, P,
@@ -125,11 +136,13 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H
 
     λ = _gpupdate!(changePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P, ST())
 
+    _initHHνc!(changePt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, m)
+
     toUpdate = (HMatrix(), HνVector(), cScalar())
     tableau = createTableau(ST())
 
     N = length(t)
-    for i in N-λ-1:-1:1
+    for i in N-λ:-1:1
         dt = t[i] - t[i+1]
         H[i], Hν[i], c[i] = update(ST(), toUpdate, t[i+1], H[i+1], Hν[i+1],
                                    c[i+1], dt, P, tableau)
@@ -158,7 +171,7 @@ end
 
 function _gpupdate!(::NoChangePt, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any,
                     ::Any, ::Any, ::Any, ::Any, ::Any, ::Any)
-    0
+    1
 end
 
 
