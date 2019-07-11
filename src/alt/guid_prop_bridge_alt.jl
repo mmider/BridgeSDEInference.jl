@@ -129,7 +129,7 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H
     tableau = createTableau(ST())
 
     N = length(t)
-    for i in N-λ:-1:1
+    for i in N-λ-1:-1:1
         dt = t[i] - t[i+1]
         H[i], Hν[i], c[i] = update(ST(), toUpdate, t[i+1], H[i+1], Hν[i+1],
                                    c[i+1], dt, P, tableau)

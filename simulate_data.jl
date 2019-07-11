@@ -63,7 +63,7 @@ tt = 0.0:dt:T
 #  Partially observed diffusion  #
 # ------------------------------ #
 XX, _ = simulateSegment(0.0, x0, P, tt)
-
+XX.yy[1]
 skip = 50000
 Time = collect(tt)[1:skip:end]
 x1 = [(L*x)[1] for x in XX.yy[1:skip:end]]

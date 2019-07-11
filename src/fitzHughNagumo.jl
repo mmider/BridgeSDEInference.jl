@@ -166,6 +166,14 @@ elseif parametrisation == :complexConjug
     β(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, 2*P.ϵ*P.v^3+P.s-P.β)#check later
     σ(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, P.σ)
     dependsOnParams(::FitzhughDiffusionAux) = (1, 2, 3, 4, 5)
+
+    function B(t, P::FitzhughDiffusionAux{T,SArray{Tuple{2},Float64,1,2}}) where T
+        @SMatrix [0.0  1.0;
+                  (P.ϵ-P.γ-3.0*P.ϵ*P.v[1]^2-6*P.ϵ*P.v[1]*P.v[2]) (P.ϵ-1.0-3.0*P.ϵ*P.v[1]^2)]
+    end
+    function β(t, P::FitzhughDiffusionAux{T,SArray{Tuple{2},Float64,1,2}}) where T
+        ℝ{2}(0.0, 2*P.ϵ*P.v[1]^3+P.s-P.β+6*P.v[1]^2*P.v[2])#check later
+    end    
 end
 
 constdiff(::FitzhughDiffusionAux) = true
