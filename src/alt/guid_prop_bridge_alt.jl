@@ -67,12 +67,11 @@ createTableau(::T) where T = nothing
 createTableau(::Tsit5) = Tsit5Tableau()
 createTableau(::Vern7) = Vern7Tableau()
 
-
 function reserveMemLM⁺μ(changePt::ODEChangePt, ::TH, ::THν) where {TH,THν}
     N = getChangePt(changePt)
     L̃ = zeros(TH, N) # NOTE: not TL
-    M̃⁺ = zeros(TH, N) # NOTE: n\underot
-    μ = zeros(THν, N)
+    M̃⁺ = zeros(TH, N) # NOTE: not TΣ
+    μ = zeros(THν, N) # NOTE: not Tv
     L̃, M̃⁺, μ
 end
 
@@ -84,48 +83,6 @@ function initLM⁺μ!(::ODEChangePt, L̃::Vector{TL}, M̃⁺::Vector{TΣ}, μ::V
     M̃⁺[end] = Σ
     μ[end] = zero(Tμ)
 end
-
-"""
-    gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, P,
-              ::NoChangePt, solver::ST = Ralston3())
-
-Compute the values of elements `H`, `Hν`, `c`, on a grid of time-points.
-...
-# Arguments
-- `t`: vector of time-points
-- `L`: observation operator at the end-point
-- `Σ`: covariance matrix of the noise perturbating observation
-- `v`: observation at the end-point (`v` = `L`X + 𝓝(0,`Σ`))
-- `H⁽ᵀ⁺⁾`: `H` at the left limit of subsequent interval
-- `Hν⁽ᵀ⁺⁾`: `Hν` at the left limit of subsequent interval
-- `c⁽ᵀ⁺⁾`: `c` at the left limit of subsequent interval
-- `H`: container where values of `H` evaluated on a grid will be stored
-- `Hν`: container where values of `Hν` evaluated on a grid will be stored
-- `c`: container where values of `c` evaluated on a grid will be stored
-- `P`: Law of a proposal diffusion
-- `solver`: numerical solver used for solving the backward ODEs
-...
-"""
-function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, P,
-                   ::NoChangePt, solver::ST = Ralston3()) where ST
-    m, d = size(L)
-    @assert size(L[:,1]) == (m,)
-    @assert size(L*L') == size(Σ) == (m, m)
-
-    toUpdate = (HMatrix(), HνVector(), cScalar())
-    tableau = createTableau(ST())
-
-    H[end] = H⁽ᵀ⁺⁾ + L' * (Σ \ L)
-    Hν[end] = Hν⁽ᵀ⁺⁾ + L' * (Σ \ v)
-    c[end] = c⁽ᵀ⁺⁾ + 0.5*v'*(Σ \ v)  + 0.5*m*log(2.0*π) + 0.5*log(abs(det(Σ)))
-
-    for i in length(t)-1:-1:1
-        dt = t[i] - t[i+1]
-        H[i], Hν[i], c[i] = update(ST(), toUpdate, t[i+1], H[i+1], Hν[i+1],
-                                   c[i+1], dt, P, tableau)
-    end
-end
-
 
 function HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
     N = length(H)
@@ -171,6 +128,7 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H
     toUpdate = (HMatrix(), HνVector(), cScalar())
     tableau = createTableau(ST())
 
+    N = length(t)
     for i in N-λ:-1:1
         dt = t[i] - t[i+1]
         H[i], Hν[i], c[i] = update(ST(), toUpdate, t[i+1], H[i+1], Hν[i+1],
@@ -281,9 +239,9 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
     H⁻¹::Vector{TH⁻¹}   # currently not used
     Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
     c::Vector{K}        # scalar c evaluated at time-points `tt`
-    L̃::Vector{S1}       # (optional) matrix L evaluated at time-points `tt`
-    M̃⁺::Vector{S3}      # (optional) matrix M⁺ evaluated at time-points `tt`
-    μ::Vector{S2}       # (optional) vector μ evaluated at time-points `tt`
+    L̃::Vector{TH}       # (optional) matrix L evaluated at time-points `tt` NOTE not S1
+    M̃⁺::Vector{TH}      # (optional) matrix M⁺ evaluated at time-points `tt` NOTE not S3
+    μ::Vector{Tν}      # (optional) vector μ evaluated at time-points `tt` NOTE not S2
     L::S1               # observation operator (for observation at the end-pt)
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
@@ -306,7 +264,7 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
         Hν = zeros(Tν, N)
         c = zeros(K, N)
 
-        L̃, M̃⁺, μ = reserveMemLM⁺μ(changePt, L, Σ, v)
+        L̃, M̃⁺, μ = reserveMemLM⁺μ(changePt, H[1], Hν[1])
 
         gpupdate!(tt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, Pt,
                   changePt, ST())
