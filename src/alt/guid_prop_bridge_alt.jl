@@ -67,11 +67,11 @@ createTableau(::T) where T = nothing
 createTableau(::Tsit5) = Tsit5Tableau()
 createTableau(::Vern7) = Vern7Tableau()
 
-function reserveMemLM⁺μ(changePt::ODEChangePt, L::TL, Σ::TΣ, ::Tμ) where {TL,TΣ,Tμ}
+function reserveMemLM⁺μ(changePt::ODEChangePt, L::TL, Σ::TΣ, ::Tv) where {TL,TΣ,Tv}
     N = getChangePt(changePt)
     L̃ = zeros(TL, N)
     M̃⁺ = zeros(TΣ, N)
-    μ = zeros(Tμ, N)
+    μ = zeros(Tv, N)
     L̃, M̃⁺, μ
 end
 
@@ -79,14 +79,14 @@ end
 function initLM⁺μ!(L̃::Vector{TL}, M̃⁺::Vector{TΣ}, μ::Vector{Tμ}, L::TL, Σ::TΣ
                   ) where {TL,TΣ,Tμ}
     L̃[end] = L
-    M̃⁺[end] = inv(Σ)
+    M̃⁺[end] = Σ
     μ[end] = zero(Tμ)
 end
 
 
 """
     gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, P,
-              solver::ST = Ralston3(), ::NoChangePt)
+              ::NoChangePt, solver::ST = Ralston3())
 
 Compute the values of elements `H`, `Hν`, `c`, on a grid of time-points.
 ...
@@ -106,7 +106,7 @@ Compute the values of elements `H`, `Hν`, `c`, on a grid of time-points.
 ...
 """
 function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, P,
-                   solver::ST = Ralston3(), ::NoChangePt) where ST
+                   ::NoChangePt, solver::ST = Ralston3()) where ST
     m, d = size(L)
     @assert size(L[:,1]) == (m,)
     @assert size(L*L') == size(Σ) == (m, m)
@@ -128,11 +128,11 @@ end
 
 function HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
     N = length(H)
-    d, d = size(H)
-    for i in N:-1:N-λ+1
-        H[i] = (L̃[i])' * (M̃⁺[i] \ L̃[i])
-        Hν[i] = (L̃[i])' * (M̃⁺[i] \ (v-μ[i]))
-        c[i] = ( 0.5 * (v - μ[i])' * (M̃⁺[i] \ (v - μ[i]))
+    d, d = size(M̃⁺[end])
+    for i in λ:-1:1
+        H[N-λ+i] = (L̃[i])' * (M̃⁺[i] \ L̃[i])
+        Hν[N-λ+i] = (L̃[i])' * (M̃⁺[i] \ (v-μ[i]))
+        c[N-λ+i] = ( 0.5 * (v - μ[i])' * (M̃⁺[i] \ (v - μ[i]))
                  - 0.5*d*log(2*π) - 0.5*log(det(M̃⁺[i])) )
     end
 end
@@ -160,7 +160,7 @@ Compute the values of elements `H`, `Hν`, `c`, on a grid of time-points.
 ...
 """
 function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, P,
-                   solver::ST = Ralston3(), changePt::ODEChangePt) where ST
+                   changePt::ODEChangePt, solver::ST = Ralston3()) where ST
     m, d = size(L)
     @assert size(L[:,1]) == (m,)
     @assert size(L*L') == size(Σ) == (m, m)
@@ -172,9 +172,9 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H
 
     initLM⁺μ!(L̃, M̃⁺, μ, L, Σ)
 
-    for i in N-1:-1:N-λ+1
-        dt = t[i] - t[i+1]
-        L̃[i], M̃⁺[i], μ[i] = update(ST(), toUpdate, t[i+1], L̃[i+1], M̃⁺[i+1],
+    for i in λ-1:-1:1
+        dt = t[N-λ+i] - t[N-λ+i+1]
+        L̃[i], M̃⁺[i], μ[i] = update(ST(), toUpdate, t[N-λ+i+1], L̃[i+1], M̃⁺[i+1],
                                    μ[i+1], dt, P, tableau)
     end
 
@@ -201,7 +201,7 @@ function gpupdate!(P, H⁽ᵀ⁺⁾ = zero(typeof(P.H[1])),
                    Hν⁽ᵀ⁺⁾ = zero(typeof(P.Hν[1])), c⁽ᵀ⁺⁾ = 0.0;
                    solver::ST = Ralston3) where ST
     gpupdate!(P.tt, P.L, P.Σ, P.v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, P.H,
-              P.Hν, P.c, P.L̃, P.M̃⁺, P.μ, P.Pt, ST(), P.changePt)
+              P.Hν, P.c, P.L̃, P.M̃⁺, P.μ, P.Pt, P.changePt, ST())
 end
 
 
@@ -268,8 +268,8 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
     Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
     c::Vector{K}        # scalar c evaluated at time-points `tt`
     L̃::Vector{S1}       # (optional) matrix L evaluated at time-points `tt`
-    M̃⁺::Vector{TH}      # (optional) matrix M⁺ evaluated at time-points `tt`
-    μ::Vector{Tν}       # (optional) vector μ evaluated at time-points `tt`
+    M̃⁺::Vector{S3}      # (optional) matrix M⁺ evaluated at time-points `tt`
+    μ::Vector{S2}       # (optional) vector μ evaluated at time-points `tt`
     L::S1               # observation operator (for observation at the end-pt)
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
@@ -282,25 +282,26 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
                             c⁽ᵀ⁺⁾ = zero(K);
                             # H⁻¹prot is currently not used
                             H⁻¹prot::TH⁻¹ = SVector{prod(size(TH))}(rand(prod(size(TH)))),
-                            changePt::ODEChangePt = NoChangePt(),
+                            changePt::TC = NoChangePt(),
                             solver::ST = Ralston3()
-                            ) where {K,Tν,TH,TH⁻¹,S1,S2,S3,ST}
+                            ) where {K,Tν,TH,TH⁻¹,S1,S2,S3,ST,TC}
         tt = collect(tt_)
         N = length(tt)
         H = zeros(TH, N)
         H⁻¹ = zeros(TH⁻¹, N)
         Hν = zeros(Tν, N)
         c = zeros(K, N)
-        L̃, M̃⁺, μ = reserveMemLM⁺μ(changePt, L, Σ, Hν[1])
+        L̃, M̃⁺, μ = reserveMemLM⁺μ(changePt, L, Σ, v)
 
         gpupdate!(tt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, Pt,
-                  ST(), changePt)
+                  changePt, ST())
 
         T = Bridge.valtype(P)
         R = typeof(P)
         R2 = typeof(Pt)
-        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(P, Pt, tt, H, H⁻¹, Hν, c, L̃, M̃⁺, μ, L,
-                                          v, Σ, changePt)
+
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(P, Pt, tt, H, H⁻¹, Hν, c, L̃, M̃⁺, μ,
+                                             L, v, Σ, changePt)
     end
 
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC},

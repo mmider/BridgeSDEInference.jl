@@ -84,8 +84,8 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     # info about the points at which to switch between the systems of ODEs
     changePts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
 
-    function ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64, P::TP, WW::TWW,
-                               XX::TXX, changePt::ODEChangePt=NoChangePt()
+    function ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64,
+                               changePt::ODEChangePt, P::TP, WW::TWW, XX::TXX
                                ) where {TP,TWW,TXX}
         findKnots(mod, rem) = [k for (i,k) in enumerate(knots) if i % mod == rem]
         knotsA = findKnots(2, 1)
@@ -103,8 +103,8 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
         ΣsA = findΣ(knotsA)
         ΣsB = findΣ(knotsB)
 
-        findChP(knots, chPt) = [(k in knots ? deepcopy(chPt) : NoChangePt())
-                                                      for (k,p) in enumerate(P)]
+        findChP(knots) = [(k in knots ? deepcopy(changePt) : p.changePt)
+                                                    for (k,p) in enumerate(P)]
         chpA = findChP(knotsA)
         chpB = findChP(knotsB)
 

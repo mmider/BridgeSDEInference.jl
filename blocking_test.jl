@@ -31,10 +31,10 @@ include("src/vern7.jl")
 
 include("src/priors.jl")
 
-include("src/guid_prop_bridge.jl")
+include("src/alt/guid_prop_bridge_alt.jl")
 include("src/random_walk.jl")
-include("src/blocking_schedule.jl")
-include("src/mcmc.jl")
+include("src/alt/blocking_schedule_alt.jl")
+include("src/alt/mcmc_alt.jl")
 include("src/path_to_wiener.jl")
 
 include("src/save_to_files.jl")
@@ -84,24 +84,26 @@ P˟ = FitzhughDiffusion(θ₀...)
 # Auxiliary law
 P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
      in zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
+
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=3*10^4
+numSteps=1*10^4
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 #tKernel=RandomWalk([0.01, 0.1, 0.5, 0.01, 0.1],
 #                   [false, false, false, false, true])
 priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
                  ImproperPrior()))
-#𝔅 = ChequeredBlocking()
-#blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-6))
-𝔅 = NoBlocking()
-blockingParams = ([], 0.1)
+𝔅 = ChequeredBlocking()
+blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-6), SimpleChangePt(100))
+#𝔅 = NoBlocking()
+#blockingParams = ([], 0.1)
+changePt = NoChangePt()
+
+
 Random.seed!(4)
-
 start = time()
-
 (chain, accRateImp, accRateUpdt,
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃, Ls, Σs,
                          numSteps, tKernel, priors, τ;
@@ -113,15 +115,15 @@ start = time()
                          updtCoord=(Val((true, true, true, false, false)),
                                     Val((false, false, false, false, true)),
                                     ),
-                         paramUpdt=true,
+                         paramUpdt=false,
                          updtType=(ConjugateUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^1,
                          blocking=𝔅,
                          blockingParams=blockingParams,
-                         solver=Vern7())
-
+                         solver=Vern7(),
+                         changePt=changePt)
 elapsed = time() - start
 print("time elapsed: ", elapsed, "\n")
 
