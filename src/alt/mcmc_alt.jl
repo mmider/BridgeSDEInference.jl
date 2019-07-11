@@ -468,7 +468,6 @@ function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ,
             registerAccpt!(𝔅, blockIdx, false)
         end
     end
-
     swapXX!(𝔅, XX)
     noiseFromPath!(𝔅, XX, WW, P)
 

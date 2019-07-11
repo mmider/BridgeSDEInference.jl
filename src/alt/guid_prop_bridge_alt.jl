@@ -301,7 +301,9 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,TC̃},
                             L::S1, v::S2, Σ::S3, changePt::TC, θ
                             ) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3,TC̃,TC}
-        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(clone(P.Target,θ), clone(P.Pt,θ),
+        PtNew = clone(P.Pt, θ, v)
+        R̃2 = typeof(PtNew)
+        new{T,K,R,R̃2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(clone(P.Target,θ), PtNew,
                                              P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
                                              P.M̃⁺, P.μ, L, v, Σ, changePt)
     end
