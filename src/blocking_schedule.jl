@@ -17,7 +17,6 @@ Regular updates with no blocking
 struct NoBlocking <: BlockingSchedule end
 
 
-
 """
     ChequeredBlocking
 
@@ -30,7 +29,7 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     XX::TXX    # blocking workspace: accepted diffusion path
     XXᵒ::TXX   # blocking workspace: proposed diffusion path
     Ls         # observation operators for both sets of blocks
-    vs         # end-points for both sets of blocks (keep changing)
+    vs         # copied over observations of the process
     Σs         # covariance matrix of the noise for both sets of blocks
     # two sets of knots
     knots::Tuple{Vector{Int64}, Vector{Int64}}
@@ -39,20 +38,25 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     idx::Int64 # index of set of blocks that are being updated ∈{1,2}
     accpt::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of accepted samples
     props::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of proposed samples
+    # info about the points at which to switch between the systems of ODEs
+    changePts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
 end
 ```
 is a blocking schedule in which two sets of blocks are defined in an interlacing
 manner. For instance, if all knots consist of {1,2,3,4,5,6,7,8,9}, then set A
-will contain {1,3,5,7,9}, whereas set B {2,4,6,8}.
+will contain {1,3,5,7,9}, whereas set B {2,4,6,8}. These knots will then
+uniquely determine the blocks
 
-    ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64, P::TP, WW::TWW, XX::TXX)
+    ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64, changePt::ODEChangePt,
+                      P::TP, WW::TWW, XX::TXX)
 
-Base constructor that takes the set of all `knots` (which it then splits into
-two disjoint subsets), the artificial noise parameter `ϵ`, an object with
-diffusion laws `P`, container `WW` for the driving Brownian motion, container
-`XX` for the sampled path (only the size and type of the latter three are
-important, not actual values passed, because they are copied and used internally
-as containers).
+Base constructor that takes a set of all `knots` (which it then splits into
+two disjoint subsets), the artificial noise parameter `ϵ`, information about
+a point at which to switch between ODE solvers for H, Hν, c and L, M⁺, μ, an
+object with diffusion laws `P`, container `WW` for the driving Brownian motion,
+container `XX` for the sampled path (only the size and type of the latter three
+are important, not actual values passed, because they are copied and used
+internally as containers).
 
     ChequeredBlocking(𝔅::ChequeredBlocking{TP̃, TWW, TXX}, P::TP, idx::Int64)
 

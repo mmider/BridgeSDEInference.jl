@@ -162,22 +162,23 @@ end
 
 
 """
-    checkFullPathFpt(::PartObs, XXᵒ, m, fpt)
+    checkFullPathFpt(::PartObs, ::Any, ::Any, ::Any)
 
 First passage time constrains are automatically satisfied for the partially
 observed scheme
 """
-checkFullPathFpt(::PartObs, XXᵒ, m, fpt) = true
+checkFullPathFpt(::PartObs, ::Any, ::Any, ::Any) = true
 
 
 """
     checkFullPathFpt(::PartObs, XXᵒ, m, fpt)
 
-Verify whether all `m` paths `XXᵒ`[i].yy, i=1,...,m adhere to the first passage
-time observation scheme specified by the object `fpt`.
+Verify whether all paths in the range `iRange`, i.e. `XXᵒ`[i].yy, i in `iRange`
+adhere to the first passage time observation scheme specified by the object
+`fpt`
 """
-function checkFullPathFpt(::FPT, XXᵒ, m, fpt)
-    for i in 1:m
+function checkFullPathFpt(::FPT, XXᵒ, iRange, fpt)
+    for i in iRange
         if !checkFpt(FPT(), XXᵒ[i], fpt[i])
             return false
         end
@@ -353,7 +354,7 @@ function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P,
     for i in 1:m
         llᵒ += llikelihood(LeftRule(), XXᵒ[i], P[i])
     end
-    llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, m, fpt) ? llᵒ : -Inf
+    llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, 1:m, fpt) ? llᵒ : -Inf
 
     verbose && print("impute: ", it, " ll ", round(value(ll), digits=3), " ",
                      round(value(llᵒ), digits=3), " diff_ll: ",
@@ -454,7 +455,7 @@ function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ,
             llᵒ += llikelihood(LeftRule(), 𝔅.XXᵒ[i], 𝔅.P[i])
             llPrev += llikelihood(LeftRule(), 𝔅.XX[i], 𝔅.P[i])
         end
-        llᵒ = checkFullPathFpt(ObsScheme(), 𝔅.XXᵒ, length(WWᵒ), fpt) ? llᵒ : -Inf
+        llᵒ = checkFullPathFpt(ObsScheme(), 𝔅.XXᵒ, block, fpt) ? llᵒ : -Inf
 
         verbose && print("impute: ", it, " ll ", round(value(llPrev), digits=3),
                          " ", round(value(llᵒ), digits=3), " diff_ll: ",
@@ -530,7 +531,7 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtId
     for i in 1:m
         llᵒ += llikelihood(LeftRule(), XXᵒ[i], Pᵒ[i])
     end
-    llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, m, fpt) ? llᵒ : -Inf
+    llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, 1:m, fpt) ? llᵒ : -Inf
     verbose && print("update: ", it, " ll ", round(ll, digits=3), " ",
                      round(llᵒ, digits=3), " diff_ll: ", round(llᵒ-ll,digits=3))
     llr = ( llᵒ - ll + logpdf(tKern, θᵒ, θ) - logpdf(tKern, θ, θᵒ) )
@@ -631,11 +632,12 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
               dt=1/5000, saveIter=NaN, verbIter=NaN,
               updtCoord=(Val((true,)),), paramUpdt=true,
               skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
-              blocking::Blocking=NoBlocking(), blockingParams=([], 0.1),
-              solver::ST=Ralston3(), changePt::ODEChangePt=NoChangePt()
-              ) where {K, ObsScheme <: AbstractObsScheme, ST, Blocking}
-    P = findProposalLaw(K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST(),
-                        changePt=changePt)
+              blocking::Blocking=NoBlocking(),
+              blockingParams=([], 0.1, NoChangePt()),
+              solver::ST=Ralston3(), changePt::CP=NoChangePt()
+              ) where {K, ObsScheme <: AbstractObsScheme, ST, Blocking, CP}
+    P = findProposalLaw( K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST(),
+                         changePt=CP(getChangePt(blockingParams[3])) )
     m = length(obs)-1
     updtLen = length(updtCoord)
     Wnr, WWᵒ, WW, XXᵒ, XX, Pᵒ, ll = initialise(ObsScheme(), P, m, y, w, fpt)
