@@ -3,7 +3,7 @@ using StaticArrays
 import Bridge: b, σ, B, β, a, constdiff
 const ℝ = SVector{N,T} where {N,T}
 
-print("Chosen parametrisation: ", parametrisation)
+print("Chosen parametrisation: ", parametrisation, "\n")
 
 """
     FitzhughDiffusion <: ContinuousTimeProcess{ℝ{2}}

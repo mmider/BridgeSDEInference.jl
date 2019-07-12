@@ -191,7 +191,7 @@ function HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
         H[N-λ+i] = (L̃[i])' * (M̃⁺[i] \ L̃[i])
         Hν[N-λ+i] = (L̃[i])' * (M̃⁺[i] \ (v-μ[i]))
         c[N-λ+i] = ( 0.5 * (v - μ[i])' * (M̃⁺[i] \ (v - μ[i]))
-                 - 0.5*d*log(2*π) - 0.5*log(det(M̃⁺[i])) )
+                 + 0.5*d*log(2*π) + 0.5*log(det(M̃⁺[i])) )
     end
 end
 
