@@ -138,7 +138,7 @@ end
 df2 = savePathsToFile(pathsToSave, time_, joinpath(outdir, "sampled_paths.csv"))
 df3 = saveChainToFile(chain, joinpath(outdir, "chain.csv"))
 
-include("src/plots.jl")
+include("src/auxiliary/plotting_fns.jl")
 # make some plots
 set_default_plot_size(30cm, 20cm)
 if fptObsFlag

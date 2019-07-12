@@ -99,7 +99,7 @@ priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
 blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-10), SimpleChangePt(100))
 #𝔅 = NoBlocking()
 #blockingParams = ([], 0.1)
-changePt = NoChangePt(100)
+changePt = NoChangePt()
 
 Random.seed!(4)
 start = time()
@@ -147,7 +147,7 @@ end
 df2 = savePathsToFile(pathsToSave, time_, joinpath(outdir, "sampled_paths.csv"))
 df3 = saveChainToFile(chain, joinpath(outdir, "chain.csv"))
 
-include("src/plots.jl")
+include("src/auxiliary/plotting_fns.jl")
 # make some plots
 set_default_plot_size(30cm, 20cm)
 if fptObsFlag
