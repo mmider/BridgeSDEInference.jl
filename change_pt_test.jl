@@ -29,8 +29,8 @@ include("src/rk4.jl")
 include("src/tsit5.jl")
 include("src/vern7.jl")
 
-include("src/alt/guid_prop_bridge_alt.jl")
-include("src/alt/blocking_schedule_alt.jl")
+include("src/guid_prop_bridge.jl")
+include("src/blocking_schedule.jl")
 
 # Initial parameter guess.
 #θ₀ = [0.1, 0.0, 1.5, 0.8, 0.3]

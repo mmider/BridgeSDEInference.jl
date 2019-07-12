@@ -14,6 +14,10 @@ struct HMatrix <: ODEElement end
 struct HνVector <: ODEElement end
 struct cScalar <: ODEElement end
 
+struct LMatrix <: ODEElement end
+struct M⁺Matrix <: ODEElement end
+struct μVector <: ODEElement end
+
 """
     update(::HMatrix, t, H, Hν, c, P)
 
@@ -37,13 +41,75 @@ update(::cScalar, t, H, Hν, c, P) = ( dot(Bridge.β(t, P), Hν)
                                          + 0.5*outer(Hν' * Bridge.σ(t, P))
                                          - 0.5*tr(H * a(t, P)))
 
+"""
+    update(::LMatrix, t, L, M⁺, μ, P)
+
+ODE satisfied by `L`, i.e. d`L` = `update`(...)dt
+"""
+update(::LMatrix, t, L, M⁺, μ, P) = - L*Bridge.B(t, P)
+
+"""
+    update(::M⁺Matrix, t, L, M⁺, μ, P)
+
+ODE satisfied by `M⁺`, i.e. d`M⁺` = `update`(...)dt
+"""
+update(::M⁺Matrix, t, L, M⁺, μ, P) = - outer(L * Bridge.σ(t, P))
+
+"""
+    update(::μVector, t, L, M⁺, μ, P)
+
+ODE satisfied by `μ`, i.e. d`μ` = `update`(...)dt
+"""
+update(::μVector, t, L, M⁺, μ, P) = - L * Bridge.β(t, P)
+
+
 createTableau(::T) where T = nothing
 createTableau(::Tsit5) = Tsit5Tableau()
 createTableau(::Vern7) = Vern7Tableau()
 
+function reserveMemLM⁺μ(changePt::ODEChangePt, ::TH, ::THν) where {TH,THν}
+    N = getChangePt(changePt)
+    L̃ = zeros(TH, N) # NOTE: not TL
+    M̃⁺ = zeros(TH, N) # NOTE: not TΣ
+    μ = zeros(THν, N) # NOTE: not Tv
+    L̃, M̃⁺, μ
+end
+
+function initLM⁺μ!(::NoChangePt, ::Any, ::Any, ::Any, ::Any, ::Any) end
+
+function initLM⁺μ!(::ODEChangePt, L̃::Vector{TL}, M̃⁺::Vector{TΣ}, μ::Vector{Tμ},
+                   L::TL, Σ::TΣ) where {TL,TΣ,Tμ}
+    L̃[end] = L
+    M̃⁺[end] = Σ
+    μ[end] = zero(Tμ)
+end
+
+function HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
+    N = length(H)
+    d, d = size(M̃⁺[end])
+    for i in λ:-1:1
+        H[N-λ+i] = (L̃[i])' * (M̃⁺[i] \ L̃[i])
+        Hν[N-λ+i] = (L̃[i])' * (M̃⁺[i] \ (v-μ[i]))
+        c[N-λ+i] = ( 0.5 * (v - μ[i])' * (M̃⁺[i] \ (v - μ[i]))
+                 - 0.5*d*log(2*π) - 0.5*log(det(M̃⁺[i])) )
+    end
+end
+
+function _initHHνc!(changePt::NoChangePt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν,
+                    c, m)
+    H[end] = H⁽ᵀ⁺⁾ + L' * (Σ \ L)
+    Hν[end] = Hν⁽ᵀ⁺⁾ + L' * (Σ \ v)
+    c[end] = c⁽ᵀ⁺⁾ + 0.5*v'*(Σ \ v)  + 0.5*m*log(2.0*π) + 0.5*log(abs(det(Σ)))
+end
+
+function _initHHνc!(::ODEChangePt, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any,
+                    ::Any, ::Any, ::Any, ::Any)
+end
+
+
 """
     gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, P,
-              solver::ST = Ralston3())
+              solver::ST = Ralston3(), changePt::ODEChangePt)
 
 Compute the values of elements `H`, `Hν`, `c`, on a grid of time-points.
 ...
@@ -62,25 +128,53 @@ Compute the values of elements `H`, `Hν`, `c`, on a grid of time-points.
 - `solver`: numerical solver used for solving the backward ODEs
 ...
 """
-function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, P,
-                   solver::ST = Ralston3()) where ST
+function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, P,
+                   changePt::ODEChangePt, solver::ST = Ralston3()) where ST
     m, d = size(L)
     @assert size(L[:,1]) == (m,)
     @assert size(L*L') == size(Σ) == (m, m)
 
+    λ = _gpupdate!(changePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P, ST())
+
+    _initHHνc!(changePt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, m)
+
     toUpdate = (HMatrix(), HνVector(), cScalar())
     tableau = createTableau(ST())
 
-    H[end] = H⁽ᵀ⁺⁾ + L' * (Σ \ L)
-    Hν[end] = Hν⁽ᵀ⁺⁾ + L' * (Σ \ v)
-    c[end] = c⁽ᵀ⁺⁾ + 0.5*v'*(Σ \ v)  + 0.5*m*log(2.0*π) + 0.5*log(abs(det(Σ)))
-
-    for i in length(t)-1:-1:1
+    N = length(t)
+    for i in N-λ:-1:1
         dt = t[i] - t[i+1]
         H[i], Hν[i], c[i] = update(ST(), toUpdate, t[i+1], H[i+1], Hν[i+1],
                                    c[i+1], dt, P, tableau)
     end
 end
+
+
+function _gpupdate!(changePt::ODEChangePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P,
+                    solver::ST = Ralston3()) where ST
+    toUpdate = (LMatrix(), M⁺Matrix(), μVector())
+    λ = getChangePt(changePt)
+    N = length(t)
+    tableau = createTableau(ST())#solver(changePt))
+
+    initLM⁺μ!(changePt, L̃, M̃⁺, μ, L, Σ)
+
+    for i in λ-1:-1:1
+        dt = t[N-λ+i] - t[N-λ+i+1]
+        L̃[i], M̃⁺[i], μ[i] = update(ST(), toUpdate, t[N-λ+i+1], L̃[i+1], M̃⁺[i+1],
+                                   μ[i+1], dt, P, tableau)
+    end
+
+    HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
+    λ
+end
+
+function _gpupdate!(::NoChangePt, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any,
+                    ::Any, ::Any, ::Any, ::Any, ::Any, ::Any)
+    1
+end
+
+
 
 """
      gpupdate!(P, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾ solver::ST = Ralston3())
@@ -92,7 +186,7 @@ function gpupdate!(P, H⁽ᵀ⁺⁾ = zero(typeof(P.H[1])),
                    Hν⁽ᵀ⁺⁾ = zero(typeof(P.Hν[1])), c⁽ᵀ⁺⁾ = 0.0;
                    solver::ST = Ralston3) where ST
     gpupdate!(P.tt, P.L, P.Σ, P.v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, P.H,
-              P.Hν, P.c, P.Pt, ST())
+              P.Hν, P.c, P.L̃, P.M̃⁺, P.μ, P.Pt, P.changePt, ST())
 end
 
 
@@ -109,9 +203,13 @@ struct GuidPropBridge{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T
     H⁻¹::Vector{TH⁻¹}   # currently not used
     Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
     c::Vector{Float64}  # scalar c evaluated at time-points `tt`
+    L̃::Vector{S1}       # (optional) matrix L evaluated at time-points `tt`
+    M̃⁺::Vector{TH}      # (optional) matrix M⁺ evaluated at time-points `tt`
+    μ::Vector{Tν}       # (optional) vector μ evaluated at time-points `tt`
     L::S1               # observation operator (for observation at the end-pt)
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
+    changePt::TC        # Info about the change point between ODE solvers
 end
 ```
 stores all information that is necessary for drawing guided proposals.
@@ -146,7 +244,7 @@ and substituted with their clones that use different value of parameter `θ`.
 Additionally, the observational operator `L`, covariance of the additive noise
 at the observation time `Σ`, as well as the observation `v`  are all changed.
 """
-struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T}
+struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProcess{T}
     Target::R           # Law of the target diffusion
     Pt::R2              # Law of the proposal diffusion
     tt::Vector{Float64} # grid of time points
@@ -154,9 +252,13 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess
     H⁻¹::Vector{TH⁻¹}   # currently not used
     Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
     c::Vector{K}        # scalar c evaluated at time-points `tt`
+    L̃::Vector{TH}       # (optional) matrix L evaluated at time-points `tt` NOTE not S1
+    M̃⁺::Vector{TH}      # (optional) matrix M⁺ evaluated at time-points `tt` NOTE not S3
+    μ::Vector{Tν}      # (optional) vector μ evaluated at time-points `tt` NOTE not S2
     L::S1               # observation operator (for observation at the end-pt)
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
+    changePt::TC        # Info about the change point between ODE solvers
 
     function GuidPropBridge(::Type{K}, tt_, P, Pt, L::S1, v::S2,
                             Σ::S3 = Bridge.outer(zero(K)*zero(v)),
@@ -165,8 +267,9 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess
                             c⁽ᵀ⁺⁾ = zero(K);
                             # H⁻¹prot is currently not used
                             H⁻¹prot::TH⁻¹ = SVector{prod(size(TH))}(rand(prod(size(TH)))),
+                            changePt::TC = NoChangePt(),
                             solver::ST = Ralston3()
-                            ) where {K,Tν,TH,TH⁻¹,S1,S2,S3,ST}
+                            ) where {K,Tν,TH,TH⁻¹,S1,S2,S3,ST,TC}
         tt = collect(tt_)
         N = length(tt)
         H = zeros(TH, N)
@@ -174,27 +277,35 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess
         Hν = zeros(Tν, N)
         c = zeros(K, N)
 
-        gpupdate!(tt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, Pt, ST())
+        L̃, M̃⁺, μ = reserveMemLM⁺μ(changePt, H[1], Hν[1])
+
+        gpupdate!(tt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, Pt,
+                  changePt, ST())
 
         T = Bridge.valtype(P)
         R = typeof(P)
         R2 = typeof(Pt)
-        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(P, Pt, tt, H, H⁻¹, Hν, c, L, v, Σ)
+
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(P, Pt, tt, H, H⁻¹, Hν, c, L̃, M̃⁺, μ,
+                                             L, v, Σ, changePt)
     end
 
-    function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3},
-                            θ) where {T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}
-        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(clone(P.Target,θ), clone(P.Pt,θ), P.tt,
-                                        P.H, P.H⁻¹, P.Hν, P.c, P.L, P.v,
-                                        P.Σ)
+    function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC},
+                            θ) where {T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(clone(P.Target,θ), clone(P.Pt,θ),
+                                             P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
+                                             P.M̃⁺, P.μ, P.L, P.v, P.Σ,
+                                             P.changePt)
     end
 
-    function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3},
-                            L::S1, v::S2, Σ::S3,
-                            θ) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3}
-        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3}(clone(P.Target,θ), clone(P.Pt,θ),
-                                          P.tt, P.H, P.H⁻¹, P.Hν, P.c, L,
-                                          v, Σ)
+    function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,TC̃},
+                            L::S1, v::S2, Σ::S3, changePt::TC, θ
+                            ) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3,TC̃,TC}
+        PtNew = clone(P.Pt, θ, v)
+        R̃2 = typeof(PtNew)
+        new{T,K,R,R̃2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(clone(P.Target,θ), PtNew,
+                                             P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
+                                             P.M̃⁺, P.μ, L, v, Σ, changePt)
     end
 end
 

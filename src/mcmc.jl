@@ -193,17 +193,18 @@ Initialise the object with proposal law and all the necessary containers needed
 for the simulation of the guided proposals
 """
 function findProposalLaw(::Type{K}, xx, tt, P˟, P̃, Ls, Σs, τ; dt=1/5000,
-                         solver::ST=Ralston3()) where {K,ST}
+                         solver::ST=Ralston3(),
+                         changePt::ODEChangePt=NoChangePt()) where {K,ST}
     m = length(xx) - 1
     P = Array{ContinuousTimeProcess,1}(undef,m)
     for i in m:-1:1
         numPts = Int64(ceil((tt[i+1]-tt[i])/dt))+1
         t = τ(tt[i], tt[i+1]).( range(tt[i], stop=tt[i+1], length=numPts) )
         P[i] = ( (i==m) ? GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i];
-                                         solver=ST()) :
+                                         changePt=changePt, solver=ST()) :
                           GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i],
                                          P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1];
-                                         solver=ST()) )
+                                         changePt=changePt, solver=ST()) )
     end
     P
 end
@@ -467,7 +468,6 @@ function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ,
             registerAccpt!(𝔅, blockIdx, false)
         end
     end
-
     swapXX!(𝔅, XX)
     noiseFromPath!(𝔅, XX, WW, P)
 
@@ -632,8 +632,10 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
               updtCoord=(Val((true,)),), paramUpdt=true,
               skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
               blocking::Blocking=NoBlocking(), blockingParams=([], 0.1),
-              solver::ST=Ralston3()) where {K, ObsScheme <: AbstractObsScheme, ST, Blocking}
-    P = findProposalLaw(K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST())
+              solver::ST=Ralston3(), changePt::ODEChangePt=NoChangePt()
+              ) where {K, ObsScheme <: AbstractObsScheme, ST, Blocking}
+    P = findProposalLaw(K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST(),
+                        changePt=changePt)
     m = length(obs)-1
     updtLen = length(updtCoord)
     Wnr, WWᵒ, WW, XXᵒ, XX, Pᵒ, ll = initialise(ObsScheme(), P, m, y, w, fpt)
@@ -647,7 +649,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, y, w, P˟, P̃, Ls, Σs, nu
                          in idx(uc)]) for uc in updtCoord]
 
     updtStepCounter = 1
-        𝔅 = setBlocking(blocking, blockingParams, P, WW, XX)
+    𝔅 = setBlocking(blocking, blockingParams, P, WW, XX)
     display(𝔅)
     for i in 1:numSteps
         verbose = (i % verbIter == 0)

@@ -31,10 +31,10 @@ include("src/vern7.jl")
 
 include("src/priors.jl")
 
-include("src/alt/guid_prop_bridge_alt.jl")
+include("src/guid_prop_bridge.jl")
 include("src/random_walk.jl")
-include("src/alt/blocking_schedule_alt.jl")
-include("src/alt/mcmc_alt.jl")
+include("src/blocking_schedule.jl")
+include("src/mcmc.jl")
 include("src/path_to_wiener.jl")
 
 include("src/save_to_files.jl")
