@@ -1,16 +1,17 @@
-mkpath("output")
- outdir="output"
- using Bridge
+using Bridge
+ using Random
  using DataFrames
  using CSV
 
- SRC_DIR = joinpath("..", "src")
+ SRC_DIR = joinpath(Base.source_dir(), "..", "src")
  AUX_DIR = joinpath(SRC_DIR, "auxiliary")
  include(joinpath(AUX_DIR, "data_simulation_fns.jl"))
+ OUT_DIR = joinpath(Base.source_dir(), "..", "output")
+ mkpath(OUT_DIR)
 
  parametrisation = :simpleConjug
  include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
- filename_out = joinpath(outdir,
+ FILENAME_OUT = joinpath(OUT_DIR,
                          "test_path_part_obs_"*String(parametrisation)*".csv")
 
  P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
@@ -31,4 +32,4 @@ mkpath("output")
  Time = collect(tt)[1:skip:end]
  df = DataFrame(time=Time, x1=[x[1] for x in XX.yy[1:skip:end]],
                 x2=[(i==1 ? x0[2] : NaN) for (i,t) in enumerate(Time)])
- CSV.write(filename_out, df)
+ CSV.write(FILENAME_OUT, df)

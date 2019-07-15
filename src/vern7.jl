@@ -345,3 +345,12 @@ function update(::Vern7, fs, t, A, B, dt, P, tableau)
     (A + dt*(b₁*kA1 + b₄*kA4 + b₅*kA5 + b₆*kA6 + b₇*kA7 + b₈*kA8 + b₉*kA9),
      B + dt*(b₁*kB1 + b₄*kB4 + b₅*kB5 + b₆*kB6 + b₇*kB7 + b₈*kB8 + b₉*kB9))
 end
+
+
+
+"""
+    createTableau(::Vern7)
+
+Tableau of coefficients for the `Vern7` ODE solver
+"""
+createTableau(::Vern7) = Vern7Tableau()

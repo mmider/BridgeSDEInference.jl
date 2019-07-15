@@ -220,3 +220,10 @@ function update(::Tsit5, fs, t, A, B, dt, P, tableau)
     (A + dt*(a₇₁*kA1 + a₇₂*kA2 + a₇₃*kA3 + a₇₄*kA4 + a₇₅*kA5 + a₇₆*kA6),
      B + dt*(a₇₁*kB1 + a₇₂*kB2 + a₇₃*kB3 + a₇₄*kB4 + a₇₅*kB5 + a₇₆*kB6))
 end
+
+"""
+    createTableau(::Tsit5)
+
+Tableau of coefficients for the `Tsit5` ODE solver
+"""
+createTableau(::Tsit5) = Tsit5Tableau()

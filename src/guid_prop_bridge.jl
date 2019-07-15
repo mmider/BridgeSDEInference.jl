@@ -109,19 +109,6 @@ Default tableau of coefficient for ODE schemes is no tableau at all
 """
 createTableau(::T) where T = nothing
 
-"""
-    createTableau(::Tsit5)
-
-Tableau of coefficients for the `Tsit5` ODE solver
-"""
-createTableau(::Tsit5) = Tsit5Tableau()
-
-"""
-    createTableau(::Vern7)
-
-Tableau of coefficients for the `Vern7` ODE solver
-"""
-createTableau(::Vern7) = Vern7Tableau()
 
 """
     reserveMemLM⁺μ(changePt::ODEChangePt, ::TH, ::THν)
