@@ -9,6 +9,9 @@ end
 
 struct Rk4 <: ODESolverType end
 
+#=
+        FOUR components
+=#
 function update(::Rk4, fs, t, A, B, C, D, dt, P, tableau=NaN)
     kA1 = update(fs[1], t, A, B, C, D, P)
     kB1 = update(fs[2], t, A, B, C, D, P)
@@ -47,4 +50,69 @@ function update(::Rk4, fs, t, A, B, C, D, dt, P, tableau=NaN)
 
     (A + dt*(kA1 + 2*kA2 + 2*kA3 + kA4)/6, B + dt*(kB1 + 2*kB2 + 2*kB3 + kB4)/6,
      C + dt*(kC1 + 2*kC2 + 2*kC3 + kC4)/6, D + dt*(kD1 + 2*kD2 + 2*kD3 + kD4)/6)
+end
+
+#=
+        THREE components
+=#
+function update(::Rk4, fs, t, A, B, C, dt, P, tableau=NaN)
+    kA1 = update(fs[1], t, A, B, C, P)
+    kB1 = update(fs[2], t, A, B, C, P)
+    kC1 = update(fs[3], t, A, B, C, P)
+
+    Ai = A + 1/2*dt*kA1
+    Bi = B + 1/2*dt*kB1
+    Ci = C + 1/2*dt*kC1
+
+    kA2 = update(fs[1], t + 1/2*dt, Ai, Bi, Ci, P)
+    kB2 = update(fs[2], t + 1/2*dt, Ai, Bi, Ci, P)
+    kC2 = update(fs[3], t + 1/2*dt, Ai, Bi, Ci, P)
+
+    Ai = A + 1/2*dt*kA2
+    Bi = B + 1/2*dt*kB2
+    Ci = C + 1/2*dt*kC2
+
+    kA3 = update(fs[1], t + 1/2*dt, Ai, Bi, Ci, P)
+    kB3 = update(fs[2], t + 1/2*dt, Ai, Bi, Ci, P)
+    kC3 = update(fs[3], t + 1/2*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*kA3
+    Bi = B + dt*kB3
+    Ci = C + dt*kC3
+
+    kA4 = update(fs[1], t + dt, Ai, Bi, Ci, P)
+    kB4 = update(fs[2], t + dt, Ai, Bi, Ci, P)
+    kC4 = update(fs[3], t + dt, Ai, Bi, Ci, P)
+
+    (A + dt*(kA1 + 2*kA2 + 2*kA3 + kA4)/6, B + dt*(kB1 + 2*kB2 + 2*kB3 + kB4)/6,
+     C + dt*(kC1 + 2*kC2 + 2*kC3 + kC4)/6)
+end
+
+
+#=
+        TWO components
+=#
+function update(::Rk4, fs, t, A, B, dt, P, tableau=NaN)
+    kA1 = update(fs[1], t, A, B, P)
+    kB1 = update(fs[2], t, A, B, P)
+
+    Ai = A + 1/2*dt*kA1
+    Bi = B + 1/2*dt*kB1
+
+    kA2 = update(fs[1], t + 1/2*dt, Ai, Bi, P)
+    kB2 = update(fs[2], t + 1/2*dt, Ai, Bi, P)
+
+    Ai = A + 1/2*dt*kA2
+    Bi = B + 1/2*dt*kB2
+
+    kA3 = update(fs[1], t + 1/2*dt, Ai, Bi, P)
+    kB3 = update(fs[2], t + 1/2*dt, Ai, Bi, P)
+
+    Ai = A + dt*kA3
+    Bi = B + dt*kB3
+
+    kA4 = update(fs[1], t + dt, Ai, Bi, P)
+    kB4 = update(fs[2], t + dt, Ai, Bi, P)
+
+    (A + dt*(kA1 + 2*kA2 + 2*kA3 + kA4)/6, B + dt*(kB1 + 2*kB2 + 2*kB3 + kB4)/6)
 end

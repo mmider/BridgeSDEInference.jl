@@ -87,6 +87,9 @@ end
 
 struct Vern7 <: ODESolverType end
 
+#=
+        FOUR components
+=#
 function update(::Vern7, fs, t, A, B, C, D, dt, P, tableau)
     (@unpack c₂,c₃,c₄,c₅,c₆,c₇,c₈,a₂₁,a₃₁,a₃₂,a₄₁,a₄₃,a₅₁,a₅₃,a₅₄,a₆₁,a₆₃,a₆₄,
              a₆₅,a₇₁,a₇₃,a₇₄,a₇₅,a₇₆,a₈₁,a₈₃,a₈₄,a₈₅,a₈₆,a₈₇,a₉₁,a₉₃,a₉₄,a₉₅,
@@ -189,3 +192,165 @@ function update(::Vern7, fs, t, A, B, C, D, dt, P, tableau)
      C + dt*(b₁*kC1 + b₄*kC4 + b₅*kC5 + b₆*kC6 + b₇*kC7 + b₈*kC8 + b₉*kC9),
      D + dt*(b₁*kD1 + b₄*kD4 + b₅*kD5 + b₆*kD6 + b₇*kD7 + b₈*kD8 + b₉*kD9))
 end
+
+
+#=
+        THREE components
+=#
+function update(::Vern7, fs, t, A, B, C, dt, P, tableau)
+    (@unpack c₂,c₃,c₄,c₅,c₆,c₇,c₈,a₂₁,a₃₁,a₃₂,a₄₁,a₄₃,a₅₁,a₅₃,a₅₄,a₆₁,a₆₃,a₆₄,
+             a₆₅,a₇₁,a₇₃,a₇₄,a₇₅,a₇₆,a₈₁,a₈₃,a₈₄,a₈₅,a₈₆,a₈₇,a₉₁,a₉₃,a₉₄,a₉₅,
+             a₉₆,a₉₇,a₉₈,b₁,b₄,b₅,b₆,b₇,b₈,b₉ = tableau)
+    kA1 = update(fs[1], t, A, B, C, P)
+    kB1 = update(fs[2], t, A, B, C, P)
+    kC1 = update(fs[3], t, A, B, C, P)
+
+    Ai = A + dt*a₂₁*kA1
+    Bi = B + dt*a₂₁*kB1
+    Ci = C + dt*a₂₁*kC1
+
+    kA2 = update(fs[1], t + c₂*dt, Ai, Bi, Ci, P)
+    kB2 = update(fs[2], t + c₂*dt, Ai, Bi, Ci, P)
+    kC2 = update(fs[3], t + c₂*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₃₁*kA1 + a₃₂*kA2)
+    Bi = B + dt*(a₃₁*kB1 + a₃₂*kB2)
+    Ci = C + dt*(a₃₁*kC1 + a₃₂*kC2)
+
+    kA3 = update(fs[1], t + c₃*dt, Ai, Bi, Ci, P)
+    kB3 = update(fs[2], t + c₃*dt, Ai, Bi, Ci, P)
+    kC3 = update(fs[3], t + c₃*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₄₁*kA1 +         + a₄₃*kA3)
+    Bi = B + dt*(a₄₁*kB1 +         + a₄₃*kB3)
+    Ci = C + dt*(a₄₁*kC1 +         + a₄₃*kC3)
+
+    kA4 = update(fs[1], t + c₄*dt, Ai, Bi, Ci, P)
+    kB4 = update(fs[2], t + c₄*dt, Ai, Bi, Ci, P)
+    kC4 = update(fs[3], t + c₄*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₅₁*kA1 +         + a₅₃*kA3 + a₅₄*kA4)
+    Bi = B + dt*(a₅₁*kB1 +         + a₅₃*kB3 + a₅₄*kB4)
+    Ci = C + dt*(a₅₁*kC1 +         + a₅₃*kC3 + a₅₄*kC4)
+
+    kA5 = update(fs[1], t + c₅*dt, Ai, Bi, Ci, P)
+    kB5 = update(fs[2], t + c₅*dt, Ai, Bi, Ci, P)
+    kC5 = update(fs[3], t + c₅*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₆₁*kA1 +         + a₆₃*kA3 + a₆₄*kA4 + a₆₅*kA5)
+    Bi = B + dt*(a₆₁*kB1 +         + a₆₃*kB3 + a₆₄*kB4 + a₆₅*kB5)
+    Ci = C + dt*(a₆₁*kC1 +         + a₆₃*kC3 + a₆₄*kC4 + a₆₅*kC5)
+
+    kA6 = update(fs[1], t + c₆*dt, Ai, Bi, Ci, P)
+    kB6 = update(fs[2], t + c₆*dt, Ai, Bi, Ci, P)
+    kC6 = update(fs[3], t + c₆*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₇₁*kA1 +         + a₇₃*kA3 + a₇₄*kA4 + a₇₅*kA5 + a₇₆*kA6)
+    Bi = B + dt*(a₇₁*kB1 +         + a₇₃*kB3 + a₇₄*kB4 + a₇₅*kB5 + a₇₆*kB6)
+    Ci = C + dt*(a₇₁*kC1 +         + a₇₃*kC3 + a₇₄*kC4 + a₇₅*kC5 + a₇₆*kC6)
+
+    kA7 = update(fs[1], t + c₇*dt, Ai, Bi, Ci, P)
+    kB7 = update(fs[2], t + c₇*dt, Ai, Bi, Ci, P)
+    kC7 = update(fs[3], t + c₇*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₈₁*kA1 +         + a₈₃*kA3 + a₈₄*kA4 + a₈₅*kA5 + a₈₆*kA6
+                 + a₈₇*kA7)
+    Bi = B + dt*(a₈₁*kB1 +         + a₈₃*kB3 + a₈₄*kB4 + a₈₅*kB5 + a₈₆*kB6
+                 + a₈₇*kB7)
+    Ci = C + dt*(a₈₁*kC1 +         + a₈₃*kC3 + a₈₄*kC4 + a₈₅*kC5 + a₈₆*kC6
+                 + a₈₇*kC7)
+
+    kA8 = update(fs[1], t + c₈*dt, Ai, Bi, Ci, P)
+    kB8 = update(fs[2], t + c₈*dt, Ai, Bi, Ci, P)
+    kC8 = update(fs[3], t + c₈*dt, Ai, Bi, Ci, P)
+
+    Ai = A + dt*(a₉₁*kA1 +         + a₉₃*kA3 + a₉₄*kA4 + a₉₅*kA5 + a₉₆*kA6
+                 + a₉₇*kA7 + a₉₈*kA8)
+    Bi = B + dt*(a₉₁*kB1 +         + a₉₃*kB3 + a₉₄*kB4 + a₉₅*kB5 + a₉₆*kB6
+                 + a₉₇*kB7 + a₉₈*kB8)
+    Ci = C + dt*(a₉₁*kC1 +         + a₉₃*kC3 + a₉₄*kC4 + a₉₅*kC5 + a₉₆*kC6
+                 + a₉₇*kC7 + a₉₈*kC8)
+
+    kA9 = update(fs[1], t + dt, Ai, Bi, Ci, P)
+    kB9 = update(fs[2], t + dt, Ai, Bi, Ci, P)
+    kC9 = update(fs[3], t + dt, Ai, Bi, Ci, P)
+
+    (A + dt*(b₁*kA1 + b₄*kA4 + b₅*kA5 + b₆*kA6 + b₇*kA7 + b₈*kA8 + b₉*kA9),
+     B + dt*(b₁*kB1 + b₄*kB4 + b₅*kB5 + b₆*kB6 + b₇*kB7 + b₈*kB8 + b₉*kB9),
+     C + dt*(b₁*kC1 + b₄*kC4 + b₅*kC5 + b₆*kC6 + b₇*kC7 + b₈*kC8 + b₉*kC9))
+end
+
+#=
+        TWO components
+=#
+function update(::Vern7, fs, t, A, B, dt, P, tableau)
+    (@unpack c₂,c₃,c₄,c₅,c₆,c₇,c₈,a₂₁,a₃₁,a₃₂,a₄₁,a₄₃,a₅₁,a₅₃,a₅₄,a₆₁,a₆₃,a₆₄,
+             a₆₅,a₇₁,a₇₃,a₇₄,a₇₅,a₇₆,a₈₁,a₈₃,a₈₄,a₈₅,a₈₆,a₈₇,a₉₁,a₉₃,a₉₄,a₉₅,
+             a₉₆,a₉₇,a₉₈,b₁,b₄,b₅,b₆,b₇,b₈,b₉ = tableau)
+    kA1 = update(fs[1], t, A, B, P)
+    kB1 = update(fs[2], t, A, B, P)
+
+    Ai = A + dt*a₂₁*kA1
+    Bi = B + dt*a₂₁*kB1
+
+    kA2 = update(fs[1], t + c₂*dt, Ai, Bi, P)
+    kB2 = update(fs[2], t + c₂*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₃₁*kA1 + a₃₂*kA2)
+    Bi = B + dt*(a₃₁*kB1 + a₃₂*kB2)
+
+    kA3 = update(fs[1], t + c₃*dt, Ai, Bi, P)
+    kB3 = update(fs[2], t + c₃*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₄₁*kA1 +         + a₄₃*kA3)
+    Bi = B + dt*(a₄₁*kB1 +         + a₄₃*kB3)
+
+    kA4 = update(fs[1], t + c₄*dt, Ai, Bi, P)
+    kB4 = update(fs[2], t + c₄*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₅₁*kA1 +         + a₅₃*kA3 + a₅₄*kA4)
+    Bi = B + dt*(a₅₁*kB1 +         + a₅₃*kB3 + a₅₄*kB4)
+
+    kA5 = update(fs[1], t + c₅*dt, Ai, Bi, P)
+    kB5 = update(fs[2], t + c₅*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₆₁*kA1 +         + a₆₃*kA3 + a₆₄*kA4 + a₆₅*kA5)
+    Bi = B + dt*(a₆₁*kB1 +         + a₆₃*kB3 + a₆₄*kB4 + a₆₅*kB5)
+
+    kA6 = update(fs[1], t + c₆*dt, Ai, Bi, P)
+    kB6 = update(fs[2], t + c₆*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₇₁*kA1 +         + a₇₃*kA3 + a₇₄*kA4 + a₇₅*kA5 + a₇₆*kA6)
+    Bi = B + dt*(a₇₁*kB1 +         + a₇₃*kB3 + a₇₄*kB4 + a₇₅*kB5 + a₇₆*kB6)
+
+    kA7 = update(fs[1], t + c₇*dt, Ai, Bi, P)
+    kB7 = update(fs[2], t + c₇*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₈₁*kA1 +         + a₈₃*kA3 + a₈₄*kA4 + a₈₅*kA5 + a₈₆*kA6
+                 + a₈₇*kA7)
+    Bi = B + dt*(a₈₁*kB1 +         + a₈₃*kB3 + a₈₄*kB4 + a₈₅*kB5 + a₈₆*kB6
+                 + a₈₇*kB7)
+
+    kA8 = update(fs[1], t + c₈*dt, Ai, Bi, P)
+    kB8 = update(fs[2], t + c₈*dt, Ai, Bi, P)
+
+    Ai = A + dt*(a₉₁*kA1 +         + a₉₃*kA3 + a₉₄*kA4 + a₉₅*kA5 + a₉₆*kA6
+                 + a₉₇*kA7 + a₉₈*kA8)
+    Bi = B + dt*(a₉₁*kB1 +         + a₉₃*kB3 + a₉₄*kB4 + a₉₅*kB5 + a₉₆*kB6
+                 + a₉₇*kB7 + a₉₈*kB8)
+
+    kA9 = update(fs[1], t + dt, Ai, Bi, P)
+    kB9 = update(fs[2], t + dt, Ai, Bi, P)
+
+    (A + dt*(b₁*kA1 + b₄*kA4 + b₅*kA5 + b₆*kA6 + b₇*kA7 + b₈*kA8 + b₉*kA9),
+     B + dt*(b₁*kB1 + b₄*kB4 + b₅*kB5 + b₆*kB6 + b₇*kB7 + b₈*kB8 + b₉*kB9))
+end
+
+
+
+"""
+    createTableau(::Vern7)
+
+Tableau of coefficients for the `Vern7` ODE solver
+"""
+createTableau(::Vern7) = Vern7Tableau()

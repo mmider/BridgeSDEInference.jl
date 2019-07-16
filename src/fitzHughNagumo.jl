@@ -1,9 +1,9 @@
 using Bridge
 using StaticArrays
 import Bridge: b, σ, B, β, a, constdiff
+const ℝ = SVector{N,T} where {N,T}
 
-
-print("Chosen parametrisation: ", parametrisation)
+print("Chosen parametrisation: ", parametrisation, "\n")
 
 """
     FitzhughDiffusion <: ContinuousTimeProcess{ℝ{2}}
@@ -151,10 +151,18 @@ elseif parametrisation == :simpleAlter
     dependsOnParams(::FitzhughDiffusionAux) = (1, 5)
 elseif parametrisation == :complexAlter
     B(t, P::FitzhughDiffusionAux) = @SMatrix [0.0  1.0;
-                                (1.0-P.γ-3.0*P.v^2)/P.ϵ (1.0-P.ϵ-3.0*P.v^2)/P.ϵ]
-    β(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, (2*P.v^3+P.s-P.β)/P.ϵ)#P.s=>0.0
+                                (1.0-P.γ-3.0*P.v[1]^2)/P.ϵ (1.0-P.ϵ-3.0*P.v[1]^2)/P.ϵ]
+    β(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, (2*P.v[1]^3+P.s-P.β)/P.ϵ)#P.s=>0.0
     σ(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, P.σ/P.ϵ)
     dependsOnParams(::FitzhughDiffusionAux) = (1, 2, 3, 4, 5)
+
+    function B(t, P::FitzhughDiffusionAux{T,SArray{Tuple{2},Float64,1,2}}) where T
+        @SMatrix [0.0  1.0;
+                  (1.0-P.γ-3.0*P.v[1]^2-6*P.v[1]*P.v[2])/P.ϵ (1.0-P.ϵ-3.0*P.v[1]^2)/P.ϵ]
+    end
+    function β(t, P::FitzhughDiffusionAux{T,SArray{Tuple{2},Float64,1,2}}) where T
+        ℝ{2}(0.0, (2*P.v[1]^3+P.s-P.β+6*P.ϵ*P.v[1]^2*P.v[2])/P.ϵ)#check later
+    end
 elseif parametrisation == :simpleConjug
     B(t, P::FitzhughDiffusionAux) = @SMatrix [0.0  1.0; 0.0 0.0]
     β(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, 0.0)
@@ -162,10 +170,18 @@ elseif parametrisation == :simpleConjug
     dependsOnParams(::FitzhughDiffusionAux) = (5,)
 elseif parametrisation == :complexConjug
     B(t, P::FitzhughDiffusionAux) = @SMatrix [0.0  1.0;
-                                (P.ϵ-P.γ-3.0*P.ϵ*P.v^2) (P.ϵ-1.0-3.0*P.ϵ*P.v^2)]
-    β(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, 2*P.ϵ*P.v^3+P.s)
+                                (P.ϵ-P.γ-3.0*P.ϵ*P.v[1]^2) (P.ϵ-1.0-3.0*P.ϵ*P.v[1]^2)]
+    β(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, 2*P.ϵ*P.v[1]^3+P.s-P.β)#check later
     σ(t, P::FitzhughDiffusionAux) = ℝ{2}(0.0, P.σ)
     dependsOnParams(::FitzhughDiffusionAux) = (1, 2, 3, 4, 5)
+
+    function B(t, P::FitzhughDiffusionAux{T,SArray{Tuple{2},Float64,1,2}}) where T
+        @SMatrix [0.0  1.0;
+                  (P.ϵ-P.γ-3.0*P.ϵ*P.v[1]^2-6*P.ϵ*P.v[1]*P.v[2]) (P.ϵ-1.0-3.0*P.ϵ*P.v[1]^2)]
+    end
+    function β(t, P::FitzhughDiffusionAux{T,SArray{Tuple{2},Float64,1,2}}) where T
+        ℝ{2}(0.0, 2*P.ϵ*P.v[1]^3+P.s-P.β+6*P.v[1]^2*P.v[2])#check later
+    end
 end
 
 constdiff(::FitzhughDiffusionAux) = true
@@ -179,3 +195,6 @@ Clone the object `P`, but use a different vector of parameters `θ`.
 """
 clone(P::FitzhughDiffusionAux, θ) = FitzhughDiffusionAux(θ..., P.t,
                                                          P.u, P.T, P.v)
+# should copy starting point or sth, currently restricted by the same type of u and v
+clone(P::FitzhughDiffusionAux, θ, v) = FitzhughDiffusionAux(θ..., P.t,
+                                                         zero(v), P.T, v)

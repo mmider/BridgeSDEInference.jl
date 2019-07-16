@@ -51,6 +51,9 @@ axis[:grid, :linewidth] =  (1, 1)
 axis[:grid, :linecolor] = (RGBA{Float32}(0.5, 0.7, 1.0, 0.5),RGBA{Float32}(0.5, 0.7, 1.0, 0.5))
 axis[:names][:textsize] = (0.0,0.0)
 axis[:ticks, :textcolor] = (RGBA{Float32}(0.5, 0.7, 1.0, 0.8),RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
+r = range(-R, 2R, length=100)
+lines!(p, [x for x in Point2f0.(r, r - r.^3) if x in limits], color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
+lines!(p, [x for x in Point2f0.(r, P.γ*r .+ P.β) if x in limits], color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
 
 display(p)
 

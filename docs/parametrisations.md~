@@ -1,0 +1,3 @@
+# Parametrisations of FitzHugh-Nagumo model
+There are `5` various parametrisations of the FitzHugh-Nagumo model implemented in this package. We explain them in turn below
+## `:regular`

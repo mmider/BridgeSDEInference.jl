@@ -9,6 +9,48 @@ schemes used for finding solutions to backward ODEs
 """
 abstract type ODESolverType end
 
+"""
+    ODEChangePt
+
+Types inheriting from abstract type `ODEChangePt` decide upon which ODE solvers
+are to be used and when to ultimately compute the triplet H,Hν,c.
+"""
+abstract type ODEChangePt end
+
+"""
+    NoChangePt <: ODEChangePt
+
+Struct indicating that only solvers for H,Hν,c are to be employed. The field `λ`
+indicates the amount of space (in the units of the number of elements of vector)
+that needs to be nevertheless reserved for L,M⁺,μ (even though the latter are
+not used).
+"""
+struct NoChangePt <: ODEChangePt
+    λ::Int64
+    NoChangePt(λ=0) = new(λ)
+end
+
+"""
+    SimpleChangePt <: ODEChangePt
+
+Struct indicating that both types of solvers are to be used; for H,Hν,c as well
+as for L,M⁺,μ. The ODE solvers for L,M⁺,μ are used first on the terminal part
+of the interval, where `λ` gives the lenght of this terminal interval. The ODE
+solvers for H,Hν,c are used from then on.
+"""
+struct SimpleChangePt <: ODEChangePt
+    λ::Int64
+    SimpleChangePt(λ=0) = new(λ)
+end
+
+"""
+    getChangePt(changePt::ODEChangePt)
+
+Return the length of terminal interval over which ODE solvers for L,M⁺,μ are
+used
+"""
+getChangePt(changePt::ODEChangePt) = changePt.λ
+
 
 #TODO implement Jeffrey's priors
 """
