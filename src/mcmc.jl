@@ -115,6 +115,7 @@ function checkSingleCoordFpt(XXᵒ, c, cidx, fpt)
     k = length(XXᵒ.yy)
     thrsd = XXᵒ.yy[end][c]
     renewed = fpt.autoRenewed[cidx]
+    # or use s = fpt.upCrossing[cidx] ? 1 : -1
     if fpt.upCrossing[cidx]
         for i in 1:k
             if !renewed && XXᵒ.yy[i][c] <= fpt.reset[cidx]
