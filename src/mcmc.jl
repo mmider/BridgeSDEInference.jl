@@ -266,7 +266,7 @@ end
 Make a random MCMC decision for whether to accept a sample or reject it.
 """
 function acceptSample(logThreshold, verbose=false)
-    if rand(Exponential(1.0)) > -logThreshold
+    if rand(Exponential(1.0)) > -logThreshold # Reject if NaN
         verbose && print("\t ✓\n")
         return true
     else
@@ -578,8 +578,7 @@ function updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx,
     recomputeODEs && solveBackRec!(NoBlocking(), P, ST())
 
     for i in 1:m
-        solve!(Euler(), XX[i], y, WW[i], P[i])
-        y = XX[i].yy[end]
+        invSolve!(Euler(), XX[i], WW[i], P[i])
     end
 
     llᵒ = 0.0
