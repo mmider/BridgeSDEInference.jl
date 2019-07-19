@@ -17,6 +17,7 @@ include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
 include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
 
 
+include(joinpath(SRC_DIR, "starting_pt.jl"))
 include(joinpath(SRC_DIR, "types.jl"))
 include(joinpath(SRC_DIR, "vern7.jl"))
 #include(joinpath(SRC_DIR, "tsit5.jl"))
@@ -66,12 +67,14 @@ priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
 𝔅 = ChequeredBlocking()
 blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-10), SimpleChangePt(100))
 changePt = NoChangePt()
+#x0Pr = KnownStartingPt(x0)
+x0Pr = GsnStartingPt(x0, @SMatrix [2. 0; 0 2.])
 
 Random.seed!(4)
 start = time()
 (chain, accRateImp, accRateUpdt,
-    paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃,
-                         Ls, Σs, numSteps, tKernel, priors, τ;
+    paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0Pr, 0.0, P˟,
+                         P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.975,
                          dt=1/10000,
