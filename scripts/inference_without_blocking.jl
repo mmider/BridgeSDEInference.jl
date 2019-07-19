@@ -67,8 +67,9 @@ priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
 blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
 #x0Pr = KnownStartingPt(x0)
-Σˢ = @SMatrix [2. 0; 0 2.]
+Σˢ = @SMatrix [20. 0; 0 20.]
 x0Pr = GsnStartingPt(x0, x0, Σˢ, inv(Σˢ))
+#x0Pr = GsnStartingPt(x0, Σˢ)
 
 Random.seed!(4)
 start = time()
@@ -91,7 +92,8 @@ start = time()
                          blocking=𝔅,
                          blockingParams=blockingParams,
                          solver=Vern7(),
-                         changePt=changePt)
+                         changePt=changePt,
+                         warmUp=100)
 elapsed = time() - start
 print("time elapsed: ", elapsed, "\n")
 

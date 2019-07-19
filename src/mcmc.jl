@@ -651,12 +651,13 @@ function updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx,
     return llᵒ, true, θᵒ
 end
 
+
 """
     mcmc(::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w, P˟, P̃, Ls, Σs,
          numSteps, tKernel, priors; fpt=fill(NaN, length(obsTimes)-1), ρ=0.0,
          dt=1/5000, timeChange=true, saveIter=NaN, verbIter=NaN,
          updtCoord=(Val((true,)),), paramUpdt=true, skipForSave=1,
-         updtType=(MetropolisHastingsUpdt(),), solver::ST=Ralston3())
+         updtType=(MetropolisHastingsUpdt(),), solver::ST=Ralston3(), warmUp=0)
 
 Gibbs sampler alternately imputing unobserved parts of the path and updating
 unknown coordinates of the parameter vector (the latter only if paramUpdt==true)
@@ -685,6 +686,7 @@ unknown coordinates of the parameter vector (the latter only if paramUpdt==true)
 - `skipForSave`: when saving paths, save only one in every `skipForSave` points
 - `updtType`: list of types of updates to cycle through
 - `solver`: numerical solver used for computing backward ODEs
+- `warmUp`: number of steps for which no parameter update is to be made
 ...
 """
 function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
@@ -694,7 +696,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
               skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
               blocking::Blocking=NoBlocking(),
               blockingParams=([], 0.1, NoChangePt()),
-              solver::ST=Ralston3(), changePt::CP=NoChangePt()
+              solver::ST=Ralston3(), changePt::CP=NoChangePt(), warmUp=0
               ) where {K, ObsScheme <: AbstractObsScheme, ST, Blocking, CP}
     P = findProposalLaw( K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST(),
                          changePt=CP(getChangePt(blockingParams[3])) )
@@ -705,7 +707,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
     accImpCounter = 0
     accUpdtCounter = [0 for i in 1:updtLen]
     θ = params(P˟)
-    θchain = Vector{typeof(θ)}(undef, numSteps*updtLen+1)
+    θchain = Vector{typeof(θ)}(undef, (numSteps-warmUp)*updtLen+1)
     θchain[1] = copy(θ)
     recomputeODEs = [any([e in dependsOnParams(P[1].Pt) for e
                          in idx(uc)]) for uc in updtCoord]
@@ -715,12 +717,13 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
     display(𝔅)
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
-        savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
+        (i==1 || i > warmUp) && savePath!(Paths, XX, (i % saveIter == 0),
+                                          skipForSave)
         ll, acc, 𝔅, yPr = impute!(ObsScheme(), 𝔅, Wnr, yPr, WWᵒ, WW, XXᵒ, XX,
                                   P, ll, fpt, ρ=ρ, verbose=verbose, it=i,
                                   solver=ST())
         accImpCounter += 1*acc
-        if paramUpdt
+        if paramUpdt && i > warmUp
             for j in 1:updtLen
                 ll, acc, θ = updateParam!(ObsScheme(), updtType[j], tKernel, θ,
                                           updtCoord[j], yPr.y, WW, Pᵒ, P, XXᵒ,

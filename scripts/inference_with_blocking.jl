@@ -68,8 +68,9 @@ priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
 blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-10), SimpleChangePt(100))
 changePt = NoChangePt()
 #x0Pr = KnownStartingPt(x0)
-Σˢ = @SMatrix [2. 0; 0 2.]
-x0Pr = GsnStartingPt(x0, x0, Σˢ, inv(Σˢ))
+Σˢ = @SMatrix [3. 0; 0 3.]
+#x0Pr = GsnStartingPt(x0, x0, Σˢ, inv(Σˢ))
+x0Pr = GsnStartingPt(x0, Σˢ)
 
 Random.seed!(4)
 start = time()
@@ -77,7 +78,7 @@ start = time()
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0Pr, 0.0, P˟,
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.975,
+                         ρ=0.8,
                          dt=1/10000,
                          saveIter=saveIter,
                          verbIter=10^2,
@@ -92,7 +93,8 @@ start = time()
                          blocking=𝔅,
                          blockingParams=blockingParams,
                          solver=Vern7(),
-                         changePt=changePt)
+                         changePt=changePt,
+                         warmUp=100)
 elapsed = time() - start
 print("time elapsed: ", elapsed, "\n")
 
