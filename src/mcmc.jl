@@ -317,14 +317,13 @@ a blocking scheme.
 # Arguments
 - `::BlockingSchedule`: indicator that a blocking scheme is used
 - `::Val{1}`: indicator that it's the first block, so starting point needs updating
-- `y₀`: previous starting point
 - `yPr`: prior over the starting point
 - `P`: diffusion law
 - `ρ`: memory parameter in the Crank-Nicolson scheme
 ...
 """
-function proposalStartPt(::BlockingSchedule, ::Val{1}, y₀, yPr, P, ρ)
-    proposalStartPt(NoBlocking(), nothing, y₀, yPr, P, ρ)
+function proposalStartPt(::BlockingSchedule, ::Val{1}, ::Any, yPr, P, ρ)
+    proposalStartPt(NoBlocking(), nothing, nothing, yPr, P, ρ)
 end
 
 """
@@ -350,8 +349,8 @@ Set a new starting point for the proposal path when no blocking is done
 - `ρ`: memory parameter in the Crank-Nicolson scheme
 ...
 """
-function proposalStartPt(::NoBlocking, ::Any, y₀, yPr, P, ρ)
-    yPrᵒ = rand(yPr, P, y₀, ρ)
+function proposalStartPt(::NoBlocking, ::Any, ::Any, yPr, P, ρ)
+    yPrᵒ = rand(yPr, P, ρ)
     y = copy(yPrᵒ.y)
     y, yPrᵒ
 end
@@ -386,7 +385,7 @@ function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX, 
                  solver::ST=Ralston3()) where
                  {ObsScheme <: AbstractObsScheme, ST}
     # sample proposal starting point
-    y, yPrᵒ = proposalStartPt(𝔅, nothing, yPr.y, yPr, P[1], ρ)
+    y, yPrᵒ = proposalStartPt(𝔅, nothing, nothing, yPr, P[1], ρ)
 
     # sample proposal path
     m = length(WWᵒ)
