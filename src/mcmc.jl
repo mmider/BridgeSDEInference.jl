@@ -343,7 +343,6 @@ Set a new starting point for the proposal path when no blocking is done
 ...
 # Arguments
 - `::NoBlocking`: indicator that no blocking is done
-- `y₀`: previous starting point
 - `yPr`: prior over the starting point
 - `P`: diffusion law
 - `ρ`: memory parameter in the Crank-Nicolson scheme

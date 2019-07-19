@@ -68,7 +68,8 @@ priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
 blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-10), SimpleChangePt(100))
 changePt = NoChangePt()
 #x0Pr = KnownStartingPt(x0)
-x0Pr = GsnStartingPt(x0, @SMatrix [2. 0; 0 2.])
+Σˢ = @SMatrix [2. 0; 0 2.]
+x0Pr = GsnStartingPt(x0, x0, Σˢ, inv(Σˢ))
 
 Random.seed!(4)
 start = time()

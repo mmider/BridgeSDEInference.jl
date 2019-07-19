@@ -79,11 +79,11 @@ rand(G::KnownStartingPt) = G #TODO make sure that `copy(G)` is not needed
 
 
 """
-    rand(G::GsnStartingPt, P, ρ)
+    rand(G::GsnStartingPt, P, y, ρ)
 
 Sample a new starting point according to the posterior distribution with prior
 `G` and the likelihood encoded by the object `P`. Use Crank-Nicolson scheme
-with memory parameter `ρ`
+with memory parameter `ρ` and a previous value of the starting point equal to `y`
 """
 function rand(G::GsnStartingPt, P, ρ)
     μₚₒₛₜ = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
@@ -95,7 +95,7 @@ end
 
 
 """
-    rand(G::KnownStartingPt, ::Any, ::Any)
+    rand(G::KnownStartingPt, ::Any, ::Any, ::Any)
 
 If starting point is known then nothing can be sampled
 """
