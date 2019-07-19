@@ -1,4 +1,5 @@
 import Base: getindex, length
+import Distributions.logpdf
 
 """
     Priors
