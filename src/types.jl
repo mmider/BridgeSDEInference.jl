@@ -1,5 +1,5 @@
 import Base.valtype
-
+import Distributions.logpdf
 
 """
     ODESolverType

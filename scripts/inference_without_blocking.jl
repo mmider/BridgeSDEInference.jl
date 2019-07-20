@@ -16,7 +16,6 @@ parametrisation = POSSIBLE_PARAMS[5]
 include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
 include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
 
-
 include(joinpath(SRC_DIR, "types.jl"))
 include(joinpath(SRC_DIR, "vern7.jl"))
 #include(joinpath(SRC_DIR, "tsit5.jl"))
@@ -26,6 +25,7 @@ include(joinpath(SRC_DIR, "priors.jl"))
 include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
 include(joinpath(SRC_DIR, "random_walk.jl"))
 include(joinpath(SRC_DIR, "blocking_schedule.jl"))
+include(joinpath(SRC_DIR, "starting_pt.jl"))
 include(joinpath(SRC_DIR, "mcmc.jl"))
 include(joinpath(SRC_DIR, "path_to_wiener.jl"))
 
@@ -57,38 +57,44 @@ L = @SMatrix [1. 0.]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^3
+numSteps=2*10^3
 saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
+                 #ImproperPrior(),
                  ImproperPrior()))
 𝔅 = NoBlocking()
 blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
+#x0Pr = KnownStartingPt(x0)
+x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
 
 Random.seed!(4)
 start = time()
 (chain, accRateImp, accRateUpdt,
-    paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0, 0.0, P˟, P̃,
-                         Ls, Σs, numSteps, tKernel, priors, τ;
+    paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0Pr, 0.0, P˟,
+                         P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.975,
                          dt=1/10000,
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),
+                                    #Val((true, false, false, false, false)),
                                     Val((false, false, false, false, true)),
                                     ),
                          paramUpdt=true,
                          updtType=(ConjugateUpdt(),
+                                   #MetropolisHastingsUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^1,
                          blocking=𝔅,
                          blockingParams=blockingParams,
                          solver=Vern7(),
-                         changePt=changePt)
+                         changePt=changePt,
+                         warmUp=100)
 elapsed = time() - start
 print("time elapsed: ", elapsed, "\n")
 
