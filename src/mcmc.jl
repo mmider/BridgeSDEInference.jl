@@ -391,18 +391,19 @@ function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX, 
 
     # sample proposal path
     m = length(WWᵒ)
+    yᵗᵉᵐᵖ = copy(y)
     for i in 1:m
         sample!(WWᵒ[i], Wnr)
         WWᵒ[i].yy .= √(1-ρ)*WWᵒ[i].yy + √(ρ)*WW[i].yy
-        solve!(Euler(),XXᵒ[i], y, WWᵒ[i], P[i])
+        solve!(Euler(),XXᵒ[i], yᵗᵉᵐᵖ, WWᵒ[i], P[i])
         if headStart
             while !checkFpt(ObsScheme(), XXᵒ[i], fpt[i])
                 sample!(WWᵒ[i], Wnr)
                 WWᵒ[i].yy .= √(1-ρ)*WWᵒ[i].yy + √(ρ)*WW[i].yy
-                solve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])
+                solve!(Euler(), XXᵒ[i], yᵗᵉᵐᵖ, WWᵒ[i], P[i])
             end
         end
-        y = XXᵒ[i].yy[end]
+        yᵗᵉᵐᵖ = XXᵒ[i].yy[end]
     end
 
     # Accept / Reject
@@ -608,17 +609,19 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtId
     end
     recomputeODEs && solveBackRec!(NoBlocking(), Pᵒ, ST()) # compute (H, Hν, c)
 
-    yᵒ = startPt(yPr, Pᵒ[1]) # find starting point for a given θᵒ from white noise
+    # find white noise which for a given θᵒ gives correct starting point
+    y = XX[1].yy[1]
+    yPrᵒ = invStartPt(y, yPr, Pᵒ[1])
 
     # compute path for a given θᵒ from driving noise
-    y = copy(yᵒ)
+    yᵗᵉᵐᵖ = copy(y)
     for i in 1:m
-        solve!(Euler(), XXᵒ[i], y, WW[i], Pᵒ[i])
-        y = XXᵒ[i].yy[end]
+        solve!(Euler(), XXᵒ[i], yᵗᵉᵐᵖ, WW[i], Pᵒ[i])
+        yᵗᵉᵐᵖ = XXᵒ[i].yy[end]
     end
 
     # Compute log-likelihood ratio
-    llᵒ = logpdf(yPr, yᵒ)
+    llᵒ = logpdf(yPr, y)
     for i in 1:m
         llᵒ += llikelihood(LeftRule(), XXᵒ[i], Pᵒ[i])
     end
@@ -629,8 +632,7 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtId
     for prior in priors
         llr += logpdf(prior, θᵒ) - logpdf(prior, θ)
     end
-    y = XX[1].yy[1]
-    recomputeODEs && (llr += lobslikelihood(Pᵒ[1], yᵒ) - lobslikelihood(P[1], y))
+    recomputeODEs && (llr += lobslikelihood(Pᵒ[1], y) - lobslikelihood(P[1], y))
 
     # Accept / reject
     if acceptSample(llr, verbose)
@@ -638,7 +640,7 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtId
             XX[i], XXᵒ[i] = XXᵒ[i], XX[i]
             P[i], Pᵒ[i] = Pᵒ[i], P[i]
         end
-        return llᵒ, true, θᵒ, yPr
+        return llᵒ, true, θᵒ, yPrᵒ
     else
         return ll, false, θ, yPr
     end

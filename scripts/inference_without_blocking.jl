@@ -62,14 +62,13 @@ saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
+                 #ImproperPrior(),
                  ImproperPrior()))
 𝔅 = NoBlocking()
 blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
 #x0Pr = KnownStartingPt(x0)
-Σˢ = @SMatrix [20. 0; 0 20.]
-x0Pr = GsnStartingPt(x0, x0, Σˢ, inv(Σˢ))
-#x0Pr = GsnStartingPt(x0, Σˢ)
+x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
 
 Random.seed!(4)
 start = time()
@@ -82,10 +81,12 @@ start = time()
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),
+                                    #Val((true, false, false, false, false)),
                                     Val((false, false, false, false, true)),
                                     ),
                          paramUpdt=true,
                          updtType=(ConjugateUpdt(),
+                                   #MetropolisHastingsUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^1,

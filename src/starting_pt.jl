@@ -90,7 +90,7 @@ end
 
 If starting point is known then nothing can be sampled
 """
-rand(G::KnownStartingPt, ::Any=nothing) = G #TODO make sure that `copy(G)` is not needed
+rand(G::KnownStartingPt, ::Any=nothing) = G
 
 
 """
@@ -155,7 +155,7 @@ invStartPt(y, G::KnownStartingPt, P::GuidPropBridge) = G
 
 Nothing to do so long as `y` is equal to the known starting point inside `G`
 """
-function logpdf(::KnownStartingPt, y)
+function logpdf(G::KnownStartingPt, y)
     (G.y == y) ? 0.0 : error("Starting point is known, but a different value ",
                              "was passed to logpdf.")
 end
