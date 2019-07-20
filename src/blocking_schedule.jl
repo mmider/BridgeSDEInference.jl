@@ -120,6 +120,7 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
         """
         function knotsToBlocks(knots, idxLast, i)
             M = length(knots)
+            @assert M > 0
             if M >= i > 1
                 return (knots[i-1]+1):knots[i]
             elseif i == 1
