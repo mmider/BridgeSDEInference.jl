@@ -21,7 +21,7 @@ function transformMCMCOutput(x0, paths, saveIter; chain=nothing, θ=nothing,
 
     if chain == nothing
         @assert θ != nothing
-        θs = repeat(θ, length(paths))
+        θs = [θ for i in 1:length(paths)]
     else
         @assert chain != nothing
         θs = chain[1:skip:end][2:end]

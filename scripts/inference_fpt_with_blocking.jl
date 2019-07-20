@@ -59,13 +59,13 @@ Ls = [L for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
 numSteps=2*10^3
 saveIter=3*10^2
-tKernel = RandomWalk([3.0, 5.0, 3.0, 0.01, 0.5],
+tKernel = RandomWalk([3.0, 5.0, 0.5, 0.01, 0.5],
                      [false, false, false, false, true])
 priors = Priors((#MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
                  #ImproperPrior(),
                  ImproperPrior(),))
 𝔅 = ChequeredBlocking()
-blockingParams = (collect(1:length(obs)-2)[1:1:end], 10^(-10), SimpleChangePt(100))
+blockingParams = (collect(1:length(obs)-2)[1:1:end], 10^(-7), SimpleChangePt(100))
 changePt = NoChangePt()
 x0Pr = KnownStartingPt(x0)
 #x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
@@ -101,10 +101,15 @@ print("time elapsed: ", elapsed, "\n")
 print("imputation acceptance rate: ", accRateImp,
       ", parameter update acceptance rate: ", accRateUpdt)
 
+
 x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain,
                                        numGibbsSteps=1,
                                        parametrisation=parametrisation)
-
+#=
+x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; θ=θ₀,
+                                       numGibbsSteps=1,
+                                       parametrisation=parametrisation)
+=#
 df2 = savePathsToFile(pathsToSave, time_, joinpath(OUT_DIR, "sampled_paths.csv"))
 df3 = saveChainToFile(chain, joinpath(OUT_DIR, "chain.csv"))
 
