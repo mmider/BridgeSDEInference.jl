@@ -58,7 +58,7 @@ L = @SMatrix [1. 0.]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=2*10^3
+numSteps=1*10^4
 saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
@@ -69,8 +69,8 @@ blockingParams = (collect(1:length(obs)-2)[1:2:end], 10^(-10), SimpleChangePt(10
 changePt = NoChangePt()
 #x0Pr = KnownStartingPt(x0)
 Σˢ = @SMatrix [3. 0; 0 3.]
-#x0Pr = GsnStartingPt(x0, x0, Σˢ, inv(Σˢ))
-x0Pr = GsnStartingPt(x0, Σˢ)
+x0Pr = GsnStartingPt(x0, x0, Σˢ, inv(Σˢ))
+#x0Pr = GsnStartingPt(x0, Σˢ)
 
 Random.seed!(4)
 start = time()
@@ -78,7 +78,7 @@ start = time()
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0Pr, 0.0, P˟,
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.8,
+                         ρ=0.9,
                          dt=1/10000,
                          saveIter=saveIter,
                          verbIter=10^2,
