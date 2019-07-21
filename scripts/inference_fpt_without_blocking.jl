@@ -33,17 +33,17 @@ include(joinpath(AUX_DIR, "read_and_write_data.jl"))
 include(joinpath(AUX_DIR, "transforms.jl"))
 
 # decide if first passage time observations or partially observed diffusion
-fptObsFlag = false
+fptObsFlag = true
 
 # pick dataset
-filename = "path_part_obs_conj.csv"
+filename = "path_fpt_simpleConjug.csv"
 
 # fetch the data
 (df, x0, obs, obsTime, fpt,
       fptOrPartObs) = readData(Val(fptObsFlag), joinpath(OUT_DIR, filename))
 
 # Initial parameter guess.
-θ₀ = [10.0, -8.0, 15.0, 0.0, 3.0]
+θ₀ = [10.0, -8.0, 25.0, 0.0, 3.0]
 # Target law
 P˟ = FitzhughDiffusion(θ₀...)
 # Auxiliary law
@@ -57,19 +57,19 @@ L = @SMatrix [1. 0.]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=2*10^3
+numSteps=1*10^4
 saveIter=3*10^2
-tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
+tKernel = RandomWalk([3.0, 5.0, 0.7, 0.01, 0.5],
                      [false, false, false, false, true])
-priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
+priors = Priors((#MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
                  #ImproperPrior(),
-                 ImproperPrior()))
+                 ImproperPrior(),))
 𝔅 = NoBlocking()
 blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
-#x0Pr = KnownStartingPt(x0)
-x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
-warmUp = 100
+x0Pr = KnownStartingPt(x0)
+#x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
+warmUp=100
 
 Random.seed!(4)
 start = time()
@@ -77,16 +77,16 @@ start = time()
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0Pr, 0.0, P˟,
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.975,
-                         dt=1/10000,
+                         ρ=0.997,
+                         dt=1/500,
                          saveIter=saveIter,
                          verbIter=10^2,
-                         updtCoord=(Val((true, true, true, false, false)),
+                         updtCoord=(#Val((true, true, true, false, false)),
                                     #Val((true, false, false, false, false)),
-                                    Val((false, false, false, false, true)),
+                                    Val((false, false, true, false, false)),
                                     ),
                          paramUpdt=true,
-                         updtType=(ConjugateUpdt(),
+                         updtType=(#ConjugateUpdt(),
                                    #MetropolisHastingsUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),
@@ -103,7 +103,7 @@ print("imputation acceptance rate: ", accRateImp,
       ", parameter update acceptance rate: ", accRateUpdt)
 
 x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain,
-                                       numGibbsSteps=2,
+                                       numGibbsSteps=1,
                                        parametrisation=parametrisation,
                                        warmUp=warmUp)
 
@@ -112,7 +112,7 @@ df3 = saveChainToFile(chain, joinpath(OUT_DIR, "chain.csv"))
 
 include(joinpath(AUX_DIR, "plotting_fns.jl"))
 set_default_plot_size(30cm, 20cm)
-plotPaths(df2, obs=[Float64.(df.x1), [x0⁺[2]]],
+plotPaths(df2, obs=[Float64.(df.upCross), [x0⁺[2]]],
           obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
 
 plotChain(df3, coords=[1])

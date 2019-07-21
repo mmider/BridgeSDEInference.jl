@@ -161,7 +161,7 @@ elseif parametrisation == :complexAlter
                   (1.0-P.γ-3.0*P.v[1]^2-6*P.v[1]*P.v[2])/P.ϵ (1.0-P.ϵ-3.0*P.v[1]^2)/P.ϵ]
     end
     function β(t, P::FitzhughDiffusionAux{T,SArray{Tuple{2},Float64,1,2}}) where T
-        ℝ{2}(0.0, (2*P.v[1]^3+P.s-P.β+6*P.ϵ*P.v[1]^2*P.v[2])/P.ϵ)#check later
+        ℝ{2}(0.0, (2*P.v[1]^3+P.s-P.β+6*P.v[1]^2*P.v[2])/P.ϵ)#check later
     end
 elseif parametrisation == :simpleConjug
     B(t, P::FitzhughDiffusionAux) = @SMatrix [0.0  1.0; 0.0 0.0]
@@ -180,7 +180,7 @@ elseif parametrisation == :complexConjug
                   (P.ϵ-P.γ-3.0*P.ϵ*P.v[1]^2-6*P.ϵ*P.v[1]*P.v[2]) (P.ϵ-1.0-3.0*P.ϵ*P.v[1]^2)]
     end
     function β(t, P::FitzhughDiffusionAux{T,SArray{Tuple{2},Float64,1,2}}) where T
-        ℝ{2}(0.0, 2*P.ϵ*P.v[1]^3+P.s-P.β+6*P.v[1]^2*P.v[2])#check later
+        ℝ{2}(0.0, 2*P.ϵ*P.v[1]^3+P.s-P.β+6*P.ϵ*P.v[1]^2*P.v[2])#check later
     end
 end
 
@@ -198,3 +198,4 @@ clone(P::FitzhughDiffusionAux, θ) = FitzhughDiffusionAux(θ..., P.t,
 # should copy starting point or sth, currently restricted by the same type of u and v
 clone(P::FitzhughDiffusionAux, θ, v) = FitzhughDiffusionAux(θ..., P.t,
                                                          zero(v), P.T, v)
+params(P::FitzhughDiffusionAux) = [P.ϵ, P.s, P.γ, P.β, P.σ]

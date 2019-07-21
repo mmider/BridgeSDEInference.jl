@@ -13,7 +13,7 @@ using Bridge
  parametrisation = :simpleConjug
  include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
  FILENAME_OUT = joinpath(OUT_DIR,
-                         "test_path_fpt_"*String(parametrisation)*".csv")
+                         "path_fpt_"*String(parametrisation)*".csv")
  let
      P = FitzhughDiffusion(10.0, -8.0, 25.0, 0.0, 3.0)
      # starting point under :regular parametrisation
@@ -35,7 +35,7 @@ using Bridge
      upLvl = 0.5
      downLvl = -0.5
      # Effective simulation of FPT over N*T interval
-     N = 10
+     N = 4
      upCrossingTimes = Float64[]
      upCrossingLvls = Float64[]
      downCrossingLvls = Float64[]

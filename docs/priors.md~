@@ -1,2 +1,0 @@
-# Priors
-The package `MCMCBridge.jl` defines some convenience functions [for priors](../src/priors.jl).
