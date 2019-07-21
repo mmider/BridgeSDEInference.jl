@@ -57,7 +57,7 @@ L = @SMatrix [1. 0.]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=3*10^3
+numSteps=3*10^2
 saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 0.5, 0.01, 0.5],
                      [false, false, false, false, true])
@@ -70,7 +70,7 @@ changePt = NoChangePt()
 x0Pr = KnownStartingPt(x0)
 #x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
 warmUp=100
-
+typeof(x0)
 Random.seed!(4)
 start = time()
 (chain, accRateImp, accRateUpdt,

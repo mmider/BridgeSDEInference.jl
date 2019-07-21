@@ -198,3 +198,4 @@ clone(P::FitzhughDiffusionAux, θ) = FitzhughDiffusionAux(θ..., P.t,
 # should copy starting point or sth, currently restricted by the same type of u and v
 clone(P::FitzhughDiffusionAux, θ, v) = FitzhughDiffusionAux(θ..., P.t,
                                                          zero(v), P.T, v)
+params(P::FitzhughDiffusionAux) = [P.ϵ, P.s, P.γ, P.β, P.σ]
