@@ -71,6 +71,7 @@ Empty constructor.
 """
 struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     P::TP      # blocking workspace: diffusion law
+    Pᵒ::TP     # blocking workspace: diffusion law
     WW::TWW    # blocking workspace: accepted Wiener path
     WWᵒ::TWW   # blocking workspace: proposed Wiener path
     XX::TXX    # blocking workspace: accepted diffusion path
@@ -136,23 +137,23 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
                  zeros(Int64, length(blocks[2])))
         props = (zeros(Int64, length(blocks[1])),
                  zeros(Int64, length(blocks[2])))
-        new{TP,TWW,TXX}(deepcopy(P), deepcopy(WW), deepcopy(WW), deepcopy(XX),
-                        deepcopy(XX), (LsA, LsB), vs, (ΣsA, ΣsB),
+        new{TP,TWW,TXX}(deepcopy(P), deepcopy(P), deepcopy(WW), deepcopy(WW),
+                        deepcopy(XX), deepcopy(XX), (LsA, LsB), vs, (ΣsA, ΣsB),
                         (knotsA, knotsB), blocks, 1, accpt, props,
                         (chpA, chpB))
     end
 
-    function ChequeredBlocking(𝔅::ChequeredBlocking{TP̃, TWW, TXX}, P::TP,
+    function ChequeredBlocking(𝔅::ChequeredBlocking{TP̃, TWW, TXX}, P::TP, Pᵒ::TP
                                idx::Int64) where {TP̃,TP,TWW,TXX}
-        new{TP,TWW,TXX}(P, 𝔅.WW, 𝔅.WWᵒ, 𝔅.XX, 𝔅.XXᵒ, 𝔅.Ls, 𝔅.vs, 𝔅.Σs,
+        new{TP,TWW,TXX}(P, Pᵒ, 𝔅.WW, 𝔅.WWᵒ, 𝔅.XX, 𝔅.XXᵒ, 𝔅.Ls, 𝔅.vs, 𝔅.Σs,
                         𝔅.knots, 𝔅.blocks, idx, 𝔅.accpt, 𝔅.props, 𝔅.changePts)
     end
 
     function ChequeredBlocking()
         new{Nothing, Nothing, Nothing}(nothing, nothing, nothing, nothing,
                                        nothing, nothing, nothing, nothing,
-                                       ([0],[0]),([[0]],[[0]]), 1, ([0],[0]),
-                                       ([0],[0]),
+                                       nothing, ([0],[0]),([[0]],[[0]]), 1,
+                                       ([0],[0]), ([0],[0]),
                                        ([NoChangePt()],[NoChangePt()])
                                        )
     end
@@ -186,8 +187,10 @@ function next(𝔅::ChequeredBlocking, XX, θ)
 
     P = [GuidPropBridge(𝔅.P[i], Ls[i], vs[i], Σs[i], chPts[i], θ)
                                             for (i,_) in enumerate(𝔅.P)]
+    Pᵒ = [GuidPropBridge(𝔅.Pᵒ[i], Ls[i], vs[i], Σs[i], chPts[i], θ)
+                                            for (i,_) in enumerate(𝔅.Pᵒ)]
 
-    ChequeredBlocking(𝔅, P, newIdx)
+    ChequeredBlocking(𝔅, P, Pᵒ, newIdx)
 end
 
 """

@@ -471,8 +471,7 @@ Default contribution to log-likelihood from the startin point under blocking
 startPtLogPdf(::Any, yPr::StartingPtPrior, y) = 0.0
 
 
-# should be easily parallelisable, currently FPT is not supported
-# (an easy fix involves changing definition of function checkFullPathFpt())
+# should be easily parallelisable
 """
     impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll,
             fpt; ρ=0.0, verbose=false, it=NaN, headStart=false) where
@@ -644,6 +643,94 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtId
         return ll, false, θ, yPr
     end
 end
+
+
+# NOTE EXPERIMENTAL
+"""
+    updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtIdx,
+                 yPr, WW, Pᵒ, P, XXᵒ, XX, ll, prior, fpt, recomputeODEs;
+                 solver::ST=Ralston3(), verbose=false,
+                 it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+                 -> acceptedLogLikhd, acceptDecision
+Update parameters
+...
+# Arguments
+- `::ObsScheme`: observation scheme---first-passage time or partial observations
+- `::MetropolisHastingsUpdt()`: type of the parameter update
+- `tKern`: transition kernel
+- `θ`: current value of the parameter
+- `updtIdx`: object declaring indices of the updated parameter
+- `yPr`: prior over the starting point of the diffusion path
+- `WW`: containers with Wiener paths
+- `Pᵒ`: container for the laws of the diffusion path with new parametrisation
+- `P`: laws of the diffusion path with old parametrisation
+- `XXᵒ`: containers for proposal diffusion paths
+- `XX`: containers with old diffusion paths
+- `11`: likelihood of the old (previously accepted) parametrisation
+- `priors`: list of priors
+- `fpt`: info about first-passage time conditioning
+- `recomputeODEs`: whether auxiliary law depends on the updated params
+- `verbose`: whether to print updates info while sampling
+- `it`: iteration index of the MCMC algorithm
+...
+"""
+function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt,
+                      𝔅::ChequeredBlocking, tKern, θ, ::UpdtIdx,
+                      yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
+                      solver::ST=Ralston3(), verbose=false,
+                      it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+    m = length(WW)
+    θᵒ = rand(tKern, θ, UpdtIdx())               # sample new parameter
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block                           # update law `Pᵒ` accordingly
+            𝔅.Pᵒ[i] = GuidPropBridge(𝔅.Pᵒ[i], θᵒ)
+        end
+    end
+    recomputeODEs && solveBackRec!(𝔅, 𝔅.Pᵒ, ST()) # compute (H, Hν, c)
+
+    for block in 𝔅.blocks[𝔅.idx]
+        blockFlag = Val{block[1]}()
+        y = 𝔅.XX[block[1]].yy[1]       # current starting point
+        # set the starting point for the block
+        yᵒ, yPrᵒ = proposalStartPt(𝔅, blockFlag, y, yPr𝔅, 𝔅.P[block[1]], ρ)
+        # find white noise which for a given θᵒ gives correct starting point
+        yPrᵒ = invStartPt(y, yPr, Pᵒ[1])
+
+        # compute path for a given θᵒ from driving noise
+        yᵗᵉᵐᵖ = copy(y)
+        for i in 1:m
+            solve!(Euler(), XXᵒ[i], yᵗᵉᵐᵖ, WW[i], Pᵒ[i])
+            yᵗᵉᵐᵖ = XXᵒ[i].yy[end]
+        end
+
+        # Compute log-likelihood ratio
+        llᵒ = logpdf(yPr, y)
+        for i in 1:m
+            llᵒ += llikelihood(LeftRule(), XXᵒ[i], Pᵒ[i])
+        end
+        llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, 1:m, fpt) ? llᵒ : -Inf
+        verbose && print("update: ", it, " ll ", round(ll, digits=3), " ",
+                         round(llᵒ, digits=3), " diff_ll: ", round(llᵒ-ll,digits=3))
+        llr = ( llᵒ - ll + logpdf(tKern, θᵒ, θ) - logpdf(tKern, θ, θᵒ) )
+        for prior in priors
+            llr += logpdf(prior, θᵒ) - logpdf(prior, θ)
+        end
+        recomputeODEs && (llr += lobslikelihood(Pᵒ[1], y) - lobslikelihood(P[1], y))
+
+        # Accept / reject
+        if acceptSample(llr, verbose)
+            for i in 1:m
+                XX[i], XXᵒ[i] = XXᵒ[i], XX[i]
+                P[i], Pᵒ[i] = Pᵒ[i], P[i]
+            end
+            return llᵒ, true, θᵒ, yPrᵒ
+        else
+            return ll, false, θ, yPr
+        end
+    end
+end
+
+
 
 
 # NOTE it should work with FPT as well with additional rejection step
