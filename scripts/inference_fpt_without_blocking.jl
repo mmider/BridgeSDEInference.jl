@@ -62,8 +62,10 @@ saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 0.7, 0.01, 0.5],
                      [false, false, false, false, true])
 priors = Priors((#MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
+                 MvNormal([0.0], diagm(0=>[1000.0])),
                  #ImproperPrior(),
-                 ImproperPrior(),))
+                 #ImproperPrior(),)
+                 ))
 𝔅 = NoBlocking()
 blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
@@ -86,9 +88,9 @@ start = time()
                                     Val((false, false, true, false, false)),
                                     ),
                          paramUpdt=true,
-                         updtType=(#ConjugateUpdt(),
+                         updtType=(ConjugateUpdt(),
                                    #MetropolisHastingsUpdt(),
-                                   MetropolisHastingsUpdt(),
+                                   #MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^1,
                          blocking=𝔅,

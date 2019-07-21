@@ -658,7 +658,7 @@ Update parameters
 see the definition of  updateParam!(…, ::MetropolisHastingsUpdt, …) for the
 explanation of the arguments.
 """
-function updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx,
+function updateParam!(::ObsScheme, ::ConjugateUpdt, tKern, θ, ::UpdtIdx,
                       yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
                       solver::ST=Ralston3(), verbose=false,
                       it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
