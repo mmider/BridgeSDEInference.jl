@@ -143,7 +143,7 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
                         (chpA, chpB))
     end
 
-    function ChequeredBlocking(𝔅::ChequeredBlocking{TP̃, TWW, TXX}, P::TP, Pᵒ::TP
+    function ChequeredBlocking(𝔅::ChequeredBlocking{TP̃, TWW, TXX}, P::TP, Pᵒ::TP,
                                idx::Int64) where {TP̃,TP,TWW,TXX}
         new{TP,TWW,TXX}(P, Pᵒ, 𝔅.WW, 𝔅.WWᵒ, 𝔅.XX, 𝔅.XXᵒ, 𝔅.Ls, 𝔅.vs, 𝔅.Σs,
                         𝔅.knots, 𝔅.blocks, idx, 𝔅.accpt, 𝔅.props, 𝔅.changePts)
