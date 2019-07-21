@@ -55,9 +55,6 @@ function blocking_test_prep(obs=ℝ.([1.0, 1.2, 0.8, 1.3, 2.0]),
     𝔅
 end
 
-𝔅 = blocking_test_prep()
-
-
 @testset "blocking object" begin
     obs = ℝ.([1.0, 1.2, 0.8, 1.3, 2.0])
     tt = [0.0, 1.0, 1.5, 2.3, 4.0]
@@ -127,6 +124,3 @@ end
         @test [𝔅.P[i].changePt for i in 1:4] == 𝔅.changePts[1] == [SimpleChangePt(100), NoChangePt(100), SimpleChangePt(100), NoChangePt(100)]
     end
 end
-
-
-𝔅
