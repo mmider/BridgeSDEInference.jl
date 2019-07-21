@@ -302,7 +302,6 @@ Solve backward recursion to find H, Hν, c and Q, which together define r̃(t,x)
 and p̃(x, 𝓓) under the auxiliary law, when blocking is done
 """
 function solveBackRec!(𝔅::BlockingSchedule, P, solver::ST=Ralston3()) where ST
-    m = length(P)
     for block in reverse(𝔅.blocks[𝔅.idx])
         gpupdate!(P[block[end]]; solver=ST())
         for i in reverse(block[1:end-1])
@@ -755,8 +754,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
     display(𝔅)
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
-        (i==1 || i > warmUp) && savePath!(Paths, XX, (i % saveIter == 0),
-                                          skipForSave)
+        i > warmUp && savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
         ll, acc, 𝔅, yPr = impute!(ObsScheme(), 𝔅, Wnr, yPr, WWᵒ, WW, XXᵒ, XX,
                                   P, ll, fpt, ρ=ρ, verbose=verbose, it=i,
                                   solver=ST())

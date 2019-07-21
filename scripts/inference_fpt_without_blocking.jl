@@ -69,6 +69,7 @@ blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
 x0Pr = KnownStartingPt(x0)
 #x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
+warmUp=100
 
 Random.seed!(4)
 start = time()
@@ -94,7 +95,7 @@ start = time()
                          blockingParams=blockingParams,
                          solver=Vern7(),
                          changePt=changePt,
-                         warmUp=100)
+                         warmUp=warmUp)
 elapsed = time() - start
 print("time elapsed: ", elapsed, "\n")
 
@@ -103,7 +104,8 @@ print("imputation acceptance rate: ", accRateImp,
 
 x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain,
                                        numGibbsSteps=1,
-                                       parametrisation=parametrisation)
+                                       parametrisation=parametrisation,
+                                       warmUp=warmUp)
 
 df2 = savePathsToFile(pathsToSave, time_, joinpath(OUT_DIR, "sampled_paths.csv"))
 df3 = saveChainToFile(chain, joinpath(OUT_DIR, "chain.csv"))
