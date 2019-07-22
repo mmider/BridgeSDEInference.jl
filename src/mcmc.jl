@@ -525,7 +525,7 @@ function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX, 
     llᵒ = logpdf(yPrᵒ, yᵒ)
     llᵒ += pathLogLikhd(ObsScheme(), XXᵒ, P, 1:m, fpt)
     llᵒ += lobslikelihood(P[1], yᵒ)
-    
+
     printInfo(verbose, it, value(ll), value(llᵒ), "impute")
 
     if acceptSample(llᵒ-ll, verbose)
@@ -1114,8 +1114,9 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
                 accUpdtCounter[j] += 1*acc
                 updtStepCounter += 1
                 θchain[updtStepCounter] = copy(θ)
+                verbose && print("\n")
             end
-            verbose && print("\n------------------------------------------------",
+            verbose && print("------------------------------------------------",
                              "------\n")
         end
     end

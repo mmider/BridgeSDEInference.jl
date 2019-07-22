@@ -57,7 +57,7 @@ L = @SMatrix [1. 0.]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=2*10^3
+numSteps=1*10^5
 saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
@@ -78,7 +78,7 @@ start = time()
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.975,
-                         dt=1/10000,
+                         dt=1/1000,
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),
@@ -90,7 +90,7 @@ start = time()
                                    #MetropolisHastingsUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),
-                         skipForSave=10^1,
+                         skipForSave=10^0,
                          blocking=𝔅,
                          blockingParams=blockingParams,
                          solver=Vern7(),
@@ -106,6 +106,8 @@ x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain,
                                        numGibbsSteps=2,
                                        parametrisation=parametrisation,
                                        warmUp=warmUp)
+chain
+
 
 df2 = savePathsToFile(pathsToSave, time_, joinpath(OUT_DIR, "sampled_paths.csv"))
 df3 = saveChainToFile(chain, joinpath(OUT_DIR, "chain.csv"))

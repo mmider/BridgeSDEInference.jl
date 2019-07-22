@@ -25,8 +25,8 @@ function transformMCMCOutput(x0, paths, saveIter; chain=nothing, θ=nothing,
         θs = [θ for i in 1:length(paths)]
     else
         @assert chain != nothing
-        θs = chain[[i-warmUp for i in warmUp+1:warmUp+length(chain)
-                    if i % saveIter == 0]]
+        N = Int64((length(chain)-1)/numGibbsSteps) + warmUp
+        θs = chain[[numGibbsSteps*(i-warmUp) for i in 1:N if (i % saveIter == 0) && i > warmUp ]]
     end
 
     if parametrisation == :regular
