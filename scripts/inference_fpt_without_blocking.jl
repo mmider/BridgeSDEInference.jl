@@ -58,12 +58,12 @@ Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
 numSteps=1*10^5
-saveIter=3*10^2
-tKernel = RandomWalk([3.0, 5.0, 0.1, 0.01, 0.5],
+saveIter=3*10^3
+tKernel = RandomWalk([3.0, 5.0, 0.5, 0.01, 0.5],
                      [false, false, false, false, true])
 priors = Priors((#MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
-                 MvNormal([0.0], diagm(0=>[1000.0])),
-                 #ImproperPrior(),
+                 ##MvNormal([0.0], diagm(0=>[1000.0])),
+                 ImproperPrior(),
                  #ImproperPrior(),)
                  ))
 𝔅 = NoBlocking()
@@ -79,7 +79,7 @@ start = time()
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0Pr, 0.0, P˟,
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.9999,
+                         ρ=0.997,
                          dt=1/500,
                          saveIter=saveIter,
                          verbIter=10^2,
@@ -88,8 +88,8 @@ start = time()
                                     Val((false, false, true, false, false)),
                                     ),
                          paramUpdt=true,
-                         updtType=(ConjugateUpdt(),
-                                   #MetropolisHastingsUpdt(),
+                         updtType=(#ConjugateUpdt(),
+                                   MetropolisHastingsUpdt(),
                                    #MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^1,

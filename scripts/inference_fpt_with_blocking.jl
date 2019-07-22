@@ -59,15 +59,15 @@ Ls = [L for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
 numSteps=3*10^4
 saveIter=3*10^2
-tKernel = RandomWalk([3.0, 5.0, 4.0, 0.01, 0.5],
+tKernel = RandomWalk([3.0, 5.0, 1.0, 0.01, 0.5],
                      [false, false, false, false, true])
 priors = Priors((#MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
-                 MvNormal([0.0], diagm(0=>[1000.0])),
-                 #ImproperPrior(),
+                 #MvNormal([0.0], diagm(0=>[1000.0])),
+                 ImproperPrior(),
                  #ImproperPrior(),)
                  ))
 𝔅 = ChequeredBlocking()
-blockingParams = (collect(1:length(obs)-2)[1:1:end], 10^(-7), SimpleChangePt(100))
+blockingParams = (collect(1:length(obs)-2)[1:1:end], 10^(-10), SimpleChangePt(100))
 changePt = NoChangePt()
 x0Pr = KnownStartingPt(x0)
 #x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
@@ -80,7 +80,7 @@ start = time()
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.99,
-                         dt=1/500,
+                         dt=1/5000,
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(#Val((true, true, true, false, false)),
@@ -88,8 +88,8 @@ start = time()
                                     Val((false, false, true, false, false)),
                                     ),
                          paramUpdt=true,
-                         updtType=(ConjugateUpdt(),
-                                   #MetropolisHastingsUpdt(),
+                         updtType=(#ConjugateUpdt(),
+                                   MetropolisHastingsUpdt(),
                                    #MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^1,
