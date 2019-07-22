@@ -17,7 +17,7 @@ include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
 include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
 
 
-include(joinpath(SRC_DIR, "starting_pt.jl"))
+
 include(joinpath(SRC_DIR, "types.jl"))
 include(joinpath(SRC_DIR, "vern7.jl"))
 #include(joinpath(SRC_DIR, "tsit5.jl"))
@@ -25,6 +25,7 @@ include(joinpath(SRC_DIR, "vern7.jl"))
 include(joinpath(SRC_DIR, "ralston3.jl"))
 include(joinpath(SRC_DIR, "priors.jl"))
 include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
+include(joinpath(SRC_DIR, "starting_pt.jl"))
 include(joinpath(SRC_DIR, "random_walk.jl"))
 include(joinpath(SRC_DIR, "blocking_schedule.jl"))
 include(joinpath(SRC_DIR, "mcmc.jl"))
@@ -78,7 +79,7 @@ start = time()
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.9,
-                         dt=1/10000,
+                         dt=1/1000,
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),
@@ -88,7 +89,7 @@ start = time()
                          updtType=(ConjugateUpdt(),
                                    MetropolisHastingsUpdt(),
                                    ),
-                         skipForSave=10^1,
+                         skipForSave=10^0,
                          blocking=𝔅,
                          blockingParams=blockingParams,
                          solver=Vern7(),

@@ -115,22 +115,12 @@ function checkSingleCoordFpt(XXᵒ, c, cidx, fpt)
     k = length(XXᵒ.yy)
     thrsd = XXᵒ.yy[end][c]
     renewed = fpt.autoRenewed[cidx]
-    # or use s = fpt.upCrossing[cidx] ? 1 : -1
-    if fpt.upCrossing[cidx]
-        for i in 1:k
-            if !renewed && XXᵒ.yy[i][c] <= fpt.reset[cidx]
-                renewed = true
-            elseif renewed && XXᵒ.yy[i][c] > thrsd + 0.0001 # prevents numerical issues
-                return false
-            end
-        end
-    else
-        for i in 1:k
-            if !renewed && XXᵒ.yy[i][c] >= fpt.reset[cidx]
-                renewed = true
-            elseif renewed && XXᵒ.yy[i][c] < thrsd - 0.0001 # prevents numerical issues
-                return false
-            end
+    s = fpt.upCrossing[cidx] ? 1 : -1
+    for i in 1:k
+        if !renewed && (s*XXᵒ.yy[i][c] <= s*fpt.reset[cidx])
+            renewed = true
+        elseif renewed && (s*XXᵒ.yy[i][c] > s*thrsd)
+            return false
         end
     end
     return renewed
@@ -229,7 +219,6 @@ function initialise(::ObsScheme, P, m, yPr::StartingPtPrior{T}, ::S,
     XXᵒ = Vector{TX}(undef,m)
     WWᵒ = Vector{TW}(undef,m)
     Wnr = Wiener{S}()
-    ll = 0.0
     for i in 1:m
         WWᵒ[i] = Bridge.samplepath(P[i].tt, zero(S))
         sample!(WWᵒ[i], Wnr)
@@ -239,8 +228,12 @@ function initialise(::ObsScheme, P, m, yPr::StartingPtPrior{T}, ::S,
             solve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])
         end
         y = XXᵒ[i].yy[end]
-        ll += llikelihood(LeftRule(), XXᵒ[i], P[i])
     end
+    y = startPt(yPr)
+    ll = logpdf(yPr, y)
+    ll += pathLogLikhd(ObsScheme(), XXᵒ, P, 1:m, fpt, skipFPT=true)
+    ll += lobslikelihood(P[1], y)
+
     XX = deepcopy(XXᵒ)
     WW = deepcopy(WWᵒ)
     # needed for proper initialisation of the Crank-Nicolson scheme
@@ -358,6 +351,124 @@ function proposalStartPt(::NoBlocking, ::Any, ::Any, yPr, P, ρ)
 end
 
 """
+    printInfo(verbose::Bool, it::Integer, ll, llᵒ, msg="update")
+
+Print information to the console about current likelihood values
+
+...
+# Arguments
+- `verbose`: flag for whether to print anything at all
+- `it`: iteration of the Markov chain
+- `ll`: likelihood of the previous, accepted sample
+- `llᵒ`: likelihood of the proposal sample
+- `msg`: message to start with
+...
+"""
+function printInfo(verbose::Bool, it::Integer, ll, llᵒ, msg="update")
+    verbose && print(msg, ": ", it, " ll ", round(ll, digits=3), " ",
+                     round(llᵒ, digits=3), " diff_ll: ", round(llᵒ-ll,digits=3))
+end
+
+
+"""
+    pathLogLikhd(::ObsScheme, XX, P, iRange, fpt; skipFPT=false)
+
+Compute likelihood for path `XX` to be observed under `P`. Only segments with
+index numbers in `iRange` are considered. `fpt` contains relevant info about
+checks regarding adherence to first passage time pattern. `skipFPT` if set to
+`true` can skip the step of checking adherence to fpt pattern (used for
+conjugate updates, or any updates that keep `XX` unchanged)
+"""
+function pathLogLikhd(::ObsScheme, XX, P, iRange, fpt; skipFPT=false
+                      ) where ObsScheme <: AbstractObsScheme
+    ll = 0.0
+    for i in iRange
+        ll += llikelihood(LeftRule(), XX[i], P[i])
+    end
+    !skipFPT && (ll = checkFullPathFpt(ObsScheme(), XX, iRange, fpt) ? ll : -Inf)
+    ll
+end
+
+"""
+    swap!(A, Aᵒ, iRange)
+
+Swap contents between containers A & Aᵒ in the index range iRange
+"""
+function swap!(A, Aᵒ, iRange)
+    for i in iRange
+        A[i], Aᵒ[i] = Aᵒ[i], A[i]
+    end
+end
+
+"""
+    swap!(A, Aᵒ, B, Bᵒ, iRange)
+
+Swap contents between containers A & Aᵒ in the index range iRange, do the same
+for containers B & Bᵒ
+"""
+function swap!(A, Aᵒ, B, Bᵒ, iRange)
+    swap!(A, Aᵒ, iRange)
+    swap!(B, Bᵒ, iRange)
+end
+
+"""
+    crankNicolson!(yᵒ, y, ρ)
+
+Preconditioned Crank Nicolson update with memory parameter `ρ`, previous vector
+`y` and new vector `yᵒ`
+"""
+crankNicolson!(yᵒ, y, ρ) = (yᵒ .= √(1-ρ)*yᵒ + √(ρ)*y)
+
+
+"""
+    sampleSegment!(i, Wnr, WW, WWᵒ, P, y, XX, ρ)
+
+Sample `i`th path segment using preconditioned Crank-Nicolson scheme
+...
+# Arguments
+- `i`: index of the segment to be sampled
+- `Wnr`: type of the Wiener process
+- `WW`: containers with old Wiener paths
+- `WWᵒ`: containers where proposal Wiener paths will be stored
+- `P`: laws of the diffusion to be sampled
+- `y`: starting point of the segment
+- `XX`: containers for proposal diffusion path
+- `ρ`: memory parameter for the Crank-Nicolson scheme
+...
+"""
+function sampleSegment!(i, Wnr, WW, WWᵒ, P, y, XX, ρ)
+    sample!(WWᵒ[i], Wnr)
+    crankNicolson!(WWᵒ[i].yy, WW[i].yy, ρ)
+    solve!(Euler(), XX[i], y, WWᵒ[i], P[i])
+    XX[i].yy[end]
+end
+
+
+"""
+    sampleSegments!(iRange, Wnr, WW, WWᵒ, P, y, XX, ρ)
+
+Sample paths segments in index range `iRange` using preconditioned
+Crank-Nicolson scheme
+...
+# Arguments
+- `iRange`: range of indices of the segments that need to be sampled
+- `Wnr`: type of the Wiener process
+- `WW`: containers with old Wiener paths
+- `WWᵒ`: containers where proposal Wiener paths will be stored
+- `P`: laws of the diffusion to be sampled
+- `y`: starting point of the segment
+- `XX`: containers for proposal diffusion path
+- `ρ`: memory parameter for the Crank-Nicolson scheme
+...
+"""
+function sampleSegments!(iRange, Wnr, WW, WWᵒ, P, y, XX, ρ)
+    for i in iRange
+        y = sampleSegment!(i, Wnr, WW, WWᵒ, P, y, XX, ρ)
+    end
+end
+
+
+"""
     impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX, P, ll, fpt;
             ρ=0.0, verbose=false, it=NaN, headStart=false) where
             ObsScheme <: AbstractObsScheme -> acceptedLogLikhd, acceptDecision
@@ -386,40 +497,29 @@ function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX, 
                  solver::ST=Ralston3()) where
                  {ObsScheme <: AbstractObsScheme, ST}
     # sample proposal starting point
-    y, yPrᵒ = proposalStartPt(𝔅, nothing, nothing, yPr, P[1], ρ)
+    yᵒ, yPrᵒ = proposalStartPt(𝔅, nothing, nothing, yPr, P[1], ρ)
 
     # sample proposal path
     m = length(WWᵒ)
-    yᵗᵉᵐᵖ = copy(y)
+    yᵗᵉᵐᵖ = copy(yᵒ)
     for i in 1:m
-        sample!(WWᵒ[i], Wnr)
-        WWᵒ[i].yy .= √(1-ρ)*WWᵒ[i].yy + √(ρ)*WW[i].yy
-        solve!(Euler(),XXᵒ[i], yᵗᵉᵐᵖ, WWᵒ[i], P[i])
+        sampleSegment!(i, Wnr, WW, WWᵒ, P, yᵗᵉᵐᵖ, XXᵒ, ρ)
         if headStart
             while !checkFpt(ObsScheme(), XXᵒ[i], fpt[i])
-                sample!(WWᵒ[i], Wnr)
-                WWᵒ[i].yy .= √(1-ρ)*WWᵒ[i].yy + √(ρ)*WW[i].yy
-                solve!(Euler(), XXᵒ[i], yᵗᵉᵐᵖ, WWᵒ[i], P[i])
+                sampleSegment!(i, Wnr, WW, WWᵒ, P, yᵗᵉᵐᵖ, XXᵒ, ρ)
             end
         end
         yᵗᵉᵐᵖ = XXᵒ[i].yy[end]
     end
 
-    # Accept / Reject
-    llᵒ = logpdf(yPrᵒ, y)
-    for i in 1:m
-        llᵒ += llikelihood(LeftRule(), XXᵒ[i], P[i])
-    end
-    llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, 1:m, fpt) ? llᵒ : -Inf
+    llᵒ = logpdf(yPrᵒ, yᵒ)
+    llᵒ += pathLogLikhd(ObsScheme(), XXᵒ, P, 1:m, fpt)
+    llᵒ += lobslikelihood(P[1], yᵒ)
 
-    verbose && print("impute: ", it, " ll ", round(value(ll), digits=3), " ",
-                     round(value(llᵒ), digits=3), " diff_ll: ",
-                     round(value(llᵒ-ll),digits=3))
+    printInfo(verbose, it, value(ll), value(llᵒ), "impute")
+
     if acceptSample(llᵒ-ll, verbose)
-        for i in 1:m
-            XX[i], XXᵒ[i] = XXᵒ[i], XX[i]
-            WW[i], WWᵒ[i] = WWᵒ[i], WW[i]
-        end
+        swap!(XX, XXᵒ, WW, WWᵒ, 1:m)
         return llᵒ, true, 𝔅, yPrᵒ
     else
         return ll, false, 𝔅, yPr
@@ -427,18 +527,25 @@ function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX, 
 end
 
 
+#NOTE deprecated
 """
     swapXX!(𝔅::ChequeredBlocking, XX)
 
 Swap containers between `XX` and `𝔅.XX`
 """
 function swapXX!(𝔅::BlockingSchedule, XX)
-    for block in 𝔅.blocks[𝔅.idx]    # iterate over blocks
-        for i in block              # iterate over intervals making up the block
-            XX[i], 𝔅.XX[i] = 𝔅.XX[i], XX[i] # move most recent path to workspace in 𝔅
-        end
+    for block in 𝔅.blocks[𝔅.idx]
+        swap!(XX, 𝔅.XX, block)
     end
 end
+
+#NOTE deprecated
+"""
+    swapXX!(𝔅::NoBlocking, XX)
+
+nothing to do
+"""
+swapXX!(𝔅::NoBlocking, XX) = nothing
 
 
 """
@@ -471,8 +578,90 @@ Default contribution to log-likelihood from the startin point under blocking
 startPtLogPdf(::Any, yPr::StartingPtPrior, y) = 0.0
 
 
-# should be easily parallelisable, currently FPT is not supported
-# (an easy fix involves changing definition of function checkFullPathFpt())
+#NOTE deprecated
+"""
+    impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll,
+            fpt; ρ=0.0, verbose=false, it=NaN, headStart=false) where
+            ObsScheme <: AbstractObsScheme -> acceptedLogLikhd, acceptDecision
+
+Imputation step of the MCMC scheme (without blocking).
+...
+# Arguments
+- `::ObsScheme`: observation scheme---first-passage time or partial observations
+- `𝔅`: object with relevant information about blocking
+- `Wnr`: type of the Wiener process
+- `yPr`: prior over the starting point of the diffusion path
+- `WWᵒ`: containers for proposal Wiener paths
+- `WW`: containers with old Wiener paths
+- `XXᵒ`: containers for proposal diffusion paths
+- `XX`: containers with old diffusion paths
+- `P`: laws of the diffusion path (proposal and target)
+- `11`: log-likelihood of the old (previously accepted) diffusion path
+- `fpt`: info about first-passage time conditioning
+- `ρ`: memory parameter for the Crank-Nicolson scheme
+- `verbose`: whether to print updates info while sampling
+- `it`: iteration index of the MCMC algorithm
+- `headStart`: flag for whether to 'ease into' fpt conditions
+...
+"""
+function impute!_deprecated(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX,
+                 P, ll, fpt; ρ=0.0, verbose=false, it=NaN, headStart=false,
+                 solver::ST=Ralston3()) where
+                 {ObsScheme <: AbstractObsScheme, ST}
+    θ = params(P[1].Target)             # current parameter
+    𝔅 = next(𝔅, XX, θ)
+    solveBackRec!(𝔅, 𝔅.P, ST())         # compute (H, Hν, c) for given blocks
+
+    swapXX!(𝔅, XX)                      # move current path to object 𝔅
+    noiseFromPath!(𝔅, 𝔅.XX, 𝔅.WW, 𝔅.P) # find noise WW that generates XX under 𝔅
+
+    # compute white noise generating starting point under 𝔅
+    yPr𝔅 = invStartPt(𝔅.XX[1].yy[1], yPr, 𝔅.P[1])
+
+    for (blockIdx, block) in enumerate(𝔅.blocks[𝔅.idx])
+        blockFlag = Val{block[1]}()
+        y = 𝔅.XX[block[1]].yy[1]       # current starting point
+
+        # set the starting point for the block
+        yᵒ, yPrᵒ = proposalStartPt(𝔅, blockFlag, y, yPr𝔅, 𝔅.P[block[1]], ρ)
+
+        # sample path in block
+        sampleSegments!(block, Wnr, 𝔅.WW, 𝔅.WWᵒ, 𝔅.P, yᵒ, 𝔅.XXᵒ, ρ)
+        setEndPtManually!(𝔅, blockIdx, block)
+
+        # loglikelihoods
+        llᵒ = startPtLogPdf(blockFlag, yPrᵒ, yᵒ)
+        llᵒ += pathLogLikhd(ObsScheme(), 𝔅.XXᵒ, 𝔅.P, block, fpt)
+        llᵒ += lobslikelihood(𝔅.P[block[1]], yᵒ)
+
+        llPrev = startPtLogPdf(blockFlag, yPr𝔅, y)
+        llPrev += pathLogLikhd(ObsScheme(), 𝔅.XX, 𝔅.P, block, fpt; skipFPT=true)
+        llPrev += lobslikelihood(𝔅.P[block[1]], y)
+
+        printInfo(verbose, it, value(llPrev), value(llᵒ), "impute")
+        if acceptSample(llᵒ-llPrev, verbose)
+            swap!(𝔅.XX, 𝔅.XXᵒ, block)
+            registerAccpt!(𝔅, blockIdx, true)
+            yPr𝔅 = yPrᵒ # can do something non-trivial only for the first block
+        else
+            registerAccpt!(𝔅, blockIdx, false)
+        end
+    end
+    swapXX!(𝔅, XX) # move accepted path from object 𝔅 to general container XX
+    noiseFromPath!(𝔅, XX, WW, P) # compute noise WW that generated XX under law P
+    # compute white noise generating starting point under P
+    y = XX[1].yy[1]
+    yPr = invStartPt(y, yPr𝔅, P[1])
+
+    ll = logpdf(yPr, y) # starting point contribution
+    ll += pathLogLikhd(ObsScheme(), XX, P, 1:length(P), fpt; skipFPT=true)
+    ll += lobslikelihood(P[1], y)
+
+    # acceptance indicator does not matter for sampling with blocking
+    return ll, true, 𝔅, yPr
+end
+
+
 """
     impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll,
             fpt; ρ=0.0, verbose=false, it=NaN, headStart=false) where
@@ -500,72 +689,137 @@ Imputation step of the MCMC scheme (without blocking).
 """
 function impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX,
                  P, ll, fpt; ρ=0.0, verbose=false, it=NaN, headStart=false,
-                 solver::ST=Ralston3()) where
-                 {ObsScheme <: AbstractObsScheme, ST}
-    θ = params(P[1].Target)             # current parameter
-    𝔅 = next(𝔅, XX, θ)
+                 solver::ST=Ralston3()
+                 ) where {ObsScheme <: AbstractObsScheme, ST}
+    θ = params(𝔅.P[1].Target)             # current parameter
+    𝔅 = next(𝔅, 𝔅.XX, θ)
     solveBackRec!(𝔅, 𝔅.P, ST())         # compute (H, Hν, c) for given blocks
-
-    swapXX!(𝔅, XX)                      # move current path to object 𝔅
-    noiseFromPath!(𝔅, 𝔅.XX, 𝔅.WW, 𝔅.P) # find noise WW that generates XX under 𝔅
+    noiseFromPath!(𝔅, 𝔅.XX, 𝔅.WW, 𝔅.P) # find noise WW that generates XX under 𝔅.P
 
     # compute white noise generating starting point under 𝔅
-    yPr𝔅 = invStartPt(𝔅.XX[1].yy[1], yPr, 𝔅.P[1])
+    yPr = invStartPt(𝔅.XX[1].yy[1], yPr, 𝔅.P[1])
 
+    ll_total = 0.0
     for (blockIdx, block) in enumerate(𝔅.blocks[𝔅.idx])
         blockFlag = Val{block[1]}()
-        y = 𝔅.XX[block[1]].yy[1]       # current starting point
-        # set the starting point for the block
-        yᵒ, yPrᵒ = proposalStartPt(𝔅, blockFlag, y, yPr𝔅, 𝔅.P[block[1]], ρ)
-        yᵗᵉᵐᵖ = copy(yᵒ)
+        y = 𝔅.XX[block[1]].yy[1]       # accepted starting point
 
-        # update path segments belonging to a given block
-        for i in block
-            sample!(𝔅.WWᵒ[i], Wnr)
-            𝔅.WWᵒ[i].yy .= √(1-ρ)*𝔅.WWᵒ[i].yy + √(ρ)*𝔅.WW[i].yy
-            solve!(Euler(), 𝔅.XXᵒ[i], yᵗᵉᵐᵖ, 𝔅.WWᵒ[i], 𝔅.P[i])
-            yᵗᵉᵐᵖ = 𝔅.XXᵒ[i].yy[end]
-        end
-        # manually set the end-point
-        𝔅.XXᵒ[block[end]].yy[end] = 𝔅.XX[block[end]].yy[end]
+        # proposal starting point for the block (can be non-y only for the first block)
+        yᵒ, yPrᵒ = proposalStartPt(𝔅, blockFlag, y, yPr, 𝔅.P[block[1]], ρ)
 
-        # Accept / Reject
-        # starting point contribution
+        # sample path in block
+        sampleSegments!(block, Wnr, 𝔅.WW, 𝔅.WWᵒ, 𝔅.P , yᵒ, 𝔅.XXᵒ, ρ)
+        setEndPtManually!(𝔅, blockIdx, block)
+
+        # starting point, path and observations contribution
         llᵒ = startPtLogPdf(blockFlag, yPrᵒ, yᵒ)
-        llPrev = startPtLogPdf(blockFlag, yPr𝔅, y)
-        # path contribution
-        for i in block
-            llᵒ += llikelihood(LeftRule(), 𝔅.XXᵒ[i], 𝔅.P[i])
-            llPrev += llikelihood(LeftRule(), 𝔅.XX[i], 𝔅.P[i])
-        end
-        # check for first passage time adherence if needed
-        llᵒ = checkFullPathFpt(ObsScheme(), 𝔅.XXᵒ, block, fpt) ? llᵒ : -Inf
+        llᵒ += pathLogLikhd(ObsScheme(), 𝔅.XXᵒ, 𝔅.P, block, fpt)
+        llᵒ += lobslikelihood(𝔅.P[block[1]], yᵒ)
 
-        verbose && print("impute: ", it, " ll ", round(value(llPrev), digits=3),
-                         " ", round(value(llᵒ), digits=3), " diff_ll: ",
-                         round(value(llᵒ-llPrev),digits=3))
+        llPrev = startPtLogPdf(blockFlag, yPr, y)
+        llPrev += pathLogLikhd(ObsScheme(), 𝔅.XX, 𝔅.P, block, fpt; skipFPT=true)
+        llPrev += lobslikelihood(𝔅.P[block[1]], y)
+
+        printInfo(verbose, it, value(llPrev), value(llᵒ), "impute")
         if acceptSample(llᵒ-llPrev, verbose)
-            for i in block  # swap path containers
-                𝔅.XX[i], 𝔅.XXᵒ[i] = 𝔅.XXᵒ[i], 𝔅.XX[i]
-            end
+            swap!(𝔅.XX, 𝔅.XXᵒ, block)
             registerAccpt!(𝔅, blockIdx, true)
-            yPr𝔅 = yPrᵒ # can do something non-trivial only for the first block
+            yPr = yPrᵒ # can do something non-trivial only for the first block
+            ll_total += llᵒ
         else
             registerAccpt!(𝔅, blockIdx, false)
+            ll_total += llPrev
         end
     end
-    swapXX!(𝔅, XX) # move accepted path from object 𝔅 to general container XX
-    noiseFromPath!(𝔅, XX, WW, P) # compute noise WW that generated XX under law P
-    # compute white noise generating starting point under P
-    yPr = invStartPt(XX[1].yy[1], yPr𝔅, P[1])
-
-    ll = logpdf(yPr, XX[1].yy[1]) # starting point contribution
-    for i in length(P)
-        ll += llikelihood(LeftRule(), XX[i], P[i])
-    end
-
     # acceptance indicator does not matter for sampling with blocking
-    return ll, true, 𝔅, yPr
+    return ll_total, true, 𝔅, yPr
+end
+
+"""
+    updateLaws!(Ps, θᵒ)
+
+Set new parameter `θᵒ` for the laws in vector `Ps`
+"""
+function updateLaws!(Ps, θᵒ)
+    m = length(Ps)
+    for i in 1:m
+        Ps[i] = GuidPropBridge(Ps[i], θᵒ)
+    end
+end
+
+"""
+    updateTargetLaws!(𝔅::NoBlocking, θᵒ)
+
+Nothing to do
+"""
+updateTargetLaws!(𝔅::NoBlocking, θᵒ) = nothing
+
+"""
+    updateTargetLaws!(𝔅::BlockingSchedule, θᵒ)
+
+Set new parameter `θᵒ` for the target laws in blocking object `𝔅`
+"""
+function updateTargetLaws!(𝔅::BlockingSchedule, θᵒ)
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            𝔅.P[i] = GuidPropBridge(𝔅.P[i], θᵒ)
+        end
+    end
+end
+
+"""
+    updateProposalLaws!(𝔅::BlockingSchedule, θᵒ)
+
+Set new parameter `θᵒ` for the proposal laws inside blocking object `𝔅`
+"""
+function updateProposalLaws!(𝔅::BlockingSchedule, θᵒ)
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            𝔅.Pᵒ[i] = GuidPropBridge(𝔅.Pᵒ[i], θᵒ)
+        end
+    end
+end
+
+"""
+    findPathFromWiener!(XX, y, WW, P, iRange)
+
+Find path `XX` (that starts from `y`) that is generated under law `P` from the
+Wiener process `WW`. Only segments with indices in range `iRange` are considered
+"""
+function findPathFromWiener!(XX, y, WW, P, iRange)
+    for i in iRange
+        solve!(Euler(), XX[i], y, WW[i], P[i])
+        y = XX[i].yy[end]
+    end
+end
+
+
+"""
+    priorKernelContrib(tKern, priors, θ, θᵒ)
+
+Contribution to the log-likelihood ratio from transition kernel `tKernel` and
+`priors`.
+"""
+function priorKernelContrib(tKern, priors, θ, θᵒ)
+    llr = logpdf(tKern, θᵒ, θ) - logpdf(tKern, θ, θᵒ)
+    for prior in priors
+        llr += logpdf(prior, θᵒ) - logpdf(prior, θ)
+    end
+    llr
+end
+
+
+"""
+    setEndPtManually!(𝔅::BlockingSchedule, blockIdx, block)
+
+Manually set the end-point of the proposal path under blocking so that it agrees
+with the end-point of the previously accepted path. If it is the last block,
+then do nothing
+"""
+function setEndPtManually!(𝔅::BlockingSchedule, blockIdx, block)
+    if blockIdx < length(𝔅.blocks[𝔅.idx])
+        𝔅.XXᵒ[block[end]].yy[end] = 𝔅.XX[block[end]].yy[end]
+    end
 end
 
 
@@ -597,48 +851,32 @@ Update parameters
 - `it`: iteration index of the MCMC algorithm
 ...
 """
-function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtIdx,
-                      yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
-                      solver::ST=Ralston3(), verbose=false,
+function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, 𝔅::NoBlocking,
+                      tKern, θ, ::UpdtIdx, yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors,
+                      fpt, recomputeODEs; solver::ST=Ralston3(), verbose=false,
                       it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
     m = length(WW)
     θᵒ = rand(tKern, θ, UpdtIdx())               # sample new parameter
-    for i in 1:m                                 # update law `P` accordingly
-        Pᵒ[i] = GuidPropBridge(Pᵒ[i], θᵒ)
-    end
+    updateLaws!(Pᵒ, θᵒ)
     recomputeODEs && solveBackRec!(NoBlocking(), Pᵒ, ST()) # compute (H, Hν, c)
 
-    # find white noise which for a given θᵒ gives correct starting point
+    # find white noise which for a given θᵒ gives a correct starting point
     y = XX[1].yy[1]
     yPrᵒ = invStartPt(y, yPr, Pᵒ[1])
 
-    # compute path for a given θᵒ from driving noise
-    yᵗᵉᵐᵖ = copy(y)
-    for i in 1:m
-        solve!(Euler(), XXᵒ[i], yᵗᵉᵐᵖ, WW[i], Pᵒ[i])
-        yᵗᵉᵐᵖ = XXᵒ[i].yy[end]
-    end
+    findPathFromWiener!(XXᵒ, y, WW, Pᵒ, 1:m)
 
-    # Compute log-likelihood ratio
-    llᵒ = logpdf(yPr, y)
-    for i in 1:m
-        llᵒ += llikelihood(LeftRule(), XXᵒ[i], Pᵒ[i])
-    end
-    llᵒ = checkFullPathFpt(ObsScheme(), XXᵒ, 1:m, fpt) ? llᵒ : -Inf
-    verbose && print("update: ", it, " ll ", round(ll, digits=3), " ",
-                     round(llᵒ, digits=3), " diff_ll: ", round(llᵒ-ll,digits=3))
-    llr = ( llᵒ - ll + logpdf(tKern, θᵒ, θ) - logpdf(tKern, θ, θᵒ) )
-    for prior in priors
-        llr += logpdf(prior, θᵒ) - logpdf(prior, θ)
-    end
-    recomputeODEs && (llr += lobslikelihood(Pᵒ[1], y) - lobslikelihood(P[1], y))
+    llᵒ = logpdf(yPrᵒ, y)
+    llᵒ += pathLogLikhd(ObsScheme(), XXᵒ, Pᵒ, 1:m, fpt)
+    llᵒ += lobslikelihood(Pᵒ[1], y)
+
+    printInfo(verbose, it, ll, llᵒ)
+
+    llr = ( llᵒ - ll + priorKernelContrib(tKern, priors, θ, θᵒ))
 
     # Accept / reject
     if acceptSample(llr, verbose)
-        for i in 1:m
-            XX[i], XXᵒ[i] = XXᵒ[i], XX[i]
-            P[i], Pᵒ[i] = Pᵒ[i], P[i]
-        end
+        swap!(XX, XXᵒ, P, Pᵒ, 1:m)
         return llᵒ, true, θᵒ, yPrᵒ
     else
         return ll, false, θ, yPr
@@ -646,9 +884,73 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtId
 end
 
 
-# NOTE it should work with FPT as well with additional rejection step
-# but the practicality of this is untested, so supports only ::PartObs
-# for now
+"""
+    updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtIdx,
+                 yPr, WW, Pᵒ, P, XXᵒ, XX, ll, prior, fpt, recomputeODEs;
+                 solver::ST=Ralston3(), verbose=false,
+                 it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+                 -> acceptedLogLikhd, acceptDecision
+Update parameters
+...
+# Arguments
+- `::ObsScheme`: observation scheme---first-passage time or partial observations
+- `::MetropolisHastingsUpdt()`: type of the parameter update
+- `tKern`: transition kernel
+- `θ`: current value of the parameter
+- `updtIdx`: object declaring indices of the updated parameter
+- `yPr`: prior over the starting point of the diffusion path
+- `WW`: containers with Wiener paths
+- `Pᵒ`: container for the laws of the diffusion path with new parametrisation
+- `P`: laws of the diffusion path with old parametrisation
+- `XXᵒ`: containers for proposal diffusion paths
+- `XX`: containers with old diffusion paths
+- `11`: likelihood of the old (previously accepted) parametrisation
+- `priors`: list of priors
+- `fpt`: info about first-passage time conditioning
+- `recomputeODEs`: whether auxiliary law depends on the updated params
+- `verbose`: whether to print updates info while sampling
+- `it`: iteration index of the MCMC algorithm
+...
+"""
+function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt,
+                      𝔅::ChequeredBlocking, tKern, θ, ::UpdtIdx,
+                      yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
+                      solver::ST=Ralston3(), verbose=false,
+                      it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+    m = length(WW)
+    θᵒ = rand(tKern, θ, UpdtIdx())               # sample new parameter
+    updateProposalLaws!(𝔅, θᵒ)                   # update law `Pᵒ` accordingly
+    solveBackRec!(𝔅, 𝔅.Pᵒ, ST())                 # compute (H, Hν, c)
+
+    llᵒ = logpdf(yPr, 𝔅.XX[1].yy[1])
+    for (blockIdx, block) in enumerate(𝔅.blocks[𝔅.idx])
+        y = 𝔅.XX[block[1]].yy[1]
+        findPathFromWiener!(𝔅.XXᵒ, y, 𝔅.WW, 𝔅.Pᵒ, block)
+        setEndPtManually!(𝔅, blockIdx, block)
+
+        # Compute log-likelihood ratio
+        llᵒ += pathLogLikhd(ObsScheme(), 𝔅.XXᵒ, 𝔅.Pᵒ, block, fpt)
+        llᵒ += lobslikelihood(𝔅.Pᵒ[block[1]], y)
+    end
+    printInfo(verbose, it, ll, llᵒ)
+
+    llr = ( llᵒ - ll + priorKernelContrib(tKern, priors, θ, θᵒ))
+
+    # Accept / reject
+    if acceptSample(llr, verbose)
+        swap!(𝔅.XX, 𝔅.XXᵒ, 𝔅.P, 𝔅.Pᵒ, 1:m)
+        return llᵒ, true, θᵒ, yPr
+    else
+        return ll, false, θ, yPr
+    end
+end
+
+
+fetchTargetLaw(𝔅::NoBlocking, P) = P[1].Target
+
+fetchTargetLaw(𝔅::BlockingSchedule, P) = 𝔅.P[1].Target
+
+
 """
     updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx, yPr, WW, Pᵒ,
                  P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
@@ -658,32 +960,63 @@ Update parameters
 see the definition of  updateParam!(…, ::MetropolisHastingsUpdt, …) for the
 explanation of the arguments.
 """
-function updateParam!(::ObsScheme, ::ConjugateUpdt, tKern, θ, ::UpdtIdx,
-                      yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
-                      solver::ST=Ralston3(), verbose=false,
+function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅::NoBlocking,
+                      tKern, θ, ::UpdtIdx, yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors,
+                      fpt, recomputeODEs; solver::ST=Ralston3(), verbose=false,
                       it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
     m = length(P)
-    ϑ = conjugateDraw(θ, XX, P, priors[1], UpdtIdx())   # sample new parameter
+    ϑ = conjugateDraw(θ, XX, P[1].Target, priors[1], UpdtIdx())   # sample new parameter
     θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())     # align so that dimensions agree
 
-    for i in 1:m                                # update law `P` accordingly
-        P[i] = GuidPropBridge(P[i], θᵒ)
-    end
+    updateLaws!(P, θᵒ)
     recomputeODEs && solveBackRec!(NoBlocking(), P, ST()) # compute (H, Hν, c)
 
-    for i in 1:m    # compute winer path WW that generates XX
+    for i in 1:m    # compute wiener path WW that generates XX
         invSolve!(Euler(), XX[i], WW[i], P[i])
     end
     # compute white noise that generates starting point
-    yPr = invStartPt(XX[1].yy[1], yPr, P[1])
+    y = XX[1].yy[1]
+    yPr = invStartPt(y, yPr, P[1])
 
-    llᵒ = logpdf(yPr, XX[1].yy[1])
-    for i in 1:m
-        llᵒ += llikelihood(LeftRule(), XX[i], P[i])
+    llᵒ = logpdf(yPr, y)
+    llᵒ += pathLogLikhd(ObsScheme(), XX, P, 1:m, fpt; skipFPT=true)
+    llᵒ += lobslikelihood(P[1], y)
+    printInfo(verbose, it, value(ll), value(llᵒ))
+    return llᵒ, true, θᵒ, yPr
+end
+
+
+"""
+    updateParam!(::PartObs, ::ConjugateUpdt, tKern, θ, ::UpdtIdx, yPr, WW, Pᵒ,
+                 P, XXᵒ, XX, ll, priors, fpt, recomputeODEs;
+                 solver::ST=Ralston3(), verbose=false, it=NaN
+                 ) -> acceptedLogLikhd, acceptDecision
+Update parameters
+see the definition of  updateParam!(…, ::MetropolisHastingsUpdt, …) for the
+explanation of the arguments.
+"""
+function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅::BlockingSchedule,
+                      tKern, θ, ::UpdtIdx, yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors,
+                      fpt, recomputeODEs; solver::ST=Ralston3(), verbose=false,
+                      it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+    m = length(P)
+    ϑ = conjugateDraw(θ, 𝔅.XX, 𝔅.P[1].Target, priors[1], UpdtIdx())   # sample new parameter
+    θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())     # align so that dimensions agree
+
+    updateTargetLaws!(𝔅, θᵒ)
+    recomputeODEs && solveBackRec!(𝔅, 𝔅.P, ST())
+    for i in 1:m    # compute wiener path WW that generates XX
+        invSolve!(Euler(), 𝔅.XX[i], 𝔅.WW[i], 𝔅.P[i])
     end
-    verbose && print("update: ", it, " ll ", round(value(ll), digits=3), " ",
-                     round(value(llᵒ), digits=3), " diff_ll: ",
-                     round(value(llᵒ-ll),digits=3), "\n")
+    # compute white noise that generates starting point
+    y = 𝔅.XX[1].yy[1]
+    yPr = invStartPt(y, yPr, 𝔅.P[1])
+    llᵒ = logpdf(yPr, y)
+    for block in 𝔅.blocks[𝔅.idx]
+        llᵒ += pathLogLikhd(ObsScheme(), 𝔅.XX, 𝔅.P, block, fpt; skipFPT=true)
+        llᵒ += lobslikelihood(𝔅.P[block[1]], 𝔅.XX[block[1]].yy[1])
+    end
+    printInfo(verbose, it, value(ll), value(llᵒ))
     return llᵒ, true, θᵒ, yPr
 end
 
@@ -754,7 +1087,8 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
     display(𝔅)
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
-        i > warmUp && savePath!(Paths, XX, (i % saveIter == 0), skipForSave)
+        i > warmUp && savePath!(Paths, blocking == NoBlocking() ? XX : 𝔅.XX,
+                                (i % saveIter == 0), skipForSave)
         ll, acc, 𝔅, yPr = impute!(ObsScheme(), 𝔅, Wnr, yPr, WWᵒ, WW, XXᵒ, XX,
                                   P, ll, fpt, ρ=ρ, verbose=verbose, it=i,
                                   solver=ST())
@@ -762,13 +1096,14 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
         if paramUpdt && i > warmUp
             for j in 1:updtLen
                 (ll, acc, θ,
-                 yPr) = updateParam!(ObsScheme(), updtType[j], tKernel, θ,
+                 yPr) = updateParam!(ObsScheme(), updtType[j], 𝔅, tKernel, θ,
                                      updtCoord[j], yPr, WW, Pᵒ, P, XXᵒ, XX, ll,
                                      priors[j], fpt, recomputeODEs[j];
                                      solver=ST(), verbose=verbose, it=i)
                 accUpdtCounter[j] += 1*acc
                 updtStepCounter += 1
                 θchain[updtStepCounter] = copy(θ)
+                verbose && print("\n")
             end
             verbose && print("------------------------------------------------",
                              "------\n")
