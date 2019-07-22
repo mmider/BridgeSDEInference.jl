@@ -1,10 +1,8 @@
 using Makie, Makie.AbstractPlotting
 using Makie.AbstractPlotting: textslider
-using StatsMakie
 using Random
 using Colors
 using LinearAlgebra
-using CSV
 
 struct FitzhughNagumoDiff{T}
     ϵ::T
@@ -13,6 +11,7 @@ struct FitzhughNagumoDiff{T}
     σ₁::T
     σ₂::T
 end
+
 R = 1.5f0 # size of the interesting region around the origin
 dt = 0.002 # time step
 sq_dt = sqrt(dt)
@@ -41,19 +40,6 @@ s2, σ₁ = textslider(0.0f0:0.001f0:1.0f0, "σ₁", start = 0.0)
 s3, β = textslider(-3.0f0:0.001f0:3.0f0, "β", start = 0.8)
 s4, γ = textslider(-3.0f0:0.001f0:3.0f0, "γ", start = 1.5)
 s5, ϵ = textslider(0.001f0:0.001f0:3.0f0, "ϵ", start = 0.1)
-
-#import output statistical method
-#TODO I could not change the range of the x-axes [in Plot would be xlim] in order to match it with the slider
-
-df = CSV.read("./output/chain.csv")
-d1 = plot(density, Float64.(df.x1_3), show_axis = false#= ,limits = FRect(0,0,10,10)=#)
-d2 = plot(density, Float64.(df.x1_4), show_axis = false#= ,limits = FRect(0,0,10,10)=#)
-d3 = plot(density, Float64.(df.x1_2), show_axis = false#= ,limits = FRect(0,0,10,10)=#)
-d4 = plot(density, Float64.(df.x1_1), show_axis = false#= ,limits = FRect(0,0,10,10)=#)
-d5 = plot(density, Float64.(df.x1), show_axis = false #= ,limits = FRect(0,0,10,10)=#)
-
-
-
 
 # Model containing parameters governing drift and diffusion
 diffusion = lift(ϵ, γ, β, σ₁, σ₂) do ϵ, γ, β, σ₁, σ₂
@@ -163,7 +149,7 @@ end
 
 # Define combined canvas
 parent = Scene(resolution = (1400, 800))
-vbox(hbox(s1, d1, s2, d2, s3, d3, s4, d4, s5, d5), particles_canvas, graph_canvas, parent = parent)
+vbox(hbox(s1, s2, s3, s4, s5), particles_canvas, graph_canvas, parent = parent)
 display(parent)
 
 
