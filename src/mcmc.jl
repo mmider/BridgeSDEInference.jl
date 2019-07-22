@@ -115,22 +115,12 @@ function checkSingleCoordFpt(XXᵒ, c, cidx, fpt)
     k = length(XXᵒ.yy)
     thrsd = XXᵒ.yy[end][c]
     renewed = fpt.autoRenewed[cidx]
-    # or use s = fpt.upCrossing[cidx] ? 1 : -1
-    if fpt.upCrossing[cidx]
-        for i in 1:k
-            if !renewed && XXᵒ.yy[i][c] <= fpt.reset[cidx]
-                renewed = true
-            elseif renewed && XXᵒ.yy[i][c] > thrsd + 0.000001 # prevents numerical issues
-                return false
-            end
-        end
-    else
-        for i in 1:k
-            if !renewed && XXᵒ.yy[i][c] >= fpt.reset[cidx]
-                renewed = true
-            elseif renewed && XXᵒ.yy[i][c] < thrsd - 0.000001 # prevents numerical issues
-                return false
-            end
+    s = fpt.upCrossing[cidx] ? 1 : -1
+    for i in 1:k
+        if !renewed && (s*XXᵒ.yy[i][c] <= s*fpt.reset[cidx])
+            renewed = true
+        elseif renewed && (s*XXᵒ.yy[i][c] > s*thrsd)
+            return false
         end
     end
     return renewed
@@ -537,6 +527,7 @@ function impute!(::ObsScheme, 𝔅::NoBlocking, Wnr, yPr, WWᵒ, WW, XXᵒ, XX, 
 end
 
 
+#NOTE deprecated
 """
     swapXX!(𝔅::ChequeredBlocking, XX)
 
@@ -548,7 +539,7 @@ function swapXX!(𝔅::BlockingSchedule, XX)
     end
 end
 
-
+#NOTE deprecated
 """
     swapXX!(𝔅::NoBlocking, XX)
 
@@ -587,6 +578,7 @@ Default contribution to log-likelihood from the startin point under blocking
 startPtLogPdf(::Any, yPr::StartingPtPrior, y) = 0.0
 
 
+#NOTE deprecated
 """
     impute!(::ObsScheme, 𝔅::ChequeredBlocking, Wnr, y, WWᵒ, WW, XXᵒ, XX, P, ll,
             fpt; ρ=0.0, verbose=false, it=NaN, headStart=false) where
