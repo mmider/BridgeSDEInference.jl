@@ -930,7 +930,7 @@ function updateParam!(::ObsScheme, ::MetropolisHastingsUpdt,
 
         # Compute log-likelihood ratio
         llᵒ += pathLogLikhd(ObsScheme(), 𝔅.XXᵒ, 𝔅.Pᵒ, block, fpt)
-        llᵒ += lobslikelihood(𝔅.Pᵒ[1], y)
+        llᵒ += lobslikelihood(𝔅.Pᵒ[block[1]], y)
     end
     printInfo(verbose, it, ll, llᵒ)
 
@@ -1003,17 +1003,14 @@ function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅::BlockingSchedule,
     ϑ = conjugateDraw(θ, 𝔅.XX, 𝔅.P[1].Target, priors[1], UpdtIdx())   # sample new parameter
     θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())     # align so that dimensions agree
 
-    updateLaws!(P, θᵒ)
-    recomputeODEs && solveBackRec!(NoBlocking(), P, ST()) # compute (H, Hν, c)
-
-    # no need to compute noise WW from path XX, nor white noise from starting point
-    # both are computed at the beginning of impute step anyway
-
-
     updateTargetLaws!(𝔅, θᵒ)
-    recomputeODEs && solveBackRec!(NoBlocking(), 𝔅.P, ST())
+    recomputeODEs && solveBackRec!(𝔅, 𝔅.P, ST())
+    for i in 1:m    # compute wiener path WW that generates XX
+        invSolve!(Euler(), 𝔅.XX[i], 𝔅.WW[i], 𝔅.P[i])
+    end
     # compute white noise that generates starting point
     y = 𝔅.XX[1].yy[1]
+    yPr = invStartPt(y, yPr, 𝔅.P[1])
     llᵒ = logpdf(yPr, y)
     for block in 𝔅.blocks[𝔅.idx]
         llᵒ += pathLogLikhd(ObsScheme(), 𝔅.XX, 𝔅.P, block, fpt; skipFPT=true)
