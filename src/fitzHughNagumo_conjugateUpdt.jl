@@ -1,15 +1,14 @@
 using GaussianDistributions
 """
-    conjugateDraw(θ, XX, P, prior, ::updtIdx)
+    conjugateDraw(θ, XX, PT, prior, ::updtIdx)
 
 Draw from the full conditional distribution of the parameters whose indices are
 specified by the object `updtIdx`, conditionally on the path given in container
 `XX`, and conditionally on all other parameter values given in vector `θ`.
 """
-function conjugateDraw(θ, XX, P, prior, updtIdx)
+function conjugateDraw(θ, XX, PT, prior, updtIdx)
     μ = mustart(updtIdx)
     𝓦 = μ*μ'
-    PT = P[1].Target
     ϑ = SVector(thetaex(updtIdx, θ))
     μ, 𝓦 = _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
 

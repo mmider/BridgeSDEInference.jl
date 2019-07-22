@@ -57,8 +57,8 @@ L = @SMatrix [1. 0.]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^4
-saveIter=3*10^3
+numSteps=1*10^5
+saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 0.7, 0.01, 0.5],
                      [false, false, false, false, true])
 priors = Priors((#MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
@@ -104,7 +104,7 @@ print("time elapsed: ", elapsed, "\n")
 print("imputation acceptance rate: ", accRateImp,
       ", parameter update acceptance rate: ", accRateUpdt)
 
-x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain,
+x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; θ=θ₀,#chain=chain,
                                        numGibbsSteps=1,
                                        parametrisation=parametrisation,
                                        warmUp=warmUp)
