@@ -57,7 +57,7 @@ L = @SMatrix [1. 0.]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^5
+numSteps=1*10^4
 saveIter=3*10^3
 tKernel = RandomWalk([3.0, 5.0, 0.7, 0.01, 0.5],
                      [false, false, false, false, true])
