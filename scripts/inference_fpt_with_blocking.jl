@@ -21,7 +21,7 @@ filename = "path_fpt_simpleConjug.csv"
 # fetch the data
 (df, x0, obs, obsTime, fpt,
       fptOrPartObs) = readData(Val(fptObsFlag), joinpath(OUT_DIR, filename))
-
+x0
 param = :complexConjug
 # Initial parameter guess.
 θ₀ = [10.0, -8.0, 25.0, 0.0, 3.0]
