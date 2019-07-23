@@ -1,5 +1,7 @@
 using DataFrames
 using CSV
+using StaticArrays
+const ℝ = SVector{N,T} where {N,T}
 
 """
     readData(::Val{true}, filename)

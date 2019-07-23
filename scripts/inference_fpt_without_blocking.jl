@@ -1,34 +1,14 @@
-using Bridge, StaticArrays, Distributions
-using Statistics, Random, LinearAlgebra
-using DataFrames
-using CSV
-
-
 SRC_DIR = joinpath(Base.source_dir(), "..", "src")
 AUX_DIR = joinpath(SRC_DIR, "auxiliary")
 OUT_DIR=joinpath(Base.source_dir(), "..", "output")
 mkpath(OUT_DIR)
 
-# choose parametrisation of the FitzHugh-Nagumo
-POSSIBLE_PARAMS = [:regular, :simpleAlter, :complexAlter, :simpleConjug,
-                   :complexConjug]
-parametrisation = POSSIBLE_PARAMS[5]
-include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
-include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
-
-include(joinpath(SRC_DIR, "types.jl"))
-include(joinpath(SRC_DIR, "vern7.jl"))
-#include(joinpath(SRC_DIR, "tsit5.jl"))
-#include(joinpath(SRC_DIR, "rk4.jl"))
-include(joinpath(SRC_DIR, "ralston3.jl"))
-include(joinpath(SRC_DIR, "priors.jl"))
-include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
-include(joinpath(SRC_DIR, "random_walk.jl"))
-include(joinpath(SRC_DIR, "blocking_schedule.jl"))
-include(joinpath(SRC_DIR, "starting_pt.jl"))
-include(joinpath(SRC_DIR, "mcmc.jl"))
-include(joinpath(SRC_DIR, "path_to_wiener.jl"))
-
+include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
+using Main.BridgeSDEInference
+using Distributions # to define priors
+using Random        # to seed the random number generator
+using DataFrames
+using CSV
 include(joinpath(AUX_DIR, "read_and_write_data.jl"))
 include(joinpath(AUX_DIR, "transforms.jl"))
 
@@ -42,13 +22,15 @@ filename = "path_fpt_simpleConjug.csv"
 (df, x0, obs, obsTime, fpt,
       fptOrPartObs) = readData(Val(fptObsFlag), joinpath(OUT_DIR, filename))
 
+param = :complexConjug
 # Initial parameter guess.
 θ₀ = [10.0, -8.0, 25.0, 0.0, 3.0]
 # Target law
-P˟ = FitzhughDiffusion(θ₀...)
+P˟ = FitzhughDiffusion(param, θ₀...)
 # Auxiliary law
-P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
+P̃ = [FitzhughDiffusionAux(param, θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
      in zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
+display(P̃[1])
 
 L = @SMatrix [1. 0.]
 Σdiagel = 10^(-10)
@@ -104,9 +86,9 @@ print("time elapsed: ", elapsed, "\n")
 print("imputation acceptance rate: ", accRateImp,
       ", parameter update acceptance rate: ", accRateUpdt)
 
-x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; θ=θ₀,#chain=chain,
+x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain, #θ=θ₀
                                        numGibbsSteps=1,
-                                       parametrisation=parametrisation,
+                                       parametrisation=param,
                                        warmUp=warmUp)
 
 df2 = savePathsToFile(pathsToSave, time_, joinpath(OUT_DIR, "sampled_paths.csv"))
