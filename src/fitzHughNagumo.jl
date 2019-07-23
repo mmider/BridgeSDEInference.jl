@@ -2,6 +2,7 @@ using Bridge
 using StaticArrays
 import Bridge: b, σ, B, β, a, constdiff
 const ℝ = SVector{N,T} where {N,T}
+import Base.display
 
 """
     FitzhughDiffusion <: ContinuousTimeProcess{ℝ{2}}
@@ -340,4 +341,62 @@ under :regular parametrisation
 """
 function conjugToRegular(x, ϵ, offset=0)
     ℝ{2}(x[1], x[1] - x[1]^3 - x[2]/ϵ + offset)
+end
+
+
+_MSG = ["\n---------------------------------------------------\n",
+        "The target diffusion model is set to FitzHugh-Nagumo diffusion, a solution ",
+        " to an SDE:\n",
+        "dYₜ = (Yₜ-Yₜ³-Xₜ+s)/ϵ dt,\ndXₜ = (γYₜ-Xₜ+β) dt + σ dWₜ,  t∈[0,T].\n",
+        "dYₜ = Ẏₜ dt,\ndẎₜ = [(1-γ)Yₜ-Yₜ³-ϵẎₜ+s-β+(1-3Yₜ²)Ẏₜ] dt + σ/ϵ dWₜ,  t∈[0,T].\n",
+        "dYₜ = Ẏₜ dt,\ndẎₜ = [(ϵ-γ)Yₜ-ϵYₜ³-Ẏₜ+s-β+ϵ(1-3Yₜ²)Ẏₜ] dt + σ dWₜ,  t∈[0,T].\n",
+        "The auxiliary diffusion is set to ",
+        ", a solution to an SDE:\n",
+        "dỸₜ = [(1-3y²)Ỹₜ-X̃ₜ+s+2y³] dt,\ndX̃ₜ = (γỸₜ-X̃ₜ+β) dt + σ dWₜ,  t∈[0,T],\n",
+        "dIₜ = Bₜ dt,\ndBₜ = σ/ϵ dWₜ,  t∈[0,T],\n",
+        "dỸₜ = X̃ₜ dt,\ndX̃ₜ = [(1-γ-3y²-6yẏ)Ỹₜ+(1-ϵ-3y²)X̃ₜ+(2y³+s-β+6y²ẏ)]/ϵ dt + σ/ϵ dWₜ,  t∈[0,T],\n",
+        "dIₜ = Bₜ dt,\ndBₜ = σ dWₜ,  t∈[0,T],\n",
+        "dỸₜ = X̃ₜ dt,\ndX̃ₜ = {[ϵ(1-3y²-6yẏ)-γ]Ỹₜ+[ϵ(1-3y²)-1]X̃ₜ+[ϵ(2y³+6y²ẏ)+s-β]} dt + σ dWₜ,  t∈[0,T],\n",
+        "where (y,ẏ) denotes an end-point of (Y,Ẏ).\n",
+        "---------------------------------------------------\n",
+        ]
+
+function display(::FitzhughDiffusion{T,Val{:regular}}) where T
+    print(_MSG[1], _MSG[2], "(Y,X)", _MSG[3], _MSG[4], _MSG[15])
+end
+
+function display(::FitzhughDiffusion{T,Val{:simpleAlter}}) where T
+    print(_MSG[1], _MSG[2], "(Y,Ẏ)", _MSG[3], _MSG[5], _MSG[15])
+end
+
+function display(::FitzhughDiffusion{T,Val{:complexAlter}}) where T
+    print(_MSG[1], _MSG[2], "(Y,Ẏ)", _MSG[3], _MSG[5], _MSG[15])
+end
+
+function display(::FitzhughDiffusion{T,Val{:simpleConjug}}) where T
+    print(_MSG[1], _MSG[2], "(Y,Ẏ)", _MSG[3], _MSG[6], _MSG[15])
+end
+
+function display(::FitzhughDiffusion{T,Val{:complexConjug}}) where T
+    print(_MSG[1], _MSG[2], "(Y,Ẏ)", _MSG[3], _MSG[6], _MSG[15])
+end
+
+function display(::FitzhughDiffusionAux{T,S1,S2,Val{:regular}}) where {T,S1,S2}
+    print(_MSG[1], _MSG[7], "(Ỹ,X̃)", _MSG[8], _MSG[9], _MSG[14], _MSG[15])
+end
+
+function display(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleAlter}}) where {T,S1,S2}
+    print(_MSG[1], _MSG[7], "(I,B)", _MSG[8], _MSG[10], _MSG[15])
+end
+
+function display(::FitzhughDiffusionAux{T,S1,S2,Val{:complexAlter}}) where {T,S1,S2}
+    print(_MSG[1], _MSG[7], "(Ỹ,X̃)", _MSG[8], _MSG[11], _MSG[14], _MSG[15])
+end
+
+function display(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleConjug}}) where {T,S1,S2}
+    print(_MSG[1], _MSG[7], "(I,B)", _MSG[8], _MSG[12], _MSG[15])
+end
+
+function display(::FitzhughDiffusionAux{T,S1,S2,Val{:complexConjug}}) where {T,S1,S2}
+    print(_MSG[1], _MSG[7], "(Ỹ,X̃)", _MSG[8], _MSG[13], _MSG[14], _MSG[15])
 end

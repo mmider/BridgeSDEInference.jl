@@ -7,8 +7,7 @@ using ForwardDiff: value
 
 # fitzHughNagumo.jl
 export FitzhughDiffusion, FitzhughDiffusionAux
-export regularToAlter, alterToRegular, regularToConjug, conjugToRegular
-
+export regularToAlter, alterToRegular, regularToConjug, conjugToRegular, display
 
 # types.jl
 export ImproperPrior, NoChangePt, SimpleChangePt

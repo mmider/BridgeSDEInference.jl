@@ -30,6 +30,7 @@ P˟ = FitzhughDiffusion(param, θ₀...)
 # Auxiliary law
 P̃ = [FitzhughDiffusionAux(param, θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
      in zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
+display(P̃[1])
 
 L = @SMatrix [1. 0.]
 Σdiagel = 10^(-10)
