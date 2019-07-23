@@ -1,7 +1,4 @@
-#NOTE this import is bad programming, will need to change
-import Main: clone, conjugateDraw, dependsOnParams, params
 using ForwardDiff: value
-#dependsOnParams(::ContinuousTimeProcess) = (,)
 
 """
     AbstractObsScheme

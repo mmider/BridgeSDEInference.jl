@@ -21,7 +21,7 @@ struct FitzhughDiffusion{T,TP} <: ContinuousTimeProcess{ℝ{2,T}}
         new{T,TP}(TP(), ϵ, s, γ, β, σ)
     end
 
-    function FitzhughDiffusion(::Val{S::Symbol}, ϵ::T, s::T, γ::T, β::T, σ::T
+    function FitzhughDiffusion(::Val{S}, ϵ::T, s::T, γ::T, β::T, σ::T
                                ) where {T,S}
         TP = Val{S}
         new{T,TP}(TP(), ϵ, s, γ, β, σ)
@@ -137,7 +137,7 @@ struct FitzhughDiffusionAux{R,S1,S2,TP} <: ContinuousTimeProcess{ℝ{2,R}}
         new{R,S1,S2,TP}(TP(), ϵ, s, γ, β, σ, t, u, T, v)
     end
 
-    function FitzhughDiffusionAux(::Val{S::Symbol}, ϵ::R, s::R, γ::R, β::R, σ::R,
+    function FitzhughDiffusionAux(::Val{S}, ϵ::R, s::R, γ::R, β::R, σ::R,
                                   t::Float64, u::S1, T::Float64, v::S2
                                   ) where {R,S,S1,S2}
         TP = Val{S}
@@ -276,12 +276,12 @@ function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:complexConjug}}) wh
     (1, 2, 3, 4, 5)
 end
 
-function B(t, P::FitzhughDiffusionAux{T,S1,SArray{Tuple{2},Float64,1,2}}) where {T,S1}
+function B(t, P::FitzhughDiffusionAux{T,S1,SArray{Tuple{2},Float64,1,2},Val{:complexConjug}}) where {T,S1}
     @SMatrix [0.0  1.0;
               (P.ϵ-P.γ-3.0*P.ϵ*P.v[1]^2-6*P.ϵ*P.v[1]*P.v[2]) (P.ϵ-1.0-3.0*P.ϵ*P.v[1]^2)]
 end
 
-function β(t, P::FitzhughDiffusionAux{T,S1,SArray{Tuple{2},Float64,1,2}}) where {T,S1}
+function β(t, P::FitzhughDiffusionAux{T,S1,SArray{Tuple{2},Float64,1,2},Val{:complexConjug}}) where {T,S1}
     ℝ{2}(0.0, 2*P.ϵ*P.v[1]^3+P.s-P.β+6*P.ϵ*P.v[1]^2*P.v[2]) # check later
 end
 
