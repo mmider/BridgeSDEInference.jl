@@ -32,7 +32,7 @@ export NoBlocking, ChequeredBlocking
 export KnownStartingPt, GsnStartingPt
 
 
-include("fitzHughNagumo_new.jl")
+include("fitzHughNagumo.jl")
 include("fitzHughNagumo_conjugateUpdt.jl")
 
 include("types.jl")
