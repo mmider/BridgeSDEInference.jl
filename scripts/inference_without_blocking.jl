@@ -3,17 +3,13 @@ using Statistics, Random, LinearAlgebra
 using DataFrames
 using CSV
 
-
 SRC_DIR = joinpath(Base.source_dir(), "..", "src")
 AUX_DIR = joinpath(SRC_DIR, "auxiliary")
 OUT_DIR=joinpath(Base.source_dir(), "..", "output")
 mkpath(OUT_DIR)
 
-# choose parametrisation of the FitzHugh-Nagumo
-POSSIBLE_PARAMS = [:regular, :simpleAlter, :complexAlter, :simpleConjug,
-                   :complexConjug]
-parametrisation = POSSIBLE_PARAMS[5]
-include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
+
+include(joinpath(SRC_DIR, "fitzHughNagumo_new.jl"))
 include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
 
 include(joinpath(SRC_DIR, "types.jl"))
@@ -42,12 +38,13 @@ filename = "path_part_obs_conj.csv"
 (df, x0, obs, obsTime, fpt,
       fptOrPartObs) = readData(Val(fptObsFlag), joinpath(OUT_DIR, filename))
 
+param = :complexConjug
 # Initial parameter guess.
 θ₀ = [10.0, -8.0, 15.0, 0.0, 3.0]
 # Target law
-P˟ = FitzhughDiffusion(θ₀...)
+P˟ = FitzhughDiffusion(param, θ₀...)
 # Auxiliary law
-P̃ = [FitzhughDiffusionAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
+P̃ = [FitzhughDiffusionAux(param, θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
      in zip(obsTime[1:end-1], obsTime[2:end], obs[1:end-1], obs[2:end])]
 
 L = @SMatrix [1. 0.]
@@ -104,9 +101,8 @@ print("imputation acceptance rate: ", accRateImp,
 
 x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain,
                                        numGibbsSteps=2,
-                                       parametrisation=parametrisation,
+                                       parametrisation=param,
                                        warmUp=warmUp)
-chain
 
 
 df2 = savePathsToFile(pathsToSave, time_, joinpath(OUT_DIR, "sampled_paths.csv"))
