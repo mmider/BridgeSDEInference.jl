@@ -1,14 +1,14 @@
 [back to README](../README.md)
 # Priors
-The package `MCMCBridge.jl` [defines](../src/priors.jl) some convenience functions for priors. Below we give a brief description of their functionality.
+The package `BridgeSDEInference.jl` [defines](../src/priors.jl) some convenience functions for priors. Below we give a brief description of their functionality.
 
 ## Motivation
 
-In general, a Markov chain which targets the joint distribution of the unknown parameters and unobserved path: ![equation](https://latex.codecogs.com/gif.latex?%5Cpi%28%5Ctheta%2C%20X%29) may be updating `θ` as a Gibbs sampler, in blocks. In that case, a single `sweep` will consist of a few transition kernel, each of which will be updating a subset of parameters `θ`. For each such transition kernel a prior or priors are needed for the respective coordinates of `θ` that are being updated. This is what the struct `Priors` aims to help with.
+In general, a Markov chain which targets the joint distribution of the unknown parameters and the unobserved path: ![equation](https://latex.codecogs.com/gif.latex?%5Cpi%28%5Ctheta%2C%20X%29) may be updating `θ` by employing a Gibbs sampler, effectively updating sections of `θ` at a time. In that case, a sequence of transition kernels are applied to `θ` over and over again: K₁,K₂,...,Kₖ,K₁,K₂,.... We refer to one such complete sequence of transition kernels (K₁,K₂,...,Kₖ) as a single `sweep`. There is a single prior that the parameter `θ` is equipped with, but due to the nature of updates it is useful to map this prior to respective transition kernels. This is done by considering coordinates of `θ` that are being updated by respective transition kernel, taking only a prior over those coordinates and associate it with the respective transition kernel. This mapping is what the struct `Priors` aims to help with.
 
 ## Implementation
 
-`Priors` holds a list of all priors (inside a field `priors`) that are needed by the Markov chain. Additionally, it contains a list of lists called `indicesForUpdt`, where the outer list iterates over transition kernels and each inner list contains the indices of priors that correspond to coordinates of `θ` that are being updated.
+`Priors` holds a list of all priors (inside a field `priors`) that are needed by the Markov chain. Additionally, it contains a list of lists called `indicesForUpdt`, where the outer list iterates over transition kernels in a `sweep` and where each inner list contains the indices of priors that correspond to coordinates of `θ` that are being updated by a corresponding transition kernel.
 
 ## Example 1
 

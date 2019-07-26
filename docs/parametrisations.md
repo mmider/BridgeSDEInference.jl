@@ -5,7 +5,7 @@ used https://www.codecogs.com/latex/eqneditor.php to generate LaTeX
 # Parametrisations of FitzHugh-Nagumo model
 There are `5` distinct parametrisations of the FitzHugh-Nagumo model implemented in this package. They are explained in turn below
 ## `:regular`
-This the most commonly encountered parametrisation of the FitzHugh-Nagumo model. The target, two dimensional process `(Y,X)` solves the following stochastic differential equation:
+This is the most commonly encountered parametrisation of the FitzHugh-Nagumo model. The target, two dimensional process `(Y,X)` solves the following stochastic differential equation:
 
 <!---
 \begin{align*}

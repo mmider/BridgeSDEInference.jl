@@ -9,12 +9,12 @@ using Bridge
  OUT_DIR = joinpath(Base.source_dir(), "..", "output")
  mkpath(OUT_DIR)
 
- parametrisation = :simpleConjug
  include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
+ param = :simpleConjug
  FILENAME_OUT = joinpath(OUT_DIR,
-                         "test_path_part_obs_"*String(parametrisation)*".csv")
+                         "test_path_part_obs_"*String(param)*".csv")
 
- P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
+ P = FitzhughDiffusion(param, 10.0, -8.0, 15.0, 0.0, 3.0)
  # starting point under :regular parametrisation
  x0 = ℝ{2}(-0.5, 0.6)
  # translate to conjugate parametrisation

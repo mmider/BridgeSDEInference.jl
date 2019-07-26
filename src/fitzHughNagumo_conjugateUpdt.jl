@@ -1,15 +1,48 @@
 using GaussianDistributions
+
+
 """
-    conjugateDraw(θ, XX, P, prior, ::updtIdx)
+    φ(::Val{T}, args...)
+
+Compute the φ function appearing in the Girsanov formula and needed for
+sampling from the full conditional distribution of the parameters (whose
+indices are specified by the `Val`) conditional on the path,
+observations and other parameters.
+"""
+@generated function φ(::Val{T}, args...) where T
+    z = Expr(:tuple, (:(phi(Val($i), args...)) for i in 1:length(T) if T[i])...)
+    return z
+end
+
+"""
+    φᶜ(::Val{T}, args...)
+
+Compute the φᶜ function appearing in the Girsanov formula. This function
+complements φ.
+"""
+@generated function φᶜ(::Val{T}, args...) where T
+    z = Expr(:tuple, (:(phi(Val($i), args...)) for i in 0:length(T) if i==0 || !T[i])...)
+    return z
+end
+
+phi(::Val{0}, t, x, P::FitzhughDiffusion) = -x[2]
+phi(::Val{1}, t, x, P::FitzhughDiffusion) = x[1]-x[1]^3+(1-3*x[1]^2)*x[2]
+phi(::Val{2}, t, x, P::FitzhughDiffusion) = one(x[1])
+phi(::Val{3}, t, x, P::FitzhughDiffusion) = -x[1]
+phi(::Val{4}, t, x, P::FitzhughDiffusion) = zero(x[1])
+phi(::Val{5}, t, x, P::FitzhughDiffusion) = zero(x[1])
+
+
+"""
+    conjugateDraw(θ, XX, PT, prior, ::updtIdx)
 
 Draw from the full conditional distribution of the parameters whose indices are
 specified by the object `updtIdx`, conditionally on the path given in container
 `XX`, and conditionally on all other parameter values given in vector `θ`.
 """
-function conjugateDraw(θ, XX, P, prior, updtIdx)
+function conjugateDraw(θ, XX, PT, prior, updtIdx)
     μ = mustart(updtIdx)
     𝓦 = μ*μ'
-    PT = P[1].Target
     ϑ = SVector(thetaex(updtIdx, θ))
     μ, 𝓦 = _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
 

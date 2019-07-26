@@ -1,42 +1,55 @@
 [back to README](../README.md)
 # Generation of data
-A short script for generating data is available [here](../simulate_data.jl). All that needs to be done is to define the law of a generating process:
+There are two short scripts for generating data, available [here](../scripts/simulate_part_obs_save_to_csv.jl) and [here](../scripts/simulate_fpt_save_to_csv.jl). The former generates data for the setting of a partially observed process, the latter is for the setting of the first passage time observations. In both, the law of the target process is controlled (up to some differences in the values of the parameters) by 
 ```julia
-POSSIBLE_PARAMS = [:regular, :simpleAlter, :simpleConjug]
-parametrisation = POSSIBLE_PARAMS[3]
-include("src/fitzHughNagumo.jl")
-P = FitzhughDiffusion(10.0, -8.0, 15.0, 0.0, 3.0)
+param = :simpleConjug
+P = FitzhughDiffusion(param, 10.0, -8.0, 15.0, 0.0, 3.0)
 ```
-Set the starting point:
+The starting point needs to be set and transformed to appropriate parametrisation :
 ```julia
-x0 = ℝ{2}(-0.5, 0.6)
-if parametrisation == :simpleAlter
-    x0 = regularToAlter(x0, P.ϵ, 0.0)
-elseif parametrisation == :simpleConjug
-    x0 = regularToConjug(x0, P.ϵ, 0.0)
-end
+x0 = ℝ{2}(-0.5, 0.6) # in regular parametrisation
+x0 = regularToConjug(x0, P.ϵ, 0.0) # translate to conjugate parametrisation
 ```
+## Partially observed diffusion
 Define the time grid over which the underlying process needs to be simulated:
 ```julia
 dt = 1/50000
 T = 10.0
 tt = 0.0:dt:T
 ```
-Simulate the path:
+And simulate the path
 ```julia
-XX, _ = simulateSegment(0.0, x0, P, tt)
+Random.seed!(4)
+ XX, _ = simulateSegment(0.0, x0, P, tt)
 ```
-Define the observational regime (let's take observations of the first coordinate, distanced by 1 time unit):
+The remaining lines:
 ```julia
-skip = 50000
-L = @SMatrix [1. 0.]
+num_obs = 100
+skip = div(length(tt), num_obs)
 Time = collect(tt)[1:skip:end]
-x1 = [(L*x)[1] for x in XX.yy[1:skip:end]]
-x2 = [NaN for t in Time]
-x2[1] = x0[2]
+df = DataFrame(time=Time, x1=[x[1] for x in XX.yy[1:skip:end]],
+               x2=[(i==1 ? x0[2] : NaN) for (i,t) in enumerate(Time)])
 ```
-And finally save the data
+simply define how the process is observed: the distance between recorded observations as well as
+which coordinates and the nature of their perturbation (in this example they are not perturbed at all and only the first coordinate is observed). Finally the data can be saved
 ```julia
-df = DataFrame(time=Time, x1=x1, x2=x2)
-CSV.write(outdir*"sparse_path_part_obs_"*String(parametrisation)*".csv", df)
+CSV.write(FILENAME_OUT, df)
+```
+## First passage time observations
+In this case, `T` in the time grid defines the length of a single segment over which the path is simulated. The simulation needs to be broken down into pieces, because for large overall `T` the path might take up more memory than a computer can handle. `N` defines the number of segments that need to be simulated and pieced together. The following two:
+```julia
+upLvl = 0.5
+downLvl = -0.5
+```
+specify the up-crossing level and the down-crossing (reset) level. Then, in line 32:
+```julia
+recentlyUpSearch = true
+```
+it says that at the time that the process starts it is assumed that the down-crossing has already occurred. If
+```julia
+recentlyUpSearch = false
+```
+then the process would have first needed to reach level `downLvl`, before the first time of reaching `upLvl` would be counted. The remaining lines simply go through with the simulation required for this observation setting and finally save the data in
+```julia
+CSV.write(FILENAME_OUT, df)
 ```

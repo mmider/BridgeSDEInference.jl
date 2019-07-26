@@ -16,15 +16,17 @@ plotting functions
 ...
 """
 function transformMCMCOutput(x0, paths, saveIter; chain=nothing, θ=nothing,
-                             numGibbsSteps::Integer=1, parametrisation=:regular)
+                             numGibbsSteps::Integer=1, parametrisation=:regular,
+                             warmUp=0)
     skip = numGibbsSteps * saveIter
 
     if chain == nothing
         @assert θ != nothing
-        θs = repeat(θ, length(paths))
+        θs = [θ for i in 1:length(paths)]
     else
         @assert chain != nothing
-        θs = chain[1:skip:end][2:end]
+        N = Int64((length(chain)-1)/numGibbsSteps) + warmUp
+        θs = chain[[numGibbsSteps*(i-warmUp) for i in 1:N if (i % saveIter == 0) && i > warmUp ]]
     end
 
     if parametrisation == :regular
