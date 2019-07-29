@@ -181,7 +181,8 @@ end
 Verify whether all paths in the range `iRange`, i.e. `XX[i].yy`, i in `iRange`
 fall on the interior of the domain of diffusions `P[i]`, i in `iRange`
 """
-function checkDomainAdherence(P::Vector{S}, XX::Vector{T}, iRange) where {S<:ContinuousTimeProcess, T<:SamplePath}
+function checkDomainAdherence(P::Vector{S}, XX::Vector{T}, iRange
+                              ) where {S<:ContinuousTimeProcess, T<:SamplePath}
     for i in iRange
         !checkDomainAdherence(P[i], XX[i]) && return false
     end

@@ -6,7 +6,7 @@ using ForwardDiff
 using ForwardDiff: value
 
 # fitzHughNagumo.jl
-export FitzhughDiffusion, FitzhughDiffusionAux
+export FitzhughDiffusion, FitzhughDiffusionAux, ℝ
 export regularToAlter, alterToRegular, regularToConjug, conjugToRegular, display
 
 # types.jl
@@ -30,6 +30,8 @@ export NoBlocking, ChequeredBlocking
 # starting_pt.jl
 export KnownStartingPt, GsnStartingPt
 
+#radial_ornstein_uhlenbeck.jl
+export RadialOU, RadialOUAux
 
 include("fitzHughNagumo.jl")
 include("fitzHughNagumo_conjugateUpdt.jl")

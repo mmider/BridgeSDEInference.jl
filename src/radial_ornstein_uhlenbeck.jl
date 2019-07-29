@@ -20,7 +20,7 @@ b(t, x, P::RadialOU) = ℝ{1}(-P.η*x[1] + 0.5*P.σ^2/x[1])
 
 domain(::RadialOU{T}) where T = LowerBoundedDomain((zero(T),), (1,))
 constdiff(::RadialOU) = true
-clone(P::RadialOU, θ) = RadialOU(P.domain, θ...)
+clone(P::RadialOU, θ) = RadialOU(θ...)
 params(P::RadialOU) = [P.η, P.σ]
 
 
@@ -52,7 +52,7 @@ B(t, P::RadialOUAux) = @SMatrix[0.0]
 σ(t, P::RadialOUAux) = ℝ{1}(P.σ^2)
 dependsOnParams(::RadialOUAux) = (2,)
 constdiff(::RadialOUAux) = true
-b(t, x, ::RadialOUAux) = B(t,P)*x + β(t,P)
+b(t, x, P::RadialOUAux) = B(t,P)*x + β(t,P)
 a(t, P::RadialOUAux) = σ(t,P)*σ(t,P)'
 clone(P::RadialOUAux, θ) = RadialOUAux(P.trgtDomain, θ..., P.t, P.u, P.T, P.v)
 params(P::RadialOUAux) = [P.η, P.σ]

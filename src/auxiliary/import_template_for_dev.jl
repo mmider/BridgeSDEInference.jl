@@ -13,6 +13,11 @@ include(joinpath(SRC_DIR, "tsit5.jl"))
 include(joinpath(SRC_DIR, "rk4.jl"))
 include(joinpath(SRC_DIR, "ralston3.jl"))
 include(joinpath(SRC_DIR, "priors.jl"))
+
+include(joinpath(SRC_DIR, "bounded_diffusion_domain.jl"))
+include(joinpath(SRC_DIR, "radial_ornstein_uhlenbeck.jl"))
+include(joinpath(SRC_DIR, "euler_maruyama_dom_restr.jl"))
+
 include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
 include(joinpath(SRC_DIR, "random_walk.jl"))
 include(joinpath(SRC_DIR, "blocking_schedule.jl"))
