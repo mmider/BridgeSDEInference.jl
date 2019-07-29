@@ -55,7 +55,7 @@ obsTime, obsVals = collect(tt)[1:skip:end], XX.yy[1:skip:end]
 fptOrPartObs = PartObs()
 fpt = [NaN for _ in obsTime[2:end]]
 
-P̃ = [RadialOUAux(θ₀..., t₀, u, T, v) for (t₀,T,u,v)
+P̃ = [RadialOUAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
      in zip(obsTime[1:end-1], obsTime[2:end], obsVals[1:end-1], obsVals[2:end])]
 
 L = @SMatrix [1.]
@@ -66,8 +66,8 @@ Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^3
-saveIter=3*10^2
+numSteps=1*10^1
+saveIter=1*10^0
 
 tKernel = RandomWalk([0.002, 0.1], [true, true])
 priors = Priors((ImproperPrior(), ImproperPrior()))
@@ -107,6 +107,6 @@ print("time elapsed: ", elapsed, "\n")
 Xs = [[x[1] for x in path] for path in paths]
 
 using Plots
-p = plot(time_, Xs[1], color="steelblue", alpha=0.5, label="")
+p = plot(time_, Xs[1], color="steelblue", alpha=0.5, label="", ylims=[0,5])
 scatter!(obsTime, [x[1] for x in obsVals])
 display(p)

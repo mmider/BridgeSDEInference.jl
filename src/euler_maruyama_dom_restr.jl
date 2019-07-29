@@ -69,3 +69,11 @@ function forcedSolve(::EulerMaruyama, u::T, W::SamplePath,
     forcedSolve!(Euler(), XX, u, WW, P)
     WW, XX
 end
+
+function forcedSolve(::EulerMaruyama, u::T, W::SamplePath,
+                     P::GuidPropBridge) where T
+    WW = deepcopy(W)
+    XX = samplepath(W.tt, zero(T))
+    forcedSolve!(Euler(), XX, u, WW, P, domain(P.Target))
+    WW, XX
+end

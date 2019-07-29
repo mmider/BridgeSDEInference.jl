@@ -196,7 +196,8 @@ end
 For unrestricted domains there is nothing to check
 """
 function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
-                              d::UnboundedDomain=domain(P))
+                              d::UnboundedDomain=domain(P.Target))
+    print("no restrictions...\n")
     true
 end
 
@@ -207,7 +208,7 @@ end
 Verify whether path `XX.yy` falls on the interior of the domain of diffusion `P`
 """
 function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
-                              d::DiffusionDomain=domain(P))
+                              d::DiffusionDomain=domain(P.Target))
     N = length(XX)
     for i in 1:N
         !boundSatisfied(d, XX.yy[i]) && false
