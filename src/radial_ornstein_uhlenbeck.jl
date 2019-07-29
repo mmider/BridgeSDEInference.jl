@@ -15,7 +15,7 @@ struct RadialOU{T} <: ContinuousTimeProcess{ℝ{1,T}}
 end
 
 
-b(t, x, P::RadialOU) = ℝ{1}(-P.η + 0.5*P.σ^2/x[1])
+b(t, x, P::RadialOU) = ℝ{1}(-P.η*x[1] + 0.5*P.σ^2/x[1])
 σ(t, x, P::RadialOU) = ℝ{1}(P.σ^2)
 
 domain(::RadialOU{T}) where T = LowerBoundedDomain((zero(T),), (1,))
