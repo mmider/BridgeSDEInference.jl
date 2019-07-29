@@ -92,4 +92,4 @@ valtype(::UpperBoundedDomain{T,N}) where {T,N} = T,N
 valtype(::BoundedDomain{T,N1,N2}) where {T,N1,N2} = T,N1,N2
 DomainSomehowBounded = Union{LowerBoundedDomain,UpperBoundedDomain,BoundedDomain}
 
-domain(::Any) = UnboundedDomain # by default no restrictions
+domain(::Any) = UnboundedDomain() # by default no restrictions

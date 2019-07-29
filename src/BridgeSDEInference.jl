@@ -42,11 +42,17 @@ include("vern7.jl")
 
 include("priors.jl")
 
+include("bounded_diffusion_domain.jl")
+include("radial_ornstein_uhlenbeck.jl")
+include("euler_maruyama_dom_restr.jl")
+
 include("guid_prop_bridge.jl")
 include("random_walk.jl")
 include("blocking_schedule.jl")
 include("starting_pt.jl")
 include("mcmc.jl")
 include("path_to_wiener.jl")
+
+
 
 end

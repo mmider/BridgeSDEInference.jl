@@ -181,8 +181,7 @@ end
 Verify whether all paths in the range `iRange`, i.e. `XX[i].yy`, i in `iRange`
 fall on the interior of the domain of diffusions `P[i]`, i in `iRange`
 """
-function checkDomainAdherence(P::Vector{ContinuousTimeProcess},
-                              XX::Vector{SamplePath}, iRange)
+function checkDomainAdherence(P::Vector{S}, XX::Vector{T}, iRange) where {S<:ContinuousTimeProcess, T<:SamplePath}
     for i in iRange
         !checkDomainAdherence(P[i], XX[i]) && return false
     end
@@ -261,10 +260,10 @@ function initialise(::ObsScheme, P, m, yPr::StartingPtPrior{T}, ::S,
     for i in 1:m
         WWᵒ[i] = Bridge.samplepath(P[i].tt, zero(S))
         sample!(WWᵒ[i], Wnr)
-        WWᵒ[i], XXᵒ[i] = forceSolve(Euler(), y, WWᵒ[i], P[i])    # this will enforce adherence to domain
+        WWᵒ[i], XXᵒ[i] = forcedSolve(Euler(), y, WWᵒ[i], P[i])    # this will enforce adherence to domain
         while !checkFpt(ObsScheme(), XXᵒ[i], fpt[i])
             sample!(WWᵒ[i], Wnr)
-            forceSolve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])    # this will enforce adherence to domain
+            forcedSolve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])    # this will enforce adherence to domain
         end
         y = XXᵒ[i].yy[end]
     end
@@ -424,8 +423,8 @@ function pathLogLikhd(::ObsScheme, XX, P, iRange, fpt; skipFPT=false
     for i in iRange
         ll += llikelihood(LeftRule(), XX[i], P[i])
     end
-    !skipFPT && ((ll = checkFullPathFpt(ObsScheme(), XX, iRange, fpt) ? ll : -Inf)
-                 (ll += checkDomainAdherence(P, XX, iRange) ? ll : -Inf))
+    !skipFPT && (ll = checkFullPathFpt(ObsScheme(), XX, iRange, fpt) ? ll : -Inf)
+    !skipFPT && (ll += checkDomainAdherence(P, XX, iRange) ? 0.0 : -Inf)
     ll
 end
 

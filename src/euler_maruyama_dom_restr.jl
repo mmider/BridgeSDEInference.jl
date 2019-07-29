@@ -10,7 +10,7 @@ enforces adherence to the diffusion's domain (which numerical schemes are prone
 to violate). By default, no restrictions are made, so calls `solve!`.
 """
 function forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath,
-                      P::ProcessOrCoefficients, ::DiffusionDomain=domain(P)
+                      P::ProcessOrCoefficients, ::UnboundedDomain=domain(P)
                       ) where {T}
     solve!(Euler(), Y, u, W, P)
 end
