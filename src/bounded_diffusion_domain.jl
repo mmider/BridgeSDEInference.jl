@@ -4,58 +4,66 @@ abstract type DiffusionDomain end
 
 struct UnboundedDomain <: DiffusionDomain end
 
+boundSatisfied(::UnboundedDomain, x) = true
+
 struct LowerBoundedDomain{T,N} <: DiffusionDomain
-    lowBds::NTuple{N,T}
+    bounds::NTuple{N,T}
     coords::NTuple{N,Integer}
 
-    function LowerBoundedDomain(lowBds::NTuple{N,T},
+    function LowerBoundedDomain(bounds::NTuple{N,T},
                                 coords::NTuple{N,Integer}) where {N,T}
-        new{T,N}(lowBds, coords)
+        new{T,N}(bounds, coords)
     end
 
-    function LowerBoundedDomain(lowBds::NTuple{N,T}, coords) where {N,T}
+    function LowerBoundedDomain(bounds::NTuple{N,T}, coords) where {N,T}
         @assert length(coords) == N
         @assert all([typeof(c) <: Integer for c in coords])
-        new{T,N}(lowBds, Tuple(coords))
+        new{T,N}(bounds, Tuple(coords))
     end
 
-    function LowerBoundedDomain(lowBds::Vector{T}, coords) where T
-        N = length(lowBds)
+    function LowerBoundedDomain(bounds::Vector{T}, coords) where T
+        N = length(bounds)
         @assert length(coords) == N
         @assert all([typeof(c) <: Integer for c in coords])
-        new{T,N}(Tuple(lowBds), Tuple(coords))
+        new{T,N}(Tuple(bounds), Tuple(coords))
     end
 end
 
 function boundSatisfied(d::LowerBoundedDomain{T,N}, x) where {T,N}
-    all([x[i]>=d.lowBds[i] for i in 1:N])
+    for i in 1:N
+        (x[d.coords[i]] < d.bounds[i]) && return false
+    end
+    true
 end
 
 struct UpperBoundedDomain{T,N} <: DiffusionDomain
-    upBds::NTuple{N,T}
+    bounds::NTuple{N,T}
     coords::NTuple{N,Integer}
 
-    function UpperBoundedDomain(upBds::NTuple{N,T},
+    function UpperBoundedDomain(bounds::NTuple{N,T},
                                 coords::NTuple{N,Integer})  where {T,N}
-        new{T,N}(upBds, coords)
+        new{T,N}(bounds, coords)
     end
 
-    function UpperBoundedDomain(upBds::NTuple{N,T}, coords) where {T,N}
+    function UpperBoundedDomain(bounds::NTuple{N,T}, coords) where {T,N}
         @assert length(coords) == N
         @assert all([typeof(c) <: Integer for c in coords])
-        new{T,N}(upBds, Tuple(coords))
+        new{T,N}(bounds, Tuple(coords))
     end
 
-    function UpperBoundedDomain(upBds::Vector{T}, coords) where T
-        N = length(upBds)
+    function UpperBoundedDomain(bounds::Vector{T}, coords) where T
+        N = length(bounds)
         @assert length(coords) == N
         @assert all([typeof(c) <: Integer for c in coords])
-        new{T,N}(Tuple(upBds), Tuple(coords))
+        new{T,N}(Tuple(bounds), Tuple(coords))
     end
 end
 
 function boundSatisfied(d::UpperBoundedDomain{T,N}, x) where {T,N}
-    all([x[i]<=d.lowBds[i] for i in 1:N])
+    for i in 1:N
+        (x[d.coords[i]] > d.bounds[i]) && return false
+    end
+    true
 end
 
 struct BoundedDomain{T,N1,N2} <: DiffusionDomain

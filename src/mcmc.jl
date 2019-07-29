@@ -175,6 +175,48 @@ function checkFullPathFpt(::FPT, XXᵒ, iRange, fpt)
 end
 
 """
+    checkDomainAdherence(P::Vector{ContinuousTimeProcess},
+                         XX::Vector{SamplePath}, iRange)
+
+Verify whether all paths in the range `iRange`, i.e. `XX[i].yy`, i in `iRange`
+fall on the interior of the domain of diffusions `P[i]`, i in `iRange`
+"""
+function checkDomainAdherence(P::Vector{ContinuousTimeProcess},
+                              XX::Vector{SamplePath}, iRange)
+    for i in iRange
+        !checkDomainAdherence(P[i], XX[i]) && return false
+    end
+    true
+end
+
+"""
+    checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+                         d::UnboundedDomain=domain(P))
+
+For unrestricted domains there is nothing to check
+"""
+function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+                              d::UnboundedDomain=domain(P))
+    true
+end
+
+"""
+    checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+                         d::DiffusionDomain=domain(P))
+
+Verify whether path `XX.yy` falls on the interior of the domain of diffusion `P`
+"""
+function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+                              d::DiffusionDomain=domain(P))
+    N = length(XX)
+    for i in 1:N
+        !boundSatisfied(d, XX.yy[i]) && false
+    end
+    true
+end
+
+
+"""
     findProposalLaw(xx, tt, P˟, P̃, Ls, Σs; dt=1/5000, timeChange=true,
                     solver::ST=Ralston3())
 
@@ -219,10 +261,10 @@ function initialise(::ObsScheme, P, m, yPr::StartingPtPrior{T}, ::S,
     for i in 1:m
         WWᵒ[i] = Bridge.samplepath(P[i].tt, zero(S))
         sample!(WWᵒ[i], Wnr)
-        XXᵒ[i] = solve(Euler(), y, WWᵒ[i], P[i])
+        WWᵒ[i], XXᵒ[i] = forceSolve(Euler(), y, WWᵒ[i], P[i])    # this will enforce adherence to domain
         while !checkFpt(ObsScheme(), XXᵒ[i], fpt[i])
             sample!(WWᵒ[i], Wnr)
-            solve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])
+            forceSolve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])    # this will enforce adherence to domain
         end
         y = XXᵒ[i].yy[end]
     end
@@ -382,7 +424,8 @@ function pathLogLikhd(::ObsScheme, XX, P, iRange, fpt; skipFPT=false
     for i in iRange
         ll += llikelihood(LeftRule(), XX[i], P[i])
     end
-    !skipFPT && (ll = checkFullPathFpt(ObsScheme(), XX, iRange, fpt) ? ll : -Inf)
+    !skipFPT && ((ll = checkFullPathFpt(ObsScheme(), XX, iRange, fpt) ? ll : -Inf)
+                 (ll += checkDomainAdherence(P, XX, iRange) ? ll : -Inf))
     ll
 end
 
