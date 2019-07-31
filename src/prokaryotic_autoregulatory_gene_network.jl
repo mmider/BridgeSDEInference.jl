@@ -57,7 +57,7 @@ function a(t, x, P::Prokaryote{T}) where T
               0.0  0.0  a₄₄  a₄₄]
 end
 
-domain(P::Prokaryote) = BoundedDomain( LowerBoundedDomain((1.0,), (2,)),
+domain(P::Prokaryote) = BoundedDomain( LowerBoundedDomain((0.0, 1.0, 0.0, 0.0), (1,2,3,4)),
                                        UpperBoundedDomain((P.K,), (4,)) )
 constdiff(::Prokaryote) = false
 clone(P::Prokaryote, θ) = Prokaryote(θ..., P.K)
