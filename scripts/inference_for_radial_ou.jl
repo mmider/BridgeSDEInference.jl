@@ -59,7 +59,7 @@ P̃ = [RadialOUAux(θ₀..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
      in zip(obsTime[1:end-1], obsTime[2:end], obsVals[1:end-1], obsVals[2:end])]
 
 L = @SMatrix [1.]
-Σdiagel = 10^(-1)
+Σdiagel = 10^(-3)
 Σ = @SMatrix [Σdiagel]
 
 Ls = [L for _ in P̃]
