@@ -1,3 +1,8 @@
+# ------------------------------------------------------------
+# NOTE BROKEN AND POSSIBLY BEYOND REPAIR                     |
+# explosion of likelihoods seems to make inference impossible|
+# ------------------------------------------------------------
+
 SRC_DIR = joinpath(Base.source_dir(), "..", "src")
 AUX_DIR = joinpath(SRC_DIR, "auxiliary")
 OUT_DIR=joinpath(Base.source_dir(), "..", "output")
