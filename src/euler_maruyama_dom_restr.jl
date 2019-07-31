@@ -25,10 +25,9 @@ using the Euler-Maruyama scheme in place. `forcedSolve!` as opposed to `solve!`
 enforces adherence to the diffusion's domain (which numerical schemes are prone
 to violate). This function enforces lower bounds by modifying `W` in place.
 """
-function forcedSolve!(::EulerMaruyama, Y, u::T,
-                      W::Union{SamplePath{SVector{D,S}},SamplePath{S}},
-                      P::ProcessOrCoefficients, d::LowerBoundedDomain=domain(P)
-                      ) where {D,S,T}
+function forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath{S},
+                      P::ProcessOrCoefficients, d::DiffusionDomain=domain(P)
+                      ) where {S,T}
     N = length(W)
     N != length(Y) && error("Y and W differ in length.")
 
