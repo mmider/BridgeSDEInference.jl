@@ -70,6 +70,7 @@ function σ(t, P::LorenzAux{Val{(true,true,true)}})
               0.0 0.0 P.σ₃]
 end
 
+a(t, P::LorenzAux) = σ(t,P) * σ(t, P)'
 σ(t, x, P::LorenzAux) = σ(t, P)
 b(t, x, P::LorenzAux) = B(t, P)*x + β(t, P)
 

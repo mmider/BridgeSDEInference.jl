@@ -197,7 +197,6 @@ For unrestricted domains there is nothing to check
 """
 function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
                               d::UnboundedDomain=domain(P.Target))
-    print("no restrictions...\n")
     true
 end
 
