@@ -84,9 +84,10 @@ struct ProkaryoteAux{O,R,S1,S2} <: ContinuousTimeProcess{ℝ{4,R}}
     end
 end
 
+
 function B(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
     @SMatrix [-P.c₇  0.0  0.0  P.c₃;
-              P.c₄  P.c₅-P.c₈-2*c₅*P.v[2]  2.0*P.c₆  0.0;
+              P.c₄  P.c₅-P.c₈-2*P.c₅*P.v[2]  2.0*P.c₆  0.0;
               0.0  P.c₅*P.v[2]-0.5*P.c₅  -P.c₁*P.v[4]-P.c₆  -P.c₂-P.c₁*P.v[3];
               0.0  0.0  -P.c₁*P.v[4]  -P.c₂-P.c₁*P.v[3]]
 end
@@ -97,3 +98,24 @@ function β(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
               P.c₂*P.K + P.c₁*P.v[3]*P.v[4] - 0.5*P.c₅*P.v[2]^2,
               P.c₂*P.K + P.c₁*P.v[3]*P.v[4]]
 end
+
+function σ(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
+    σσᵀ = a(t, P)
+    cholesky(σσᵀ).U'
+end
+
+
+function a(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
+    _a₃₂ = P.c₅*P.v[2]*(P.v[2]-1.0)+2.0*P.c₆*P.v[3]
+    a₄₄ = P.c₁*P.v[3]*P.v[4]+P.c₂*(P.K-P.v[4])
+
+    @SMatrix [P.c₃*P.v[4]+P.c₇*P.v[1]  0.0  0.0  0.0;
+              0.0  P.c₄*P.v[1]+2.0*_a₃₂+P.c₈*P.v[2]  -_a₃₂  0.0;
+              0.0  -_a₃₂  a₄₄+0.5*_a₃₂  a₄₄;
+              0.0  0.0  a₄₄  a₄₄]
+end
+
+constdiff(::ProkaryoteAux) = true
+clone(P::ProkaryoteAux, θ) = ProkaryoteAux(θ..., P.K, P.t, P.u, P.T, P.v)
+clone(P::ProkaryoteAux, θ, v) = ProkaryoteAux(θ..., P.K, P.t, zero(v), P.T, v)
+params(P::ProkaryoteAux) = [P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇, P.c₈]

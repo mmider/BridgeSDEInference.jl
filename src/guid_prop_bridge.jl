@@ -419,6 +419,7 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
 
         L̃, M̃⁺, μ = reserveMemLM⁺μ(changePt, H[1], Hν[1])
 
+
         gpupdate!(tt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, Pt,
                   changePt, ST())
 
@@ -462,7 +463,7 @@ H((i,t)::IndexedTime, x, P::GuidPropBridge) = P.H[i]
 a(t, x, P::GuidPropBridge) = a(t, x, P.Target)
 Γ(t, x, P::GuidPropBridge) = Γ(t, x, P.Target)
 constdiff(P::GuidPropBridge) = constdiff(P.Target) && constdiff(P.Pt)
-
+ã(t, x, P::GuidPropBridge) = a(t, P.Pt)
 
 """
     llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)
@@ -480,16 +481,18 @@ function llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)
         s = tt[i]
         x = xx[i]
         r = Bridge.r((i,s), x, P)
+        dt = tt[i+1]-tt[i]
+        bₜₓ = _b((i,s), x, target(P))
+        b̃ₜₓ = _b((i,s), x, auxiliary(P))
 
-        som += ( dot( _b((i,s), x, target(P)) - _b((i,s), x, auxiliary(P)), r )
-                 * (tt[i+1]-tt[i]) )
+        som += dot(bₜₓ-b̃ₜₓ, r) * dt
 
         if !constdiff(P)
             H = H((i,s), x, P)
-            som -= ( 0.5*tr( (a((i,s), x, target(P))
-                             - aitilde((i,s), x, P))*H ) * (tt[i+1]-tt[i]) )
-            som += ( 0.5*( r'*(a((i,s), x, target(P))
-                           - aitilde((i,s), x, P))*r ) * (tt[i+1]-tt[i]) )
+            aₜₓ = a((i,s), x, target(P))
+            ãₜ = ã((i,s), x, P)
+            som -=  0.5*tr( (aₜₓ - ãₜ)*H ) * dt
+            som +=  0.5*( r'*(aₜₓ - ãₜ)*r ) * dt
         end
     end
     som
