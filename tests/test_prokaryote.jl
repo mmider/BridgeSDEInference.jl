@@ -65,10 +65,6 @@ idx₁, idx₂ = 100001, 105001
 t0, T = XX.tt[idx₁], XX.tt[idx₂]
 x0, xT = XX.yy[idx₁], XX.yy[idx₂]
 
-a(t, x, P::ProkaryoteAux) = a(t, P)
-σ(t, x, P::ProkaryoteAux) = σ(t, P)
-b(t, x, P::ProkaryoteAux) = B(t, P)*x + β(t, P)
-
 
 P̃ = ProkaryoteAux(θ₀..., K, t0, x0, T, xT, Val{(true, true, true, true)}())
 tt = t0:dt:T

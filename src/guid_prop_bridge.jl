@@ -1,5 +1,5 @@
 using Bridge, LinearAlgebra, StaticArrays
-import Bridge: IndexedTime, outer, _b, r, H, σ, a, Γ, constdiff, b
+import Bridge: IndexedTime, outer, _b, σ, a, Γ, constdiff, b
 import Bridge: target, auxiliary
 import Base: valtype
 
@@ -480,19 +480,19 @@ function llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)
     for i in 1:length(tt)-1-skip #skip last value, summing over n-1 elements
         s = tt[i]
         x = xx[i]
-        r = Bridge.r((i,s), x, P)
+        rₜₓ = r((i,s), x, P)
         dt = tt[i+1]-tt[i]
         bₜₓ = _b((i,s), x, target(P))
         b̃ₜₓ = _b((i,s), x, auxiliary(P))
 
-        som += dot(bₜₓ-b̃ₜₓ, r) * dt
+        som += dot(bₜₓ-b̃ₜₓ, rₜₓ) * dt
 
         if !constdiff(P)
-            H = H((i,s), x, P)
+            Hₜₓ = H((i,s), x, P)
             aₜₓ = a((i,s), x, target(P))
             ãₜ = ã((i,s), x, P)
-            som -=  0.5*tr( (aₜₓ - ãₜ)*H ) * dt
-            som +=  0.5*( r'*(aₜₓ - ãₜ)*r ) * dt
+            som -=  0.5*tr( (aₜₓ - ãₜ)*Hₜₓ ) * dt
+            som +=  0.5*( rₜₓ'*(aₜₓ - ãₜ)*rₜₓ ) * dt
         end
     end
     som

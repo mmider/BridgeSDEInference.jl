@@ -84,6 +84,7 @@ struct ProkaryoteAux{O,R,S1,S2} <: ContinuousTimeProcess{ℝ{4,R}}
     end
 end
 
+observables(::ProkaryoteAux{O}) where O = O()
 
 function B(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
     @SMatrix [-P.c₇  0.0  0.0  P.c₃;
@@ -115,7 +116,12 @@ function a(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
               0.0  0.0  a₄₄  a₄₄]
 end
 
+a(t, x, P::ProkaryoteAux) = a(t, P)
+σ(t, x, P::ProkaryoteAux) = σ(t, P)
+b(t, x, P::ProkaryoteAux) = B(t, P)*x + β(t, P)
+
 constdiff(::ProkaryoteAux) = true
-clone(P::ProkaryoteAux, θ) = ProkaryoteAux(θ..., P.K, P.t, P.u, P.T, P.v)
-clone(P::ProkaryoteAux, θ, v) = ProkaryoteAux(θ..., P.K, P.t, zero(v), P.T, v)
+clone(P::ProkaryoteAux, θ) = ProkaryoteAux(θ..., P.K, P.t, P.u, P.T, P.v, observables(P))
+clone(P::ProkaryoteAux, θ, v) = ProkaryoteAux(θ..., P.K, P.t, zero(v), P.T, v, observables(P))
 params(P::ProkaryoteAux) = [P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇, P.c₈]
+dependsOnParams(::ProkaryoteAux) = (1,2,3,4,5,6,7,8)
