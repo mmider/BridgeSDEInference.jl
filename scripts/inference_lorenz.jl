@@ -94,7 +94,7 @@ start = time()
                          tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.995,
-                         dt=1/1000,
+                         dt=1/2000,
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(Val((true, false, false, false)),
