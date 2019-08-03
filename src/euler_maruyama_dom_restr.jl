@@ -77,6 +77,10 @@ function forcedSolve(::EulerMaruyama, u::T, W::SamplePath,
     WW, XX
 end
 
+
+
+#NOTE ↓↓↓↓↓↓↓↓↓↓↓ not the right way to go for now ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
+
 function solveAndll(::EulerMaruyama, u::T, W::SamplePath, P::GuidPropBridge, θ
                     ) where T
     WW = deepcopy(W)
@@ -119,5 +123,5 @@ function solveAndll!(::EulerMaruyama, u::T, W::SamplePath, P::GuidPropBridge, θ
         end
     end
     yy[.., N] = endpoint(y, P)
-    yy[.., N], ll
+    ll
 end

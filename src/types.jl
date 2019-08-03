@@ -79,6 +79,21 @@ function idx(::Val{T}) where T
     tuple((i for i in 1:length(T) if T[i])...)
 end
 
+"""
+    idx(::Val{T}) where {T}
+
+Return a tuple containing indices of parameters not selected by Val{T}
+
+# Examples
+```julia-repl
+julia> idx(Val((true, false, false, true, true)))
+(2, 3)
+```
+"""
+function idxᶜ(::Val{T}) where T
+    tuple((i for i in 1:length(T) if !T[i])...)
+end
+
 
 """
     moveToProperPlace(ϑ, θ, ::Val{T}) where {T}

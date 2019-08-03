@@ -79,7 +79,7 @@ ODE satisfied by `c`, i.e. d`c` = `update`(...)dt
 """
 update(::cScalar, t, H, Hν, c, P) = ( dot(Bridge.β(t, P), Hν)
                                       + 0.5*outer(Hν' * Bridge.σ(t, P))
-                                      - 0.5*tr(H * a(t, P)) )
+                                      - 0.5*sum(H .* a(t, P)) )
 
 """
     update(::LMatrix, t, L, M⁺, μ, P)

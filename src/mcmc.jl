@@ -241,7 +241,7 @@ function findProposalLaw(::Type{K}, xx, tt, P˟, P̃, Ls, Σs, τ; dt=1/5000,
 end
 
 
-struct Workspace{ObsScheme,S,TX,TW,R}
+struct Workspace{ObsScheme,S,TX,TW,R,Q}
     Wnr::Wiener{S}
     XXᵒ::Vector{TX}
     XX::Vector{TX}
@@ -251,9 +251,11 @@ struct Workspace{ObsScheme,S,TX,TW,R}
     P::Vector{R}
     fpt::Vector
     ρ::Float64 #TODO use vector instead for blocking
+    result::Vector{Q}
+    resultᵒ::Vector{Q}
 
     function Workspace(::ObsScheme, P::Vector{R}, m, yPr::StartingPtPrior{T},
-                       ::S, fpt, ρ) where {ObsScheme <: AbstractObsScheme,R,T,S}
+                       ::S, fpt, ρ, updtCoord) where {ObsScheme <: AbstractObsScheme,R,T,S}
         y = startPt(yPr)
         Pᵒ = deepcopy(P)
         TW = typeof(sample([0], Wiener{S}()))
@@ -281,7 +283,15 @@ struct Workspace{ObsScheme,S,TX,TW,R}
         # needed for proper initialisation of the Crank-Nicolson scheme
         yPr = invStartPt(y, yPr, P[1])
 
-        new{ObsScheme,S,TX,TW,R}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P, fpt, ρ), ll, yPr
+        N = length(valtype(updtCoord[1]))
+        θ = params(P.Target)
+        ϑs = [[θ[j] for j in idx(updtCoord[i])] for i in 1:N]
+
+        result = [DiffResults.GradientResult(ϑ) for ϑ in ϑs]
+        resultᵒ = [DiffResults.GradientResult(ϑ) for ϑ in ϑs]
+        Q = eltype(result)
+
+        new{ObsScheme,S,TX,TW,R,Q}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P, fpt, ρ, result, resultᵒ), ll, yPr
     end
 end
 
@@ -805,7 +815,7 @@ Update parameters
 function updateParam!(::MetropolisHastingsUpdt, 𝔅::NoBlocking, tKern, θ,
                       ::UpdtIdx, yPr, 𝓦𝓢::Workspace{ObsScheme}, ll, priors,
                       recomputeODEs; solver::ST=Ralston3(), verbose=false,
-                      it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+                      it=NaN, uidx=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
     WW, Pᵒ, P, XXᵒ, XX, fpt = 𝓦𝓢.WW, 𝓦𝓢.Pᵒ, 𝓦𝓢.P, 𝓦𝓢.XXᵒ, 𝓦𝓢.XX, 𝓦𝓢.fpt
     m = length(WW)
     θᵒ = rand(tKern, θ, UpdtIdx())               # sample new parameter
@@ -835,6 +845,91 @@ function updateParam!(::MetropolisHastingsUpdt, 𝔅::NoBlocking, tKern, θ,
     end
 end
 
+function prepareLangevin(𝓦𝓢::Workspace{ObsScheme}, θ, ::UpdtIdx, y, m, yPr,
+                         priors, ::ST, uidx) where {ObsScheme,UpdtIdx,ST}
+    idxToUpdt = idx(UpdtIdx())
+    function _ll(ϑ)
+        XX, WW, P, fpt = 𝓦𝓢.XX, 𝓦𝓢.WW, 𝓦𝓢.P, 𝓦𝓢.fpt
+        for (i, ui) in enumerate(idxToUpdt)
+            θ[ui] = ϑ[i]
+        end
+        updateLaws!(P, θ)
+        solveBackRec!(NoBlocking(), P, ST()) # changes nothing, but needed for ∇
+        findPathFromWiener!(XX, y, WW, P, 1:m)
+
+        ll = logpdf(yPr, y)
+        ll += pathLogLikhd(ObsScheme(), XX, P, 1:m, fpt)
+        ll += lobslikelihood(P[1], y)
+        for prior in priors
+            ll += logpdf(prior, θ)
+        end
+        ll
+    end
+    ϑ = [θ[i] for i in idxToUpdt]
+    chunkSize = 2*length(ϑ)*length(P)
+    result = 𝓦𝓢.result[uidx]
+    cfg = ForwardDiff.GradientConfig(_ll, ϑ, ForwardDiff.Chunk{chunkSize}())
+    ForwardDiff.gradient!(result, _ll, ϑ, cfg)
+    DiffResults.value(result), DiffResults.gradient(result)
+end
+
+
+function postProcessLangevin(𝓦𝓢::Workspace{ObsScheme}, θᵒ, ::UpdtIdx, y, m, yPr,
+                         priors, ::ST, uidx) where {ObsScheme,UpdtIdx,ST}
+    idxToUpdt = idx(UpdtIdx())
+    function _ll(ϑ)
+        XXᵒ, WW, Pᵒ, fpt = 𝓦𝓢.XXᵒ, 𝓦𝓢.WW, 𝓦𝓢.Pᵒ, 𝓦𝓢.fpt
+        for (i, ui) in enumerate(idxToUpdt)
+            θᵒ[ui] = ϑ[i]
+        end
+        updateLaws!(Pᵒ, θᵒ)
+        solveBackRec!(NoBlocking(), Pᵒ, ST()) # changes nothing, but needed for ∇
+        findPathFromWiener!(XX, y, WW, P, 1:m)
+
+        yPrᵒ = invStartPt(y, yPr, Pᵒ[1])
+
+        ll = logpdf(yPrᵒ, y)
+        ll += pathLogLikhd(ObsScheme(), XXᵒ, Pᵒ, 1:m, fpt)
+        ll += lobslikelihood(Pᵒ[1], y)
+        for prior in priors
+            ll += logpdf(prior, θᵒ)
+        end
+        ll
+    end
+    ϑ = [θ[i] for i in idxToUpdt]
+    chunkSize = 2*length(ϑ)*length(P)
+    result = 𝓦𝓢.resultᵒ[uidx]
+    cfg = ForwardDiff.GradientConfig(_ll, ϑ, ForwardDiff.Chunk{chunkSize}())
+    ForwardDiff.gradient!(result, _ll, ϑ, cfg)
+    DiffResults.value(result), DiffResults.gradient(result), yPrᵒ
+end
+
+
+
+function updateParam!(::LangevinUpdt, 𝔅::NoBlocking, tKern, θ,
+                      ::UpdtIdx, yPr, 𝓦𝓢::Workspace{ObsScheme}, ll, priors,
+                      recomputeODEs; solver::ST=Ralston3(), verbose=false,
+                      it=NaN, uidx=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+    WW, Pᵒ, P, XXᵒ, XX, fpt = 𝓦𝓢.WW, 𝓦𝓢.Pᵒ, 𝓦𝓢.P, 𝓦𝓢.XXᵒ, 𝓦𝓢.XX, 𝓦𝓢.fpt
+    m = length(WW)
+    y = XX[1].yy[1]
+    ll, ∇ll = prepareLangevin(𝓦𝓢, θ, UpdtIdx(), y, m, yPr, priors, ST(), uidx) # TODO pre-allocate ∇ll
+    θᵒ = rand(tKern, θ, ∇ll, UpdtIdx())               # sample new parameter
+    llᵒ, ∇llᵒ, yPrᵒ = postProcessLangevin()
+
+    printInfo(verbose, it, ll, llᵒ)
+
+    llr = ( llᵒ - ll + logpdf(tKern, θᵒ, θ, ∇llᵒ, ∇ll) - logpdf(tKern, θ, θᵒ, ∇ll, ∇llᵒ))
+
+    # Accept / reject
+    if acceptSample(llr, verbose)
+        swap!(XX, XXᵒ, P, Pᵒ, 1:m)
+        swap!(𝓦𝓢.resultᵒ, 𝓦𝓢.result, 1:m)
+        return llᵒ, true, θᵒ, yPrᵒ
+    else
+        return ll, false, θ, yPr
+    end
+end
 
 """
     updateParam!(::ObsScheme, ::MetropolisHastingsUpdt, tKern, θ, ::UpdtIdx,
@@ -867,7 +962,7 @@ Update parameters
 function updateParam!(::MetropolisHastingsUpdt, 𝔅::ChequeredBlocking, tKern, θ,
                       ::UpdtIdx, yPr, 𝓦𝓢::Workspace{ObsScheme}, ll, priors,
                       recomputeODEs; solver::ST=Ralston3(), verbose=false,
-                      it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+                      it=NaN, uidx=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
     m = length(𝔅.P)
     θᵒ = rand(tKern, θ, UpdtIdx())               # sample new parameter
     updateProposalLaws!(𝔅, θᵒ)                   # update law `Pᵒ` accordingly
@@ -914,7 +1009,7 @@ explanation of the arguments.
 function updateParam!(::ConjugateUpdt, 𝔅::NoBlocking, tKern, θ, ::UpdtIdx, yPr,
                       𝓦𝓢::Workspace{ObsScheme}, ll, priors, recomputeODEs;
                       solver::ST=Ralston3(), verbose=false,
-                      it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+                      it=NaN, uidx=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
     WW, Pᵒ, P, XXᵒ, XX, fpt = 𝓦𝓢.WW, 𝓦𝓢.Pᵒ, 𝓦𝓢.P, 𝓦𝓢.XXᵒ, 𝓦𝓢.XX, 𝓦𝓢.fpt
     m = length(P)
     ϑ = conjugateDraw(θ, XX, P[1].Target, priors[1], UpdtIdx())   # sample new parameter
@@ -950,7 +1045,7 @@ explanation of the arguments.
 function updateParam!(::ConjugateUpdt, 𝔅::BlockingSchedule, tKern, θ, ::UpdtIdx,
                       yPr, 𝓦𝓢::Workspace{ObsScheme}, ll, priors,
                       recomputeODEs; solver::ST=Ralston3(), verbose=false,
-                      it=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
+                      it=NaN, uidx=NaN) where {ObsScheme <: AbstractObsScheme, ST, UpdtIdx}
     m = length(𝔅.P)
     ϑ = conjugateDraw(θ, 𝔅.XX, 𝔅.P[1].Target, priors[1], UpdtIdx())   # sample new parameter
     θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())     # align so that dimensions agree
@@ -1049,7 +1144,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
                 (ll, acc, θ,
                  yPr) = updateParam!(updtType[j], 𝔅, tKernel, θ, updtCoord[j],
                                      yPr, 𝓦𝓢, ll, priors[j], recomputeODEs[j];
-                                     solver=ST(), verbose=verbose, it=i)
+                                     solver=ST(), verbose=verbose, it=i, uidx=j)
                 accUpdtCounter[j] += 1*acc
                 updtStepCounter += 1
                 θchain[updtStepCounter] = copy(θ)
