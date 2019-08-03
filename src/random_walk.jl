@@ -39,9 +39,7 @@ Return a newly sampled state of a random walker, with all element updated.
 """
 function rand(rw::RandomWalk, θ)
     θc = copy(θ)
-    θc .+= additiveStep.(rand.(map(Uniform,-rw.ϵ, rw.ϵ)), rw.pos)
-    θc .*= multipStep.(rand.(map(Uniform,-rw.ϵ, rw.ϵ)), rw.pos)
-    θc
+    rand!(rw, θc)
 end
 
 """
@@ -66,11 +64,7 @@ the indices specified by the object `UpdtIdx`.
 """
 function rand(rw::RandomWalk, θ, ::UpdtIdx) where UpdtIdx
     θc = copy(θ)
-    for i in idx(UpdtIdx())
-        θc[i] += additiveStep(rand(Uniform(-rw.ϵ[i], rw.ϵ[i])), rw.pos[i])
-        θc[i] *= multipStep(rand(Uniform(-rw.ϵ[i], rw.ϵ[i])), rw.pos[i])
-    end
-    θc
+    rand!(rw, θc, UpdtIdx())
 end
 
 

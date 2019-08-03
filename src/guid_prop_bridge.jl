@@ -491,7 +491,7 @@ function llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)
             Hₜₓ = H((i,s), x, P)
             aₜₓ = a((i,s), x, target(P))
             ãₜ = ã((i,s), x, P)
-            som -=  0.5*tr( (aₜₓ - ãₜ)*Hₜₓ ) * dt
+            som -=  0.5*sum( (aₜₓ - ãₜ).*Hₜₓ ) * dt
             som +=  0.5*( rₜₓ'*(aₜₓ - ãₜ)*rₜₓ ) * dt
         end
     end

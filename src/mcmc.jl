@@ -1,3 +1,4 @@
+using ForwardDiff
 using ForwardDiff: value
 
 """
@@ -46,6 +47,11 @@ Flag for performing update according to Metropolis Hastings step
 """
 struct MetropolisHastingsUpdt <: ParamUpdateType end
 
+"""
+    LangevinUpdt <: ParamUpdateType
+Flag for performing Metropolis adjusted Langevin updates
+"""
+struct LangevinUpdt <: ParamUpdateType end
 
 """
     setBlocking(𝔅::NoBlocking, ::Any, ::Any)
@@ -283,9 +289,8 @@ struct Workspace{ObsScheme,S,TX,TW,R,Q}
         # needed for proper initialisation of the Crank-Nicolson scheme
         yPr = invStartPt(y, yPr, P[1])
 
-        N = length(valtype(updtCoord[1]))
-        θ = params(P.Target)
-        ϑs = [[θ[j] for j in idx(updtCoord[i])] for i in 1:N]
+        θ = params(P[1].Target)
+        ϑs = [[θ[j] for j in idx(uc)] for uc in updtCoord]
 
         result = [DiffResults.GradientResult(ϑ) for ϑ in ϑs]
         resultᵒ = [DiffResults.GradientResult(ϑ) for ϑ in ϑs]
@@ -850,10 +855,7 @@ function prepareLangevin(𝓦𝓢::Workspace{ObsScheme}, θ, ::UpdtIdx, y, m, yP
     idxToUpdt = idx(UpdtIdx())
     function _ll(ϑ)
         XX, WW, P, fpt = 𝓦𝓢.XX, 𝓦𝓢.WW, 𝓦𝓢.P, 𝓦𝓢.fpt
-        for (i, ui) in enumerate(idxToUpdt)
-            θ[ui] = ϑ[i]
-        end
-        updateLaws!(P, θ)
+        updateLaws!(P, ϑ)
         solveBackRec!(NoBlocking(), P, ST()) # changes nothing, but needed for ∇
         findPathFromWiener!(XX, y, WW, P, 1:m)
 
@@ -864,9 +866,10 @@ function prepareLangevin(𝓦𝓢::Workspace{ObsScheme}, θ, ::UpdtIdx, y, m, yP
             ll += logpdf(prior, θ)
         end
         ll
+        ϑ[1]
     end
     ϑ = [θ[i] for i in idxToUpdt]
-    chunkSize = 2*length(ϑ)*length(P)
+    chunkSize = 1
     result = 𝓦𝓢.result[uidx]
     cfg = ForwardDiff.GradientConfig(_ll, ϑ, ForwardDiff.Chunk{chunkSize}())
     ForwardDiff.gradient!(result, _ll, ϑ, cfg)
@@ -895,12 +898,15 @@ function postProcessLangevin(𝓦𝓢::Workspace{ObsScheme}, θᵒ, ::UpdtIdx, y
             ll += logpdf(prior, θᵒ)
         end
         ll
+        ϑ[2]
     end
-    ϑ = [θ[i] for i in idxToUpdt]
-    chunkSize = 2*length(ϑ)*length(P)
+    ϑ = [θᵒ[i] for i in idxToUpdt]
+    chunkSize = 1
     result = 𝓦𝓢.resultᵒ[uidx]
     cfg = ForwardDiff.GradientConfig(_ll, ϑ, ForwardDiff.Chunk{chunkSize}())
     ForwardDiff.gradient!(result, _ll, ϑ, cfg)
+
+    yPrᵒ = invStartPt(y, yPr, 𝓦𝓢.Pᵒ[1])
     DiffResults.value(result), DiffResults.gradient(result), yPrᵒ
 end
 
@@ -915,11 +921,11 @@ function updateParam!(::LangevinUpdt, 𝔅::NoBlocking, tKern, θ,
     y = XX[1].yy[1]
     ll, ∇ll = prepareLangevin(𝓦𝓢, θ, UpdtIdx(), y, m, yPr, priors, ST(), uidx) # TODO pre-allocate ∇ll
     θᵒ = rand(tKern, θ, ∇ll, UpdtIdx())               # sample new parameter
-    llᵒ, ∇llᵒ, yPrᵒ = postProcessLangevin()
+    llᵒ, ∇llᵒ, yPrᵒ = postProcessLangevin(𝓦𝓢, θᵒ, UpdtIdx(), y, m, yPr, priors, ST(), uidx)
 
     printInfo(verbose, it, ll, llᵒ)
 
-    llr = ( llᵒ - ll + logpdf(tKern, θᵒ, θ, ∇llᵒ, ∇ll) - logpdf(tKern, θ, θᵒ, ∇ll, ∇llᵒ))
+    llr = ( llᵒ - ll + logpdf(tKern, θᵒ, θ, ∇llᵒ, UpdtIdx()) - logpdf(tKern, θ, θᵒ, ∇ll, UpdtIdx()))
 
     # Accept / reject
     if acceptSample(llr, verbose)
@@ -1118,7 +1124,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
                          changePt=CP(getChangePt(blockingParams[3])) )
     m = length(obs)-1
     updtLen = length(updtCoord)
-    𝓦𝓢, ll, yPr = Workspace(ObsScheme(), P, m, yPr, w, fpt, ρ)
+    𝓦𝓢, ll, yPr = Workspace(ObsScheme(), P, m, yPr, w, fpt, ρ, updtCoord)
 
     Paths = []
     accImpCounter = 0
