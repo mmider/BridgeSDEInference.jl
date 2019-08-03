@@ -30,8 +30,14 @@ export NoBlocking, ChequeredBlocking
 # starting_pt.jl
 export KnownStartingPt, GsnStartingPt
 
-#radial_ornstein_uhlenbeck.jl
+# radial_ornstein_uhlenbeck.jl
 export RadialOU, RadialOUAux
+
+# lorenz_system.jl
+export Lorenz, LorenzAux
+
+# lorenz_system_const_vola.jl
+export LorenzCV, LorenzCVAux
 
 include("fitzHughNagumo.jl")
 include("fitzHughNagumo_conjugateUpdt.jl")
@@ -43,12 +49,15 @@ include("tsit5.jl")
 include("vern7.jl")
 
 include("priors.jl")
+include("guid_prop_bridge.jl")
 
 include("bounded_diffusion_domain.jl")
-include("radial_ornstein_uhlenbeck.jl")
 include("euler_maruyama_dom_restr.jl")
 
-include("guid_prop_bridge.jl")
+include("radial_ornstein_uhlenbeck.jl")
+include("lorenz_system.jl")
+include("lorenz_system_const_vola.jl")
+
 include("random_walk.jl")
 include("blocking_schedule.jl")
 include("starting_pt.jl")
