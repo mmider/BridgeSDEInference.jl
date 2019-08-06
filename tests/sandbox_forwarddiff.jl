@@ -47,13 +47,20 @@ L = @SMatrix [1. 0.]
 
 
 function ll(θ)
+    for t in θ
+        print(t, "\n\n")
+    end
     P˟ = FitzhughDiffusion(param, θ...)
-    P̃ = FitzhughDiffusionAux(param, θ..., 0.0, ℝ(0.0), 2.0, ℝ(0.5))
-    P = GuidPropBridge(Float64, 0.0:0.01:2.0, P˟, P̃, L, ℝ(0.5), Σ;
-                                     changePt=NoChangePt(), solver=Vern7())
-
+    P̃ = FitzhughDiffusionAux(param, θ..., 0.0, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0)),
+                                          2.0, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.5,0.0)))
+    L = @SMatrix [Dual{ForwardDiff.Tag{typeof(ll),Float64}}(1.0,0.0) Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0)]
+    Σ = @SMatrix [Dual{ForwardDiff.Tag{typeof(ll),Float64}}(10^(-10),0.0)]
+    print("starting...\n")
+    P = GuidPropBridge(Dual{ForwardDiff.Tag{typeof(ll),Float64},Float64,1}, 0.0:0.01:2.0, P˟, P̃, L, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.5,0.0)), Σ;
+                       changePt=NoChangePt(), solver=Vern7())
+    P.Target.ϵ
 end
-Dual{ForwardDiff.Tag{typeof(ll),Float64}}(15.0,0.0)
+
 using ForwardDiff
 chunkSize = 1
 result = DiffResults.GradientResult(θ₀)
