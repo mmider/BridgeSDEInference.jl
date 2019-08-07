@@ -42,10 +42,18 @@ P˟ = FitzhughDiffusion(param, θ₀...)
 P̃ = FitzhughDiffusionAux(param, θ₀..., 0.0, ℝ(0.0), 2.0, ℝ(0.5))
 
 L = @SMatrix [1. 0.]
-Σdiagel = 10^(-10)
+Σdiagel = 10^(-4)
 Σ = @SMatrix [Σdiagel]
 
-
+import ForwardDiff.Dual
+tt = 0.0:0.01:2.0
+Wnr = Wiener{Float64}()
+W = Bridge.samplepath(tt, zero(Float64))
+sample!(W, Wnr)
+y = ℝ(0.0, 0.0)
+y_dual = ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0), Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0))
+X = SamplePath(tt, zeros(typeof(y_dual), length(tt)))
+# compute log likelihood for a given wiener path and parameter vector
 function ll(θ)
     for t in θ
         print(t, "\n\n")
@@ -54,11 +62,12 @@ function ll(θ)
     P̃ = FitzhughDiffusionAux(param, θ..., 0.0, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0)),
                                           2.0, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.5,0.0)))
     L = @SMatrix [Dual{ForwardDiff.Tag{typeof(ll),Float64}}(1.0,0.0) Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0)]
-    Σ = @SMatrix [Dual{ForwardDiff.Tag{typeof(ll),Float64}}(10^(-10),0.0)]
-    print("starting...\n")
-    P = GuidPropBridge(Dual{ForwardDiff.Tag{typeof(ll),Float64},Float64,1}, 0.0:0.01:2.0, P˟, P̃, L, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.5,0.0)), Σ;
+    Σ = @SMatrix [Dual{ForwardDiff.Tag{typeof(ll),Float64}}(10^(-4),0.0)]
+    P = GuidPropBridge(Dual{ForwardDiff.Tag{typeof(ll),Float64},Float64,1}, tt, P˟, P̃, L, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.5,0.0)), Σ;
                        changePt=NoChangePt(), solver=Vern7())
-    P.Target.ϵ
+    solve!(Euler(), X, y_dual, W, P)
+    loglik = llikelihood(LeftRule(), X, P)
+    loglik
 end
 
 using ForwardDiff
