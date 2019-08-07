@@ -1,4 +1,5 @@
 #NOTE FILE TO BE DELETED
+
 SRC_DIR = joinpath(Base.source_dir(), "..", "src")
 AUX_DIR = joinpath(SRC_DIR, "auxiliary")
 OUT_DIR = joinpath(Base.source_dir(), "..", "output")
@@ -45,13 +46,15 @@ L = @SMatrix [1. 0.]
 Σdiagel = 10^(-4)
 Σ = @SMatrix [Σdiagel]
 
-import ForwardDiff.Dual
+using ForwardDiff
+import ForwardDiff: Dual, Tag
 tt = 0.0:0.01:2.0
 Wnr = Wiener{Float64}()
 W = Bridge.samplepath(tt, zero(Float64))
 sample!(W, Wnr)
 y = ℝ(0.0, 0.0)
-y_dual = ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0), Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0))
+CT = Tag{Val{:custom_tag}, Float64}
+y_dual = ℝ(Dual{CT}(0.0,0.0), Dual{CT}(0.0,0.0))
 X = SamplePath(tt, zeros(typeof(y_dual), length(tt)))
 # compute log likelihood for a given wiener path and parameter vector
 function ll(θ)
@@ -59,22 +62,21 @@ function ll(θ)
         print(t, "\n\n")
     end
     P˟ = FitzhughDiffusion(param, θ...)
-    P̃ = FitzhughDiffusionAux(param, θ..., 0.0, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0)),
-                                          2.0, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.5,0.0)))
-    L = @SMatrix [Dual{ForwardDiff.Tag{typeof(ll),Float64}}(1.0,0.0) Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.0,0.0)]
-    Σ = @SMatrix [Dual{ForwardDiff.Tag{typeof(ll),Float64}}(10^(-4),0.0)]
-    P = GuidPropBridge(Dual{ForwardDiff.Tag{typeof(ll),Float64},Float64,1}, tt, P˟, P̃, L, ℝ(Dual{ForwardDiff.Tag{typeof(ll),Float64}}(0.5,0.0)), Σ;
+    P̃ = FitzhughDiffusionAux(param, θ..., 0.0, ℝ(Dual{CT}(0.0,0.0)),
+                                          2.0, ℝ(Dual{CT}(0.5,0.0)))
+    L = @SMatrix [Dual{CT}(1.0,0.0) Dual{CT}(0.0,0.0)]
+    Σ = @SMatrix [Dual{CT}(10^(-4),0.0)]
+    P = GuidPropBridge(Dual{CT,Float64,1}, tt, P˟, P̃, L, ℝ(Dual{CT}(0.5,0.0)), Σ;
                        changePt=NoChangePt(), solver=Vern7())
     solve!(Euler(), X, y_dual, W, P)
     loglik = llikelihood(LeftRule(), X, P)
     loglik
 end
 
-using ForwardDiff
 chunkSize = 1
 result = DiffResults.GradientResult(θ₀)
-cfg = ForwardDiff.GradientConfig(ll, θ₀, ForwardDiff.Chunk{chunkSize}())
-ForwardDiff.gradient!(result, ll, θ₀, cfg)
+cfg = ForwardDiff.GradientConfig(ll, θ₀, ForwardDiff.Chunk{chunkSize}(), CT())
+@time ForwardDiff.gradient!(result, ll, θ₀, cfg, Val{false}()) # turn off tag checking...
 
 result.value
 result.derivs

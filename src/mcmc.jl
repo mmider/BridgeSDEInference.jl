@@ -229,7 +229,7 @@ end
 Initialise the object with proposal law and all the necessary containers needed
 for the simulation of the guided proposals
 """
-function findProposalLaw(::Type{K}, xx, tt, P˟, P̃, Ls, Σs, τ; dt=1/5000,
+function findProposalLaw(::ParamUpdateType, ::Type{K}, xx, tt, P˟, P̃, Ls, Σs, τ; dt=1/5000,
                          solver::ST=Ralston3(),
                          changePt::ODEChangePt=NoChangePt()) where {K,ST}
     m = length(xx) - 1
@@ -1119,7 +1119,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
               blockingParams=([], 0.1, NoChangePt()),
               solver::ST=Ralston3(), changePt::CP=NoChangePt(), warmUp=0
               ) where {K, ObsScheme <: AbstractObsScheme, ST, Blocking, CP}
-    P = findProposalLaw( K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST(),
+    P = findProposalLaw( updtType[1], K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST(),
                          changePt=CP(getChangePt(blockingParams[3])) )
     m = length(obs)-1
     updtLen = length(updtCoord)
