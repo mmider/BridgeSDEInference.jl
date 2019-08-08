@@ -84,27 +84,27 @@ end
 
     @testset "validity of blocking state after calling next" begin
         @test 𝔅.idx == 2
-        @testset "checking if θ has been propagated everywhere" for i in 1:4
+        @testset "checking if θ has been propagated everywhere" for i in 1:length(tt)-1
             @test params(𝔅.P[i].Target) == θ
             @test params(𝔅.P[i].Pt) == θ
         end
-        @test [𝔅.P[i].Σ for i in 1:4] == 𝔅.Σs[2] == [Σ, I*ϵ, Σ, Σ]
-        @test [𝔅.P[i].L for i in 1:4] == 𝔅.Ls[2] == [L, I, L, L]
-        @test [𝔅.P[i].v for i in 1:4] == [obs[2], 𝔅.XX[2].yy[end], obs[4], obs[5]]
-        @test [𝔅.P[i].changePt for i in 1:4] == 𝔅.changePts[2] == [NoChangePt(100), SimpleChangePt(100), NoChangePt(100), NoChangePt(100)]
+        @test [𝔅.P[i].Σ for i in 1:length(tt)-1 ] == 𝔅.Σs[2] == [Σ, I*ϵ, Σ, Σ]
+        @test [𝔅.P[i].L for i in 1:length(tt)-1 ] == 𝔅.Ls[2] == [L, I, L, L]
+        @test [𝔅.P[i].v for i in 1:length(tt)-1 ] == [obs[2], 𝔅.XX[2].yy[end], obs[4], obs[5]]
+        @test [𝔅.P[i].changePt for i in 1:length(tt)-1 ] == 𝔅.changePts[2] == [NoChangePt(100), SimpleChangePt(100), NoChangePt(100), NoChangePt(100)]
     end
 
     θᵒ = [1.0, -7.0, 10.0, 2.0, 1.0]
 
     @testset "checking container swaps" begin
-        @testset "checking before the swap" for i in 1:4
+        @testset "checking before the swap" for i in 1:length(tt)-1
             @test 𝔅.XX[i].yy[10][2] == i
             @test 𝔅.XXᵒ[i].yy[10][2] == 10 + i
         end
-        for i in 1:m
+        for i in 1:length(tt)-1
             𝔅.XX[i], 𝔅.XXᵒ[i] = 𝔅.XXᵒ[i], 𝔅.XX[i]
         end
-        @testset "checking if containers swapped" for i in 1:4
+        @testset "checking if containers swapped" for i in 1:length(tt)-1
             @test 𝔅.XX[i].yy[10][2] == 10 + i
             @test 𝔅.XXᵒ[i].yy[10][2] == i
         end
@@ -114,13 +114,13 @@ end
 
     @testset "validity of blocking state after second call to next" begin
         @test 𝔅.idx == 1
-        @testset "checking if θᵒ has been propagated everywhere" for i in 1:4
+        @testset "checking if θᵒ has been propagated everywhere" for i in 1:length(tt)-1
             @test params(𝔅.P[i].Target) == θᵒ
             @test params(𝔅.P[i].Pt) == θᵒ
         end
-        @test [𝔅.P[i].Σ for i in 1:4] == 𝔅.Σs[1] == [I*ϵ, Σ, I*ϵ, Σ]
-        @test [𝔅.P[i].L for i in 1:4] == 𝔅.Ls[1] == [I, L, I, L]
-        @test [𝔅.P[i].v for i in 1:4] == [𝔅.XX[1].yy[end], obs[3], 𝔅.XX[3].yy[end], obs[5]]
-        @test [𝔅.P[i].changePt for i in 1:4] == 𝔅.changePts[1] == [SimpleChangePt(100), NoChangePt(100), SimpleChangePt(100), NoChangePt(100)]
+        @test [𝔅.P[i].Σ for i in 1:length(tt)-1 ] == 𝔅.Σs[1] == [I*ϵ, Σ, I*ϵ, Σ]
+        @test [𝔅.P[i].L for i in 1:length(tt)-1 ] == 𝔅.Ls[1] == [I, L, I, L]
+        @test [𝔅.P[i].v for i in 1:length(tt)-1 ] == [𝔅.XX[1].yy[end], obs[3], 𝔅.XX[3].yy[end], obs[5]]
+        @test [𝔅.P[i].changePt for i in 1:length(tt)-1 ] == 𝔅.changePts[1] == [SimpleChangePt(100), NoChangePt(100), SimpleChangePt(100), NoChangePt(100)]
     end
 end
