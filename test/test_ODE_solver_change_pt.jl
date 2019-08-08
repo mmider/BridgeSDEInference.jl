@@ -6,15 +6,16 @@ function change_point_test_prep(N=10000, λ=N/10)
 
     θ₀ = [10.0, -8.0, 15.0, 0.0, 3.0]
 
+    param = :complexConjug
     # Target law
-    P˟ = FitzhughDiffusion(θ₀...)
+    P˟ = FitzhughDiffusion(param, θ₀...)
 
     # Auxiliary law
     t₀ = 1.0
     T = 2.0
     x0 = ℝ{2}(-0.5, 2.25)
     xT = ℝ{2}(1.0, 0.0)
-    P̃ = FitzhughDiffusionAux(θ₀..., t₀, L*x0, T, L*xT)
+    P̃ = FitzhughDiffusionAux(param, θ₀..., t₀, L*x0, T, L*xT)
 
     τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
     dt = (T-t₀)/N
