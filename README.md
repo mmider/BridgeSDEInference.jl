@@ -1,6 +1,6 @@
 # BridgeSDEInference.jl
 
-MCMC sampler for inference for diffusion processes with the use of Guided Proposals. Currently under development. Ultimately the aim is to integrate it into Bridge.jl package.
+MCMC sampler for inference for diffusion processes with the use of Guided Proposals using the package [Bridge.jl](https://github.com/mschauer/Bridge.jl). Currently under development.
 
 
 ## Overview
