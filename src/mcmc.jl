@@ -1,5 +1,7 @@
 using ForwardDiff
-using ForwardDiff: value
+using ForwardDiff: value, Dual
+
+CTAG = ForwardDiff.Tag{Val{:custom_tag}, Float64}
 
 """
     AbstractObsScheme
@@ -247,6 +249,40 @@ function findProposalLaw(::ParamUpdateType, ::Type{K}, xx, tt, P˟, P̃, Ls, Σs
 end
 
 
+#TODO need to pause langevin updates for a moment
+"""
+    findProposalLaw(xx, tt, P˟, P̃, Ls, Σs; dt=1/5000, timeChange=true,
+                    solver::ST=Ralston3())
+
+Initialise the object with proposal law and all the necessary containers needed
+for the simulation of the guided proposals
+"""
+function findProposalLaw(::LangevinUpdt, ::Type{K}, xx, tt, P˟, P̃, Ls, Σs, τ; dt=1/5000,
+                         solver::ST=Ralston3(),
+                         changePt::ODEChangePt=NoChangePt()) where {K,ST}
+    m = length(xx) - 1
+    P = Array{ContinuousTimeProcess,1}(undef,m)
+    params(Pˣ)
+#    P˟_D = clone(Pˣ, )#TODO here is stop point
+    for i in m:-1:1
+        numPts = Int64(ceil((tt[i+1]-tt[i])/dt))+1
+        t = τ(tt[i], tt[i+1]).( range(tt[i], stop=tt[i+1], length=numPts) )
+        xx_D = Dual{CT}.(xx[i+1])
+        L_D = Dual{CT}.(Ls[i])
+        Σ_D = Dual{CT}.(Σs[i])
+
+        P[i] = ( (i==m) ? GuidPropBridge(K, t, P˟, P̃[i], L_D, xx_D, Σ_D;
+                                         changePt=changePt, solver=ST()) :
+                          GuidPropBridge(K, t, P˟, P̃[i], L_D, xx_D, Σ_D,
+                                         P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1];
+                                         changePt=changePt, solver=ST()) )
+    end
+    P
+end
+
+
+
+
 struct Workspace{ObsScheme,S,TX,TW,R,Q}
     Wnr::Wiener{S}
     XXᵒ::Vector{TX}
@@ -298,8 +334,80 @@ struct Workspace{ObsScheme,S,TX,TW,R,Q}
 
         new{ObsScheme,S,TX,TW,R,Q}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P, fpt, ρ, result, resultᵒ), ll, yPr
     end
+
+    function Workspace(𝓦𝓢::Workspace{ObsScheme,S,TX,TW,R,Q}, new_ρ::Float64
+                       ) where {ObsScheme,S,TX,TW,R,Q}
+        new{ObsScheme,S,TX,TW,R,Q}(𝓦𝓢.Wnr, 𝓦𝓢.XXᵒ, 𝓦𝓢.XX, 𝓦𝓢.WWᵒ, 𝓦𝓢.WW,
+                                   𝓦𝓢.Pᵒ, 𝓦𝓢.P, 𝓦𝓢.fpt, new_ρ, 𝓦𝓢.result,
+                                   𝓦𝓢.resultᵒ)
+    end
 end
 
+
+init_adaptation!(adpt::Adaptation{Val{false}}, 𝓦𝓢::Workspace) = nothing
+
+function init_adaptation!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace)
+    m = length(𝓦𝓢.XX)
+    resize!(adpt, m, [length(𝓦𝓢.XX[i]) for i in 1:m])
+end
+
+function adaptationUpdt!(adpt::Adaptation{Val{false}}, 𝓦𝓢::Workspace, yPr, i,
+                         ll, ::ObsScheme, ::ST) where {ObsScheme,ST}
+    adpt, 𝓦𝓢, yPr, ll
+end
+
+function adaptationUpdt!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace, yPr, i,
+                         ll, ::ObsScheme, ::ST) where {ObsScheme,ST}
+    if i % adpt.skip == 0
+        if adpt.N[2] == adpt.sizes[adpt.N[1]]
+            X̄ = compute_X̄(adpt)
+            m = length(𝓦𝓢.P)
+            for j in 1:m
+                Pt = recentre(𝓦𝓢.P[j].Pt, 𝓦𝓢.XX[j].tt, X̄[j])
+                update_λ!(Pt, adpt.λs[adpt.N[1]])
+                𝓦𝓢.P[j] = GuidPropBridge(𝓦𝓢.P[j], Pt)
+                𝓦𝓢.Pᵒ[j] = GuidPropBridge(𝓦𝓢.Pᵒ[j], Pt)
+            end
+            𝓦𝓢 = Workspace(𝓦𝓢, adpt.ρs[adpt.N[1]])
+
+            solveBackRec!(NoBlocking(), 𝓦𝓢.P, ST())
+            #solveBackRec!(NoBlocking(), 𝓦𝓢.Pᵒ, ST())
+            y = 𝓦𝓢.XX[1].yy[1]
+            yPr = invStartPt(y, yPr, P[1])
+            for i in 1:m
+                invSolve!(Euler(), 𝓦𝓢.XX[j], 𝓦𝓢.WW[j], 𝓦𝓢.P[j])
+            end
+            ll = logpdf(yPr, y)
+            ll += pathLogLikhd(ObsScheme(), 𝓦𝓢.XX, 𝓦𝓢.P, 1:m, 𝓦𝓢.fpt)
+            ll += lobslikelihood(𝓦𝓢.P[1], y)
+
+            adpt.N[2] = 1
+            adpt.N[1] += 1
+        end
+    end
+    adpt, 𝓦𝓢, yPr, ll
+end
+
+function compute_X̄(adpt::Adaptation{Val{true}})
+    X = adpt.X
+    num_paths = adpt.sizes[adpt.N[1]]
+    num_segments = length(X[1])
+    for i in 2:num_paths
+        for j in 1:num_segments
+            num_pts = length(X[i][j])
+            for k in 1:num_pts
+                X[1][j][k] += X[i][j][k]
+            end
+        end
+    end
+    for j in 1:num_segments
+        num_pts = length(X[i][j])
+        for k in 1:num_pts
+            X[1][j][k] /= num_paths
+        end
+    end
+    X[1]
+end
 
 """
     savePath!(Paths, XX, saveMe, skip)
@@ -1117,13 +1225,15 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
               skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
               blocking::Blocking=NoBlocking(),
               blockingParams=([], 0.1, NoChangePt()),
-              solver::ST=Ralston3(), changePt::CP=NoChangePt(), warmUp=0
+              solver::ST=Ralston3(), changePt::CP=NoChangePt(), warmUp=0,
+              adaptiveProp=NoAdaptation()
               ) where {K, ObsScheme <: AbstractObsScheme, ST, Blocking, CP}
     P = findProposalLaw( updtType[1], K, obs, obsTimes, P˟, P̃, Ls, Σs, τ; dt=dt, solver=ST(),
                          changePt=CP(getChangePt(blockingParams[3])) )
     m = length(obs)-1
     updtLen = length(updtCoord)
     𝓦𝓢, ll, yPr = Workspace(ObsScheme(), P, m, yPr, w, fpt, ρ, updtCoord)
+    init_adaptation!(adaptiveProp, 𝓦𝓢)
 
     Paths = []
     accImpCounter = 0
@@ -1158,6 +1268,10 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
             verbose && print("------------------------------------------------",
                              "------\n")
         end
+        addPath!(adaptiveProp, 𝓦𝓢.XX, i)
+        adaptiveProp, 𝓦𝓢, yPr, ll = adaptationUpdt!(adaptiveProp, 𝓦𝓢, yPr, i,
+                                                     ll, ObsScheme(), ST())
+        adaptiveProp = still_adapting(adaptiveProp)
     end
     displayAcceptanceRate(𝔅)
     Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))

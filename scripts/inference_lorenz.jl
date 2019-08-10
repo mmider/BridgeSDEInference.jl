@@ -70,10 +70,11 @@ P̃ = [LorenzCVAux(θ₀..., t₀, u, T, v, auxFlag, x0[3]) for (t₀, T, u, v)
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=2*10^5
-saveIter=1*10^4
+numSteps=1*10^4
+saveIter=1*10^3
 
-tKernel = RandomWalk([2.0, 1.0, 0.64 0.3],
+
+tKernel = RandomWalk([2.0, 1.0, 0.64, 0.3],
                      [false, false, false, true])
 
 priors = Priors((ImproperPrior(), ImproperPrior(), ImproperPrior(),

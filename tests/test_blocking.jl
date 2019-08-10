@@ -101,7 +101,7 @@ end
             @test 𝔅.XX[i].yy[10][2] == i
             @test 𝔅.XXᵒ[i].yy[10][2] == 10 + i
         end
-        for i in 1:m
+        for i in 1:4
             𝔅.XX[i], 𝔅.XXᵒ[i] = 𝔅.XXᵒ[i], 𝔅.XX[i]
         end
         @testset "checking if containers swapped" for i in 1:4

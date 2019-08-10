@@ -116,6 +116,7 @@ x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain,
 df2 = savePathsToFile(pathsToSave, time_, joinpath(OUT_DIR, "sampled_paths.csv"))
 df3 = saveChainToFile(chain, joinpath(OUT_DIR, "chain.csv"))
 
+
 include(joinpath(AUX_DIR, "plotting_fns.jl"))
 set_default_plot_size(30cm, 20cm)
 plotPaths(df2, obs=[Float64.(df.x1), [x0⁺[2]]],

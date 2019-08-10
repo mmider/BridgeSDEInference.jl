@@ -448,7 +448,16 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
                                              P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
                                              P.M̃⁺, P.μ, L, v, Σ, changePt)
     end
+
+    function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC},
+                            Pt::R2) where {T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}
+        new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(P.Target, Pt,
+                                             P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
+                                             P.M̃⁺, P.μ, P.L, P.v, P.Σ,
+                                             P.changePt)
+    end
 end
+
 
 
 function _b((i,t)::IndexedTime, x, P::GuidPropBridge)

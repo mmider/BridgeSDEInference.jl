@@ -76,7 +76,29 @@ end
 chunkSize = 1
 result = DiffResults.GradientResult(θ₀)
 cfg = ForwardDiff.GradientConfig(ll, θ₀, ForwardDiff.Chunk{chunkSize}(), CT())
-@time ForwardDiff.gradient!(result, ll, θ₀, cfg, Val{false}()) # turn off tag checking...
+@time ForwardDiff.gradient!(result, ll, θ₀, cfg, Val{false}()) # turn off tag checking..., this needs to be solved somehow in the future
 
 result.value
 result.derivs
+
+
+Dual{CT}.(L, 0.0)
+
+
+using Interpolations
+using StaticArrays
+itp = LinearInterpolation([0.0, 1.0, 3.0], [ℝ(1.0, 2.0), ℝ(3.0,-2.0), ℝ(2.0,0.0)])
+
+itp = LinearInterpolation([0.0, 1.0], [ℝ(0.0), ℝ(0.0)], extrapolation_bc = Line())
+itp(2.0)
+
+using Plots
+tt = collect(0.0:0.01:3.0)
+xx₁ = [x[1] for x in itp(tt)]
+xx₂ = [x[2] for x in itp(tt)]
+plot(tt, xx₁)
+plot!(tt, xx₂)
+
+
+
+LinearInterpolation([0.0, 1.0, 3.0], [ℝ(1.0, 2.0), ℝ(3.0,-2.0), ℝ(2.0,0.0)])
