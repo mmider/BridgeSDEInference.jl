@@ -40,16 +40,16 @@ Random.seed!(4)
 θˣ = [10.0, 28.0, 8.0/3.0, 3.0]
 Pˣ = LorenzCV(θˣ...)
 
-x0, dt, T = ℝ{3}(1.5, -1.5, 25.0), 1/5000, 10.0
+x0, dt, T = ℝ{3}(1.5, -1.5, 25.0), 1/5000, 4.0
 tt = 0.0:dt:T
 XX, _ = simulateSegment(ℝ{3}(0.0, 0.0, 0.0), x0, Pˣ, tt)
 
+θ₀ = θˣ
+#θ₀ = [5.0, 15.0, 6.0, 8.0]
+#Pˣ = LorenzCV(θ₀...)
 
-θ₀ = [5.0, 15.0, 6.0, 8.0]
-Pˣ = LorenzCV(θ₀...)
 
-
-skip = 1000
+skip = 200
 
 Σdiagel = 10^0
 Σ = SMatrix{2,2}(1.0I)*Σdiagel
@@ -71,8 +71,8 @@ P̃ = [LorenzCVAux(θ₀..., t₀, u, T, v, auxFlag, x0[3]) for (t₀, T, u, v)
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^4
-saveIter=1*10^3
+numSteps=1*10^3
+saveIter=1*10^2
 
 
 tKernel = RandomWalk([2.0, 1.0, 0.64, 0.3],
@@ -84,9 +84,12 @@ priors = Priors((ImproperPrior(), ImproperPrior(), ImproperPrior(),
 𝔅 = NoBlocking()
 blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
-#x0Pr = KnownStartingPt(x0)
-x0Pr = GsnStartingPt(x0, x0, @SMatrix [20.0 0.0 0.0; 0.0 20.0 0.0; 0.0 0.0 400.0])
+x0Pr = KnownStartingPt(x0)
+#x0Pr = GsnStartingPt(x0, x0, @SMatrix [20.0 0.0 0.0; 0.0 20.0 0.0; 0.0 0.0 400.0])
 warmUp = 100
+
+#adaptation = NoAdaptation()
+adaptation = Adaptation(ℝ{3}(0.0, 0.0, 0.0), [0.8], [0.0], [100], 1)
 
 Random.seed!(4)
 start = time()
@@ -95,7 +98,7 @@ start = time()
                          ℝ{3}(0.0, 0.0, 0.0), Pˣ, P̃, Ls, Σs, numSteps,
                          tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.995,
+                         ρ=0.9,
                          dt=1/2000,
                          saveIter=saveIter,
                          verbIter=10^2,
@@ -116,7 +119,7 @@ start = time()
                          solver=Vern7(),
                          changePt=changePt,
                          warmUp=warmUp,
-                         adaptiveProp=NoAdaptation())
+                         adaptiveProp=adaptation)
 elapsed = time() - start
 print("time elapsed: ", elapsed, "\n")
 
@@ -128,8 +131,9 @@ using Plots
 pTp = [[[x[i] for x in path] for path in paths] for i in 1:3]
 
 function plotPaths(j, obsIdxS, obsIdxE, show_obs=true)
-    idxS = div((obsIdxS-1)*skip,5)+1
-    idxE = div((obsIdxE-1)*skip,5)+1
+    idxS = div((obsIdxS-1)*skip,2)+1
+    idxE = div((obsIdxE-1)*skip,2)+1
+    print(idxS, ", ", idxE, "\n")
     p = plot()
     for i in 1:length(paths)
         plot!(time_[idxS:idxE], pTp[j][i][idxS:idxE], label="", color="steelblue", alpha=0.2, linewidth=0.2)

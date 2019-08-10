@@ -27,19 +27,20 @@ end
 
 still_adapting(adpt::Adaptation{Val{false}}) = adpt
 
-function resize!(adpt::Adaptation, m, ns::Vector{Int64})
+function resize!(adpt::Adaptation{TV,T}, m, ns::Vector{Int64}) where {TV,T}
     K = length(adpt.X)
     for i in 1:K
         adpt.X[i] = [[zero(T) for _ in 1:ns[i]] for i in 1:m]
     end
 end
 
-function addPath!(adpt::Adaptation{Val{true},T}, X::Vector{Vector{T}}, i) where T
+function addPath!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i) where T
     if i % adpt.skip == 0
-        adpt.X[adpt.N[2]] .= X
+        m = length(X)
+        for j in 1:m
+            adpt.X[adpt.N[2]][j] .= X[j].yy
+        end
     end
 end
 
-temp = Adaptation(1.0, [1.0, 2.0], [0.0, 0.1], [3, 5])
-
-resize!(temp, 6, 2)
+addPath!(adpt::Adaptation{Val{false}}, ::Any, ::Any) = false

@@ -32,7 +32,7 @@ clone(P::LorenzCV, θ) = LorenzCV(θ...)
 params(P::LorenzCV) = [P.θ₁, P.θ₂, P.θ₃, P.σ]
 
 
-struct LorenzCVAux{O,R,S1,S2} <: ContinuousTimeProcess{ℝ{3,R}}
+struct LorenzCVAux{O,R,S1,S2,TI} <: ContinuousTimeProcess{ℝ{3,R}}
     θ₁::R
     θ₂::R
     θ₃::R
@@ -43,17 +43,18 @@ struct LorenzCVAux{O,R,S1,S2} <: ContinuousTimeProcess{ℝ{3,R}}
     v::S2
     aux::Float64
     λ::Vector{Float64}
-    X̄
+    X̄::TI
 
     function LorenzCVAux(θ₁::R, θ₂::R, θ₃::R, σ::R, t, u::S1, T,
                          v::S2, ::O, aux=0.0) where {O,R,S1,S2}
         λ = [1.0]
         X̄ = LinearInterpolation([t, T], zeros(ℝ{3,Float64}, 2), extrapolation_bc = Line())
-        new{O,R,S1,S2}(θ₁, θ₂, θ₃, σ, t, u, T, v, aux, X̄ₜ, λ, X̄)
+        TI = typeof(X̄)
+        new{O,R,S1,S2,TI}(θ₁, θ₂, θ₃, σ, t, u, T, v, aux, λ, X̄)
     end
 
-    function LorenzCVAux(P::LorenzCVAux{O,R,S1,S2}, X̄) where {O,R,S1,S2}
-        new{O,R,S1,S2}(P.θ₁, P.θ₂, P.θ₃, P.σ, P.t, P.u, P.T, P.v, P.aux, P.λ, X̄)
+    function LorenzCVAux(P::LorenzCVAux{O,R,S1,S2}, X̄::TI) where {O,R,S1,S2,TI}
+        new{O,R,S1,S2,TI}(P.θ₁, P.θ₂, P.θ₃, P.σ, P.t, P.u, P.T, P.v, P.aux, P.λ, X̄)
     end
 end
 

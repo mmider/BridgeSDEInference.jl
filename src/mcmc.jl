@@ -373,16 +373,17 @@ function adaptationUpdt!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace, yPr, 
             solveBackRec!(NoBlocking(), 𝓦𝓢.P, ST())
             #solveBackRec!(NoBlocking(), 𝓦𝓢.Pᵒ, ST())
             y = 𝓦𝓢.XX[1].yy[1]
-            yPr = invStartPt(y, yPr, P[1])
-            for i in 1:m
+            yPr = invStartPt(y, yPr, 𝓦𝓢.P[1])
+            for j in 1:m
                 invSolve!(Euler(), 𝓦𝓢.XX[j], 𝓦𝓢.WW[j], 𝓦𝓢.P[j])
             end
             ll = logpdf(yPr, y)
             ll += pathLogLikhd(ObsScheme(), 𝓦𝓢.XX, 𝓦𝓢.P, 1:m, 𝓦𝓢.fpt)
             ll += lobslikelihood(𝓦𝓢.P[1], y)
-
             adpt.N[2] = 1
             adpt.N[1] += 1
+        else
+            adpt.N[2] += 1
         end
     end
     adpt, 𝓦𝓢, yPr, ll
@@ -401,12 +402,26 @@ function compute_X̄(adpt::Adaptation{Val{true}})
         end
     end
     for j in 1:num_segments
-        num_pts = length(X[i][j])
+        num_pts = length(X[1][j])
         for k in 1:num_pts
             X[1][j][k] /= num_paths
         end
     end
     X[1]
+end
+
+print_adaptation_info(adpt::Adaptation{Val{false}}, ::Any, ::Any, ::Any) = nothing
+
+function print_adaptation_info(adpt::Adaptation{Val{true}}, accImpCounter,
+                               accUpdtCounter, i)
+    if i % adpt.skip == 0 && adpt.N[2] == adpt.sizes[adpt.N[1]]
+        print("--------------------------------------------------------\n")
+        print(" Adapting...\n")
+        print(" Using ", adpt.N[2], " many paths, thinned by ", adpt.skip, "\n")
+        print(" Previous imputation acceptance rate: ", accImpCounter/i, "\n")
+        print(" Previous param update acceptance rate: ", accUpdtCounter./i, "\n")
+        print("--------------------------------------------------------\n")
+    end
 end
 
 """
@@ -1248,6 +1263,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
     𝔅 = setBlocking(blocking, blockingParams, 𝓦𝓢)
     display(𝔅)
     for i in 1:numSteps
+        print(i, ", ")
         verbose = (i % verbIter == 0)
         i > warmUp && savePath!(Paths, blocking == NoBlocking() ? 𝓦𝓢.XX : 𝔅.XX,
                                 (i % saveIter == 0), skipForSave)
@@ -1269,6 +1285,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
                              "------\n")
         end
         addPath!(adaptiveProp, 𝓦𝓢.XX, i)
+        print_adaptation_info(adaptiveProp, accImpCounter, accUpdtCounter, i)
         adaptiveProp, 𝓦𝓢, yPr, ll = adaptationUpdt!(adaptiveProp, 𝓦𝓢, yPr, i,
                                                      ll, ObsScheme(), ST())
         adaptiveProp = still_adapting(adaptiveProp)

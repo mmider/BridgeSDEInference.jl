@@ -100,7 +100,8 @@ start = time()
                          blockingParams=blockingParams,
                          solver=Vern7(),
                          changePt=changePt,
-                         warmUp=warmUp)
+                         warmUp=warmUp,
+                         adaptiveProp=NoAdaptation())
 elapsed = time() - start
 print("time elapsed: ", elapsed, "\n")
 
