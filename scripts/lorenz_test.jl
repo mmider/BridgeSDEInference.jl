@@ -59,7 +59,7 @@ L = @SMatrix[1.0 0.0 0.0;
 
 
 obsTime, obsVals = XX.tt[1:skip:end], [rand(Gaussian(L*x, Σ)) for x in XX.yy[1:skip:end]]
-
+obsVals
 fptOrPartObs = PartObs()
 fpt = [NaN for _ in obsTime[2:end]]
 
@@ -71,11 +71,11 @@ P̃ = [LorenzCVAux(θ₀..., t₀, u, T, v, auxFlag, x0[3]) for (t₀, T, u, v)
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^3
+numSteps=2*10^3
 saveIter=1*10^2
 
 
-tKernel = RandomWalk([2.0, 1.0, 0.64, 0.3],
+tKernel = RandomWalk([2.0, 3.0, 0.64, 0.8], #[2.0, 1.0, 0.64, 0.3]
                      [false, false, false, true])
 
 priors = Priors((ImproperPrior(), ImproperPrior(), ImproperPrior(),
@@ -89,7 +89,7 @@ x0Pr = KnownStartingPt(x0)
 warmUp = 100
 
 #adaptation = NoAdaptation()
-adaptation = Adaptation(ℝ{3}(0.0, 0.0, 0.0), [0.8], [0.0], [100], 1)
+adaptation = Adaptation(ℝ{3}(0.0, 0.0, 0.0), [0.85, 0.7, 0.6], [0.5, 0.2, 0.0], [500, 500, 500], 1)
 
 Random.seed!(4)
 start = time()
@@ -130,12 +130,14 @@ print("imputation acceptance rate: ", accRateImp,
 using Plots
 pTp = [[[x[i] for x in path] for path in paths] for i in 1:3]
 
-function plotPaths(j, obsIdxS, obsIdxE, show_obs=true)
+function plotPaths(j, obsIdxS, obsIdxE, show_obs=true, half=1)
     idxS = div((obsIdxS-1)*skip,2)+1
     idxE = div((obsIdxE-1)*skip,2)+1
     print(idxS, ", ", idxE, "\n")
     p = plot()
-    for i in 1:length(paths)
+    iRange = (half == 1) ? (1:div(length(paths),2)) : (div(length(paths),2):length(paths))
+
+    for i in iRange
         plot!(time_[idxS:idxE], pTp[j][i][idxS:idxE], label="", color="steelblue", alpha=0.2, linewidth=0.2)
     end
     if show_obs
@@ -146,10 +148,66 @@ function plotPaths(j, obsIdxS, obsIdxE, show_obs=true)
 end
 
 plotPaths(1, 1, 10)
+plotPaths(1, 1, 10, true, 2)
 plotPaths(2, 1, 10)
+plotPaths(2, 1, 10, true, 2)
 plotPaths(3, 1, 10, false)
+plotPaths(3, 1, 10, false, 2)
+
+
+
 
 plot([θ[1] for θ in chain])
 plot([θ[2] for θ in chain])
 plot([θ[3] for θ in chain])
 plot([θ[4] for θ in chain])
+
+#=
+
+ws.P
+
+updateLaws!(ws.Pᵒ, params(ws.P[1].Target))
+solveBackRec!(NoBlocking(), ws.Pᵒ, Vern7())
+ws.P[1].Pt.X̄(0.05)
+ws.Pᵒ[1].Pt.X̄(0.05)
+m = length(ws.P)
+pathLogLikhd(PartObs(), ws.XX, ws.P, 1:m, ws.fpt)
+pathLogLikhd(PartObs(), ws.XX, ws.Pᵒ, 1:m, ws.fpt)
+
+
+
+s
+function plot_ll(xx, i, θᵒ)
+    llᵒpath = zeros(Float64, length(xx))
+    llᵒobs = zeros(Float64, length(xx))
+    llᵒtotal = zeros(Float64, length(xx))
+    m = length(ws.Pᵒ)
+    y = ws.XX[1].yy[1]
+    for (j,x) in enumerate(xx)
+        θₓ = copy(θᵒ)
+        θₓ[i] = x
+        updateLaws!(ws.Pᵒ, θₓ)
+        solveBackRec!(NoBlocking(), ws.Pᵒ, Vern7())
+        findPathFromWiener!(ws.XXᵒ, y, ws.WW, ws.Pᵒ, 1:m)
+        llᵒpath[j] = pathLogLikhd(PartObs(), ws.XXᵒ, ws.Pᵒ, 1:m, ws.fpt)
+        llᵒobs[j] = lobslikelihood(ws.Pᵒ[1], y)
+        llᵒtotal[j] = llᵒpath[j] + llᵒobs[j]
+    end
+    p1 = plot(xx, llᵒpath, label="path loglikhd")
+    solveBackRec!(NoBlocking(), ws.P, Vern7())
+    llpath = pathLogLikhd(PartObs(), ws.XX, ws.P, 1:m, ws.fpt)
+    llobs = lobslikelihood(ws.P[1], y)
+    scatter!([θᵒ[i]], [llpath])
+
+
+    p2 = plot(xx, llᵒobs, label="obs loglikhd")
+    plot!(xx, llᵒtotal, label="total loglikhd")
+    scatter!([θᵒ[i]], [llobs])
+    scatter!([θᵒ[i]], [llpath + llobs])
+    p = plot(p1,p2,layout=(1,2),legend=false)
+    p
+end
+
+p = plot_ll(9.0:0.01:12.0, 1, params(ws.P[1].Target))
+
+=#

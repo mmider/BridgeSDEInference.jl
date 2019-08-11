@@ -53,6 +53,11 @@ struct LorenzCVAux{O,R,S1,S2,TI} <: ContinuousTimeProcess{ℝ{3,R}}
         new{O,R,S1,S2,TI}(θ₁, θ₂, θ₃, σ, t, u, T, v, aux, λ, X̄)
     end
 
+    function LorenzCVAux(θ₁::R, θ₂::R, θ₃::R, σ::R, t, u::S1, T,
+                         v::S2, ::O, aux, λ::Vector{Float64}, X̄::TI) where {O,R,S1,S2,TI}
+        new{O,R,S1,S2,TI}(θ₁, θ₂, θ₃, σ, t, u, T, v, aux, λ, X̄)
+    end
+
     function LorenzCVAux(P::LorenzCVAux{O,R,S1,S2}, X̄::TI) where {O,R,S1,S2,TI}
         new{O,R,S1,S2,TI}(P.θ₁, P.θ₂, P.θ₃, P.σ, P.t, P.u, P.T, P.v, P.aux, P.λ, X̄)
     end
@@ -109,8 +114,8 @@ a(t, P::LorenzCVAux) = σ(t,P) * σ(t, P)'
 b(t, x, P::LorenzCVAux) = B(t, P)*x + β(t, P)
 
 constdiff(::LorenzCVAux) = true
-clone(P::LorenzCVAux, θ) = LorenzCVAux(θ..., P.t, P.u, P.T, P.v, observables(P), P.aux)
-clone(P::LorenzCVAux, θ, v) = LorenzCVAux(θ..., P.t, zero(v), P.T, v, observables(P), P.aux)
+clone(P::LorenzCVAux, θ) = LorenzCVAux(θ..., P.t, P.u, P.T, P.v, observables(P), P.aux, P.λ, P.X̄)
+clone(P::LorenzCVAux, θ, v) = LorenzCVAux(θ..., P.t, zero(v), P.T, v, observables(P), P.aux, P.λ, P.X̄)
 params(P::LorenzCVAux) = [P.θ₁, P.θ₂, P.θ₃, P.σ]
 dependsOnParams(::LorenzCVAux) = (1,2,3,4,5,6)
 

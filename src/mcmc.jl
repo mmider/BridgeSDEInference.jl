@@ -366,7 +366,10 @@ function adaptationUpdt!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace, yPr, 
                 Pt = recentre(𝓦𝓢.P[j].Pt, 𝓦𝓢.XX[j].tt, X̄[j])
                 update_λ!(Pt, adpt.λs[adpt.N[1]])
                 𝓦𝓢.P[j] = GuidPropBridge(𝓦𝓢.P[j], Pt)
-                𝓦𝓢.Pᵒ[j] = GuidPropBridge(𝓦𝓢.Pᵒ[j], Pt)
+
+                Ptᵒ = recentre(𝓦𝓢.Pᵒ[j].Pt, 𝓦𝓢.XX[j].tt, X̄[j])
+                update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
+                𝓦𝓢.Pᵒ[j] = GuidPropBridge(𝓦𝓢.Pᵒ[j], Ptᵒ)
             end
             𝓦𝓢 = Workspace(𝓦𝓢, adpt.ρs[adpt.N[1]])
 
@@ -374,6 +377,7 @@ function adaptationUpdt!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace, yPr, 
             #solveBackRec!(NoBlocking(), 𝓦𝓢.Pᵒ, ST())
             y = 𝓦𝓢.XX[1].yy[1]
             yPr = invStartPt(y, yPr, 𝓦𝓢.P[1])
+
             for j in 1:m
                 invSolve!(Euler(), 𝓦𝓢.XX[j], 𝓦𝓢.WW[j], 𝓦𝓢.P[j])
             end
@@ -1269,7 +1273,9 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
                                 (i % saveIter == 0), skipForSave)
         ll, acc, 𝔅, yPr = impute!(𝔅, yPr, 𝓦𝓢, ll; verbose=verbose, it=i,
                                   solver=ST())
+
         accImpCounter += 1*acc
+
         if paramUpdt && i > warmUp
             for j in 1:updtLen
                 (ll, acc, θ,
