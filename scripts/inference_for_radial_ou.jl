@@ -11,7 +11,6 @@ mkpath(OUT_DIR)
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
 #using Main.BridgeSDEInference
 include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
-include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
 
 include(joinpath(SRC_DIR, "types.jl"))
 include(joinpath(SRC_DIR, "vern7.jl"))
@@ -25,6 +24,7 @@ include(joinpath(SRC_DIR, "radial_ornstein_uhlenbeck.jl"))
 include(joinpath(SRC_DIR, "euler_maruyama_dom_restr.jl"))
 
 include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
+include(joinpath(SRC_DIR, "conjugateUpdt.jl"))
 include(joinpath(SRC_DIR, "random_walk.jl"))
 include(joinpath(SRC_DIR, "blocking_schedule.jl"))
 include(joinpath(SRC_DIR, "starting_pt.jl"))
