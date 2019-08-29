@@ -5,7 +5,7 @@ mkpath(OUT_DIR)
 
 
 include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
-include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
+include(joinpath(SRC_DIR, "conjugateUpdt.jl"))
 
 include(joinpath(SRC_DIR, "types.jl"))
 include(joinpath(SRC_DIR, "vern7.jl"))

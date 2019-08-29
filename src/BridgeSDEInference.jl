@@ -40,7 +40,6 @@ export Lorenz, LorenzAux
 export LorenzCV, LorenzCVAux
 
 include("fitzHughNagumo.jl")
-include("fitzHughNagumo_conjugateUpdt.jl")
 
 include("types.jl")
 include("ralston3.jl")
@@ -50,6 +49,7 @@ include("vern7.jl")
 
 include("priors.jl")
 include("guid_prop_bridge.jl")
+include("conjugateUpdt.jl")
 
 include("bounded_diffusion_domain.jl")
 include("euler_maruyama_dom_restr.jl")
