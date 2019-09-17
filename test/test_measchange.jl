@@ -50,7 +50,11 @@ function test_measchange()
 
     sample!(W, Wnr)
     X = solve(Euler(), x0, W, P)
+    v1 = X.yy[end]
+    X.yy[end] = zero(v1)
     solve!(Euler(), X, x0, W, P)
+    @test v1 ≈ X.yy[end]
+
     Pᵒ = BridgeSDEInference.GuidPropBridge(eltype(x0), t, P, P̃, L, v, Σ)
 
 
