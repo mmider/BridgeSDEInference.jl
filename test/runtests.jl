@@ -1,11 +1,11 @@
 using Test
 
-using Bridge, StaticArrays, Distributions
+using Bridge, BridgeSDEInference, StaticArrays, Distributions
 using Statistics, Random, LinearAlgebra
-POSSIBLE_PARAMS = [:regular, :simpleAlter, :complexAlter, :simpleConjug,
-                   :complexConjug]
-SRC_DIR = joinpath(Base.source_dir(), "..", "src")
 
+const BSI = BridgeSDEInference
+using BridgeSDEInference: ℝ
 
 include("test_ODE_solver_change_pt.jl")
 include("test_blocking.jl")
+include("test_measchange.jl")

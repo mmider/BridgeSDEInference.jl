@@ -485,11 +485,11 @@ function llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)
                  * (tt[i+1]-tt[i]) )
 
         if !constdiff(P)
-            H = H((i,s), x, P)
+            Hi = H((i,s), x, P)
             som -= ( 0.5*tr( (a((i,s), x, target(P))
-                             - aitilde((i,s), x, P))*H ) * (tt[i+1]-tt[i]) )
+                             - a((i,s), x, auxiliary(P)))*Hi ) * (tt[i+1]-tt[i]) )
             som += ( 0.5*( r'*(a((i,s), x, target(P))
-                           - aitilde((i,s), x, P))*r ) * (tt[i+1]-tt[i]) )
+                           - a((i,s), x, auxiliary(P)))*r ) * (tt[i+1]-tt[i]) )
         end
     end
     som
