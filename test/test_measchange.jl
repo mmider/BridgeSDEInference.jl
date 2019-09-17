@@ -109,7 +109,7 @@ function test_measchange()
     end
     bias = wcounts - counts[2:end-1]
 
-    @testset "Stastical correctness guided proposals" begin
+    @testset "Statistical correctness of guided proposals" begin
         @test norm(bias) < 0.05
     end
 end
