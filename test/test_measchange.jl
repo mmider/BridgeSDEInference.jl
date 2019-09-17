@@ -35,7 +35,6 @@ function test_measchange()
     P = TargetSDE()
     v = 𝕏(pi/2)
 
-    P̃ = LinearSDE(Bridge.σ(T, v, P))
     x0 = 𝕏(-pi/2)
 
     t = 0:0.01*f*fextra:T
