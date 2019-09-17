@@ -54,7 +54,6 @@ function test_measchange()
     solve!(Euler(), X, x0, W, P)
     @test v1 ≈ X.yy[end]
 
-    Pᵒ = BridgeSDEInference.GuidPropBridge(eltype(x0), t, P, P̃, L, v, Σ)
 
 
     K = 50
