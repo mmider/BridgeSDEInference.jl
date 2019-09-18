@@ -42,31 +42,30 @@ export LorenzCV, LorenzCVAux
 # adaptation.jl
 export Adaptation, NoAdaptation
 
-include("fitzHughNagumo.jl")
 
 include("types.jl")
-include("ralston3.jl")
-include("rk4.jl")
-include("tsit5.jl")
-include("vern7.jl")
+include(joinpath("solvers", "ralston3.jl"))
+include(joinpath("solvers", "rk4.jl"))
+include(joinpath("solvers", "tsit5.jl"))
+include(joinpath("solvers", "vern7.jl"))
 
-include("priors.jl")
-include("guid_prop_bridge.jl")
-include("conjugateUpdt.jl")
+include(joinpath("mcmc", "priors.jl"))
+include(joinpath("stochastic_process", "guid_prop_bridge.jl"))
+include(joinpath("mcmc", "conjugateUpdt.jl"))
 
-include("bounded_diffusion_domain.jl")
-include("euler_maruyama_dom_restr.jl")
+include(joinpath("stochastic_process", "bounded_diffusion_domain.jl"))
+include(joinpath("solvers", "euler_maruyama_dom_restr.jl"))
 
-include("radial_ornstein_uhlenbeck.jl")
-include("lorenz_system.jl")
-include("lorenz_system_const_vola.jl")
+include(joinpath("examples", "radial_ornstein_uhlenbeck.jl"))
+include(joinpath("examples", "lorenz_system.jl"))
+include(joinpath("examples", "lorenz_system_const_vola.jl"))
 
-include("random_walk.jl")
-include("blocking_schedule.jl")
-include("starting_pt.jl")
-include("adaptation.jl")
-include("mcmc.jl")
-include("path_to_wiener.jl")
+include(joinpath("transition_kernels", "random_walk.jl"))
+include(joinpath("mcmc_extras", "blocking_schedule.jl"))
+include(joinpath("mcmc_extras", "starting_pt.jl"))
+include(joinpath("mcmc_extras", "adaptation.jl"))
+include(joinpath("mcmc", "mcmc.jl"))
+include(joinpath("stochastic_process", "path_to_wiener.jl"))
 
 
 

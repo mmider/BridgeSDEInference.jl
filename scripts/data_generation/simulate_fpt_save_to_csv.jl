@@ -4,16 +4,15 @@ using Bridge
  using CSV
 
  SRC_DIR = joinpath(Base.source_dir(), "..", "src")
- AUX_DIR = joinpath(SRC_DIR, "auxiliary")
- include(joinpath(AUX_DIR, "data_simulation_fns.jl"))
+ include(joinpath(SRC_DIR, "auxiliary", "data_simulation_fns.jl"))
  OUT_DIR = joinpath(Base.source_dir(), "..", "output")
  mkpath(OUT_DIR)
 
  include(joinpath(SRC_DIR, "types.jl"))
- include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
- include(joinpath(SRC_DIR, "bounded_diffusion_domain.jl"))
- include(joinpath(SRC_DIR, "euler_maruyama_dom_restr.jl"))
- include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
+ include(joinpath(SRC_DIR, "stochastic_process", "guid_prop_bridge.jl"))
+ include(joinpath(SRC_DIR, "stochastic_process", "bounded_diffusion_domain.jl"))
+ include(joinpath(SRC_DIR, "solvers", "euler_maruyama_dom_restr.jl"))
+ include(joinpath(SRC_DIR, "examples", "fitzHughNagumo.jl"))
 
  param = :simpleConjug
  FILENAME_OUT = joinpath(OUT_DIR,

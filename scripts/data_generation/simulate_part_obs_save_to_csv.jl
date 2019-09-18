@@ -4,12 +4,11 @@ using Bridge
  using CSV
 
  SRC_DIR = joinpath(Base.source_dir(), "..", "src")
- AUX_DIR = joinpath(SRC_DIR, "auxiliary")
- include(joinpath(AUX_DIR, "data_simulation_fns.jl"))
+ include(joinpath(SRC_DIR, "auxiliary", "data_simulation_fns.jl"))
  OUT_DIR = joinpath(Base.source_dir(), "..", "output")
  mkpath(OUT_DIR)
 
- include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
+ include(joinpath(SRC_DIR, "examples", "fitzHughNagumo.jl"))
  param = :simpleConjug
  FILENAME_OUT = joinpath(OUT_DIR,
                          "test_path_part_obs_"*String(param)*".csv")
