@@ -1267,7 +1267,7 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
     𝔅 = setBlocking(blocking, blockingParams, 𝓦𝓢)
     display(𝔅)
     for i in 1:numSteps
-        print(i, ", ")
+        #print(i, ", ")
         verbose = (i % verbIter == 0)
         i > warmUp && savePath!(Paths, blocking == NoBlocking() ? 𝓦𝓢.XX : 𝔅.XX,
                                 (i % saveIter == 0), skipForSave)

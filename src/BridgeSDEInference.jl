@@ -39,6 +39,9 @@ export Lorenz, LorenzAux
 # lorenz_system_const_vola.jl
 export LorenzCV, LorenzCVAux
 
+# adaptation.jl
+export Adaptation, NoAdaptation
+
 include("fitzHughNagumo.jl")
 include("fitzHughNagumo_conjugateUpdt.jl")
 
@@ -61,6 +64,7 @@ include("lorenz_system_const_vola.jl")
 include("random_walk.jl")
 include("blocking_schedule.jl")
 include("starting_pt.jl")
+include("adaptation.jl")
 include("mcmc.jl")
 include("path_to_wiener.jl")
 

@@ -61,6 +61,12 @@ struct LorenzCVAux{O,R,S1,S2,TI} <: ContinuousTimeProcess{ℝ{3,R}}
     function LorenzCVAux(P::LorenzCVAux{O,R,S1,S2}, X̄::TI) where {O,R,S1,S2,TI}
         new{O,R,S1,S2,TI}(P.θ₁, P.θ₂, P.θ₃, P.σ, P.t, P.u, P.T, P.v, P.aux, P.λ, X̄)
     end
+
+    function LorenzCVAux(P::LorenzCVAux{Val{(false,true,true)},R,S1,S2}, X̄::TI
+                         ) where {R,S1,S2,TI}
+        new{Val{(false,true,true)},R,S1,S2,TI}(P.θ₁, P.θ₂, P.θ₃, P.σ, P.t, P.u,
+                                             P.T, P.v, X̄(P.T)[1], P.λ, X̄)
+    end
 end
 
 function recentre(P::LorenzCVAux, tt, X̄)
@@ -146,4 +152,19 @@ function β₀(t, P::LorenzCVAux{Val{(true,true,false)}})
     @SVector [0.0,
               P.v[1]*P.aux,
               -P.v[1]*P.v[2]]
+end
+
+
+# Auxiliary diffusion when coordinates [2,3] are observed
+# ---------------------------------------------------------
+function B₀(t, P::LorenzCVAux{Val{(false,true,true)}})
+    @SMatrix [ -P.θ₁  P.θ₁  0.0;
+               P.θ₂-P.v[2]  -1.0  -P.aux;
+               P.v[1]  P.aux  -P.θ₃]
+end
+
+function β₀(t, P::LorenzCVAux{Val{(false,true,true)}})
+    @SVector [0.0,
+              P.aux*P.v[2],
+              -P.aux*P.v[1]]
 end

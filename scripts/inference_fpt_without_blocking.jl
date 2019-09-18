@@ -11,12 +11,13 @@ using DataFrames
 using CSV
 include(joinpath(AUX_DIR, "read_and_write_data.jl"))
 include(joinpath(AUX_DIR, "transforms.jl"))
+using LinearAlgebra
 
 # decide if first passage time observations or partially observed diffusion
 fptObsFlag = true
 
 # pick dataset
-filename = "path_fpt_simpleConjug.csv"
+filename = "test_path_fpt_simpleConjug.csv"#"path_fpt_simpleConjug.csv"
 
 # fetch the data
 (df, x0, obs, obsTime, fpt,
@@ -24,7 +25,7 @@ filename = "path_fpt_simpleConjug.csv"
 
 param = :complexConjug
 # Initial parameter guess.
-θ₀ = [10.0, -8.0, 25.0, 0.0, 3.0]
+θ₀ = [10.0, -5.0, 5.0, 0.0, 3.0]
 # Target law
 P˟ = FitzhughDiffusion(param, θ₀...)
 # Auxiliary law
@@ -39,20 +40,20 @@ L = @SMatrix [1. 0.]
 Ls = [L for _ in P̃]
 Σs = [Σ for _ in P̃]
 τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-numSteps=1*10^5
-saveIter=3*10^3
+numSteps=3*10^5#5*10^5
+saveIter=1*10^4
 tKernel = RandomWalk([3.0, 5.0, 0.5, 0.01, 0.5],
                      [false, false, false, false, true])
-priors = Priors((#MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
-                 ##MvNormal([0.0], diagm(0=>[1000.0])),
-                 ImproperPrior(),
+priors = Priors((MvNormal([0.0,0.0], diagm(0=>[1000.0, 1000.0])),
+                 #MvNormal([0.0], diagm(0=>[1000.0])),
+                 #ImproperPrior(),
                  #ImproperPrior(),)
                  ))
 𝔅 = NoBlocking()
 blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
-x0Pr = KnownStartingPt(x0)
-#x0Pr = GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
+#x0Pr = KnownStartingPt(x0)
+x0Pr = GsnStartingPt(zero(typeof(x0)), zero(typeof(x0)), @SMatrix [100. 0; 0 100.])
 warmUp=100
 
 Random.seed!(4)
@@ -61,17 +62,17 @@ start = time()
     paths, time_) = mcmc(eltype(x0), fptOrPartObs, obs, obsTime, x0Pr, 0.0, P˟,
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
-                         ρ=0.997,
-                         dt=1/500,
+                         ρ=0.9995,
+                         dt=1/2000,
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(#Val((true, true, true, false, false)),
                                     #Val((true, false, false, false, false)),
-                                    Val((false, false, true, false, false)),
+                                    Val((false, true, true, false, false)),
                                     ),
                          paramUpdt=true,
-                         updtType=(#ConjugateUpdt(),
-                                   MetropolisHastingsUpdt(),
+                         updtType=(ConjugateUpdt(),
+                                   #MetropolisHastingsUpdt(),
                                    #MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^1,
@@ -79,7 +80,8 @@ start = time()
                          blockingParams=blockingParams,
                          solver=Vern7(),
                          changePt=changePt,
-                         warmUp=warmUp)
+                         warmUp=warmUp,
+                         adaptiveProp=NoAdaptation())
 elapsed = time() - start
 print("time elapsed: ", elapsed, "\n")
 
@@ -98,6 +100,9 @@ include(joinpath(AUX_DIR, "plotting_fns.jl"))
 set_default_plot_size(30cm, 20cm)
 plotPaths(df2, obs=[Float64.(df.upCross), [x0⁺[2]]],
           obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
+
+
+print(Float64.(df.time))
 
 plotChain(df3, coords=[1])
 plotChain(df3, coords=[2])
