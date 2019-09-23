@@ -14,6 +14,7 @@ export ImproperPrior, NoChangePt, SimpleChangePt
 
 # mcmc.jl
 export mcmc, PartObs, FPT, FPTInfo, ConjugateUpdt, MetropolisHastingsUpdt
+export mixedmcmc, MixedEffectsMHUpdt
 
 # ODE solvers:
 export Ralston3, RK4, Tsit5, Vern7
@@ -48,5 +49,5 @@ include("blocking_schedule.jl")
 include("starting_pt.jl")
 include("mcmc.jl")
 include("path_to_wiener.jl")
-
+include("mixedeffects.jl")
 end

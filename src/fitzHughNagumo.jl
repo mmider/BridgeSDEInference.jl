@@ -112,7 +112,7 @@ end
 constdiff(::FitzhughDiffusion) = true
 clone(P::FitzhughDiffusion, θ) = FitzhughDiffusion(P.param, θ...)
 params(P::FitzhughDiffusion) = [P.ϵ, P.s, P.γ, P.β, P.σ]
-
+paramnames(::FitzhughDiffusion) = [:ϵ, :s, :γ, :β, :σ]
 
 """
     struct FitzhughDiffusionAux <: ContinuousTimeProcess{ℝ{2}}
@@ -305,6 +305,7 @@ clone(P::FitzhughDiffusionAux, θ) = FitzhughDiffusionAux(P.param, θ..., P.t,
 clone(P::FitzhughDiffusionAux, θ, v) = FitzhughDiffusionAux(P.param, θ..., P.t,
                                                             zero(v), P.T, v)
 params(P::FitzhughDiffusionAux) = [P.ϵ, P.s, P.γ, P.β, P.σ]
+paramnames(::FitzhughDiffusionAux) = [:ϵ, :s, :γ, :β, :σ]
 
 
 """

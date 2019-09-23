@@ -46,6 +46,14 @@ Flag for performing update according to Metropolis Hastings step
 """
 struct MetropolisHastingsUpdt <: ParamUpdateType end
 
+"""
+    MixedEffectsMHUpdt <: ParamUpdateType
+
+Flag for performing update according to Metropolis Hastings step
+for a mixed effect parameter.
+"""
+struct MixedEffectsMHUpdt <: ParamUpdateType end
+
 
 """
     setBlocking(𝔅::NoBlocking, ::Any, ::Any, ::Any, ::Any)
@@ -481,7 +489,7 @@ Imputation step of the MCMC scheme (without blocking).
 - `XXᵒ`: containers for proposal diffusion paths
 - `XX`: containers with old diffusion paths
 - `P`: laws of the diffusion path (proposal and target)
-- `11`: log-likelihood of the old (previously accepted) diffusion path
+- `ll`: log-likelihood of the old (previously accepted) diffusion path
 - `fpt`: info about first-passage time conditioning
 - `ρ`: memory parameter for the Crank-Nicolson scheme
 - `verbose`: whether to print updates info while sampling
@@ -593,7 +601,7 @@ Imputation step of the MCMC scheme (without blocking).
 - `XXᵒ`: containers for proposal diffusion paths
 - `XX`: containers with old diffusion paths
 - `P`: laws of the diffusion path (proposal and target)
-- `11`: log-likelihood of the old (previously accepted) diffusion path
+- `ll`: log-likelihood of the old (previously accepted) diffusion path
 - `fpt`: info about first-passage time conditioning
 - `ρ`: memory parameter for the Crank-Nicolson scheme
 - `verbose`: whether to print updates info while sampling
@@ -676,7 +684,7 @@ Imputation step of the MCMC scheme (without blocking).
 - `XXᵒ`: containers for proposal diffusion paths
 - `XX`: containers with old diffusion paths
 - `P`: laws of the diffusion path (proposal and target)
-- `11`: log-likelihood of the old (previously accepted) diffusion path
+- `ll`: log-likelihood of the old (previously accepted) diffusion path
 - `fpt`: info about first-passage time conditioning
 - `ρ`: memory parameter for the Crank-Nicolson scheme
 - `verbose`: whether to print updates info while sampling
@@ -840,7 +848,7 @@ Update parameters
 - `P`: laws of the diffusion path with old parametrisation
 - `XXᵒ`: containers for proposal diffusion paths
 - `XX`: containers with old diffusion paths
-- `11`: likelihood of the old (previously accepted) parametrisation
+- `ll`: likelihood of the old (previously accepted) parametrisation
 - `priors`: list of priors
 - `fpt`: info about first-passage time conditioning
 - `recomputeODEs`: whether auxiliary law depends on the updated params
@@ -901,7 +909,7 @@ Update parameters
 - `P`: laws of the diffusion path with old parametrisation
 - `XXᵒ`: containers for proposal diffusion paths
 - `XX`: containers with old diffusion paths
-- `11`: likelihood of the old (previously accepted) parametrisation
+- `ll`: likelihood of the old (previously accepted) parametrisation
 - `priors`: list of priors
 - `fpt`: info about first-passage time conditioning
 - `recomputeODEs`: whether auxiliary law depends on the updated params
