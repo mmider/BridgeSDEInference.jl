@@ -88,7 +88,10 @@ function mixedmcmc(::Type{𝕂}, ::ObsScheme, obs, obsTimes, yPr::Vector{<:Start
     accImpCounter = 0
     accUpdtCounter = [0 for i in 1:updtLen]
     θ = params.(P˟)
+    θrandom = map(P->params(P)[[randomEffects...]], P˟)
+    θfix = params(P˟[1])[.![randomEffects...]]
     θchain = [deepcopy(θ)]
+    # continue here
     recomputeODEs = [any([e in dependsOnParams(P[1].Pt) for e
                          in idx(uc)]) for uc in updtCoord]
 
