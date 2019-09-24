@@ -212,7 +212,7 @@ end
 
 Initialise the workspace for MCMC algorithm. Initialises containers for driving
 Wiener processes `WWᵒ` & `WW`, for diffusion processes `XXᵒ` & `XX`, for
-diffusion Law `Pᵒ` (parametetrised by proposal parameters) and defines the type
+diffusion Law `Pᵒ` (parametrised by proposal parameters) and defines the type
 of Wiener process `Wnr`.
 """
 function initialise(::ObsScheme, P, m, yPr::StartingPtPrior{T}, ::S,
