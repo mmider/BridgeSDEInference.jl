@@ -77,7 +77,6 @@ Observation scheme in which only first passage times are observed
 struct FPT <: AbstractObsScheme end
 
 
-
 """
     ParamUpdateType
 
@@ -105,6 +104,15 @@ struct MetropolisHastingsUpdt <: ParamUpdateType end
 Flag for performing Metropolis adjusted Langevin updates
 """
 struct LangevinUpdt <: ParamUpdateType end
+
+"""
+    BlockingSchedule
+
+Types inheriting from abstract type `BlockingSchedule` define the schedule
+according to which blocking is done
+"""
+abstract type BlockingSchedule end
+
 
 
 abstract type ActionType end

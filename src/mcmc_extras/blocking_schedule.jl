@@ -1,13 +1,5 @@
 import Base: display
 
-"""
-    BlockingSchedule
-
-Types inheriting from abstract type `BlockingSchedule` define the schedule
-according to which blocking is done
-"""
-abstract type BlockingSchedule end
-
 
 """
     struct NoBlocking <: BlockingSchedule end
