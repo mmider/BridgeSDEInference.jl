@@ -72,16 +72,17 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
     m = N - 1
     updtLen = length(updtCoord)
     tu = initialise(ObsScheme, P[1], m, yPr[1], w, fpt[1])
-    vars = (:Wnr, :WWᵒ, :WW, :XXᵒ, :XX, :Pᵒ, :ll)
-    local Wnr, WWᵒ, WW, XXᵒ, XX, Pᵒ, ll
-    Wnr = [tu[1]]; WWᵒ = [tu[2]]; WW = [tu[3]]; XXᵒ= [tu[4]]; XX = [tu[5]]; Pᵒ = [tu[6]]; ll = [tu[7]]
+    Wnr = [tu[1]]; WWᵒ = [tu[2]]; WW = [tu[3]];
+    XXᵒ= [tu[4]]; XX = [tu[5]]; Pᵒ = [tu[6]];
+    ll = [tu[7]]
 
     yPr[1] = tu[8]
     for k in 2:K
         tu = initialise(ObsScheme, P[k], m, yPr[k], w, fpt[k])
-        for (i, var) in enumerate(vars)
-            eval(:(push!($var, $tu[$i])))
-        end
+        push!(Wnr, tu[1]); push!(WWᵒ, tu[2]); push!(WW, tu[3]);
+        push!(XXᵒ, tu[4]); push!(XX, tu[5]); push!(Pᵒ, tu[6]);
+        push!(ll, tu[7]);
+
         yPr[k] = tu[end]
     end
 
@@ -97,26 +98,28 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
     updtStepCounter = 1
     𝔅 = [setBlocking(blocking, blockingParams, P[k], WW[k], XX[k]) for k in 1:K]
     #display(𝔅)
-
+    acc = zeros(Bool, K)
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
         i > warmUp && savePath!(Paths, blocking == NoBlocking() ? XX : 𝔅.XX,
                                 (i % saveIter == 0), skipForSave)
         for k in 1:K
 
-            ll[k], acc[k], 𝔅[k], yPr[k] = impute!(ObsScheme[k], 𝔅[k], Wnr[k], yPr[k], WWᵒ[k], WW[k], XXᵒ[k], XX[k],
+            tu = impute!(ObsScheme, 𝔅[k], Wnr[k], yPr[k], WWᵒ[k], WW[k], XXᵒ[k], XX[k],
                                   P[k], ll[k], fpt[k], ρ=ρ, verbose=verbose, it=i,
                                   solver=solver)
+            ll[k] = tu[1]; acc[k] = tu[2]; 𝔅[k] = tu[3]; yPr[k] = tu[4]
         end
-        accImpCounter += 1*acc
+        accImpCounter += sum(acc)
         if paramUpdt && i > warmUp
             for j in 1:updtLen
-                (ll, acc, θ,
-                 yPr) = updateParam!(ObsScheme, updtType[j], 𝔅, tKernel, θ,
+                ll, accp, θ, yPr = updateParam!(ObsScheme, updtType[j], 𝔅, tKernel, θ,
                                      updtCoord[j], yPr, WW, Pᵒ, P, XXᵒ, XX, ll,
                                      priors[j], fpt, recomputeODEs[j];
                                      solver=solver, verbose=verbose, it=i)
-                accUpdtCounter[j] += 1*acc
+
+
+                accUpdtCounter[j] += 1*accp
                 updtStepCounter += 1
                 θchain[updtStepCounter] = copy(θ)
                 verbose && print("\n")
@@ -128,4 +131,48 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
     displayAcceptanceRate(𝔅)
     Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))
     θchain, accImpCounter/numSteps, accUpdtCounter./numSteps, Paths, Time
+end
+
+function conjugateDraw(θ, XX::Vector, PT, prior, updtIdx)
+    μ = mustart(updtIdx)
+    𝓦 = μ*μ'
+    ϑ = SVector(thetaex(updtIdx, θ))
+    for k in 1:length(XX)
+        μ, 𝓦 = _conjugateDraw(ϑ, μ, 𝓦, XX[k], PT, updtIdx)
+    end
+    Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
+    Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
+    μₚₒₛₜ = Σ * (μ + Vector(prior.Σ\prior.μ))
+    rand(Gaussian(μₚₒₛₜ, Σ))
+end
+
+
+# no blocking
+function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅,
+                      tKern, θ, ::UpdtIdx, yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors,
+                      fpt, recomputeODEs; solver=Ralston3(), verbose=false,
+                      it=NaN) where {ObsScheme <: AbstractObsScheme, UpdtIdx}
+    K = length(P)
+    m = length(P[1])
+    ϑ = conjugateDraw(θ, XX, P[1][1].Target, priors[1], UpdtIdx())   # sample new parameter
+    θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())     # align so that dimensions agree
+    llᵒ = zeros(K)
+    for k in 1:K
+        updateLaws!(P[k], θᵒ)
+        recomputeODEs && solveBackRec!(NoBlocking(), P[k], solver) # compute (H, Hν, c)
+
+        for i in 1:m    # compute wiener path WW that generates XX
+            invSolve!(Euler(), XX[k][i], WW[k][i], P[k][i])
+        end
+        # compute white noise that generates starting point
+        y = XX[k][1].yy[1]
+        yPr[k] = invStartPt(y, yPr[k], P[k][1])
+
+        llᵒ[k] = logpdf(yPr[k], y)
+        llᵒ[k] += pathLogLikhd(ObsScheme(), XX[k], P[k], 1:m, fpt; skipFPT=true)
+        llᵒ[k] += lobslikelihood(P[k][1], y)
+    end
+
+    #printInfo(verbose, it, value(ll), value(llᵒ))
+    return llᵒ, true, θᵒ, yPr
 end
