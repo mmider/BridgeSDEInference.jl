@@ -48,5 +48,5 @@ include("blocking_schedule.jl")
 include("starting_pt.jl")
 include("mcmc.jl")
 include("path_to_wiener.jl")
-include("repeated.jl)
+include("repeated.jl")
 end
