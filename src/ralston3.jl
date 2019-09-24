@@ -11,7 +11,7 @@ struct Ralston3 <: ODESolverType end
 #=
         FOUR components
 =#
-function update(::Ralston3, fs, t, A, B, C, D, dt, P, tableau=NaN)
+function update(::Ralston3, fs, t, A, B, C, D, dt, P, tableau::Nothing=nothing)
     kA1 = update(fs[1], t, A, B, C, D, P)
     kB1 = update(fs[2], t, A, B, C, D, P)
     kC1 = update(fs[3], t, A, B, C, D, P)
@@ -45,7 +45,7 @@ end
 #=
         THREE components
 =#
-function update(::Ralston3, fs, t, A, B, C, dt, P, tableau=NaN)
+function update(::Ralston3, fs, t, A, B, C, dt, P, tableau::Nothing=nothing)
     kA1 = update(fs[1], t, A, B, C, P)
     kB1 = update(fs[2], t, A, B, C, P)
     kC1 = update(fs[3], t, A, B, C, P)
@@ -74,7 +74,7 @@ end
 #=
         TWO components
 =#
-function update(::Ralston3, fs, t, A, B, dt, P, tableau=NaN)
+function update(::Ralston3, fs, t, A, B, dt, P, tableau::Nothing=nothing)
     kA1 = update(fs[1], t, A, B, P)
     kB1 = update(fs[2], t, A, B, P)
 

@@ -140,7 +140,7 @@ function invStartPt(y, G::GsnStartingPt, P::GuidPropBridge)
     μₚₒₛₜ = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
     Σₚₒₛₜ = inv(P.H[1] + G.Λ)
     Σₚₒₛₜ = 0.5 * (Σₚₒₛₜ + Σₚₒₛₜ')
-    GsnStartingPt(whiten(Σₚₒₛₜ, y-μₚₒₛₜ), G)
+    GsnStartingPt(whiten(Σₚₒₛₜ, y - μₚₒₛₜ), G)
 end
 
 """
