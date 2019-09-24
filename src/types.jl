@@ -52,6 +52,70 @@ used
 getChangePt(changePt::ODEChangePt) = changePt.λ
 
 
+"""
+    AbstractObsScheme
+
+Types inheriting from abstract type `AbstractObsScheme` define the scheme
+according to which a stochastic process has been observed
+"""
+abstract type AbstractObsScheme end
+
+
+"""
+    PartObs <: AbstractObsScheme
+
+Type acting as a flag for partially observed diffusions
+"""
+struct PartObs <: AbstractObsScheme end
+
+
+"""
+    FPT <: AbstractObsScheme
+
+Observation scheme in which only first passage times are observed
+"""
+struct FPT <: AbstractObsScheme end
+
+
+
+"""
+    ParamUpdateType
+
+Types inheriting from abstract type `ParamUpdateType` define the way in which
+parameters are to be updated by the MCMC sampler
+"""
+abstract type ParamUpdateType end
+
+"""
+    ConjugateUpdt <: ParamUpdateType
+
+Type acting as a flag for update from full conditional (conjugate to a prior)
+"""
+struct ConjugateUpdt <: ParamUpdateType end
+
+"""
+    MetropolisHastingsUpdt <: ParamUpdateType
+
+Flag for performing update according to Metropolis Hastings step
+"""
+struct MetropolisHastingsUpdt <: ParamUpdateType end
+
+"""
+    LangevinUpdt <: ParamUpdateType
+Flag for performing Metropolis adjusted Langevin updates
+"""
+struct LangevinUpdt <: ParamUpdateType end
+
+
+abstract type ActionType end
+
+struct Verbose <: ActionType end
+struct SavePath <: ActionType end
+struct Imputation <: ActionType end
+struct ParamUpdate <: ActionType end
+
+
+
 #TODO implement Jeffrey's priors
 """
     ImproperPrior

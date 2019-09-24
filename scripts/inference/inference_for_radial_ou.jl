@@ -4,32 +4,31 @@
 # ------------------------------------------------------------
 
 SRC_DIR = joinpath(Base.source_dir(), "..", "src")
-AUX_DIR = joinpath(SRC_DIR, "auxiliary")
 OUT_DIR=joinpath(Base.source_dir(), "..", "output")
 mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
 #using Main.BridgeSDEInference
-include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
+include(joinpath(SRC_DIR, "examples", "fitzHughNagumo.jl"))
 
 include(joinpath(SRC_DIR, "types.jl"))
-include(joinpath(SRC_DIR, "vern7.jl"))
-include(joinpath(SRC_DIR, "tsit5.jl"))
-include(joinpath(SRC_DIR, "rk4.jl"))
-include(joinpath(SRC_DIR, "ralston3.jl"))
-include(joinpath(SRC_DIR, "priors.jl"))
+include(joinpath(SRC_DIR, "solvers", "vern7.jl"))
+include(joinpath(SRC_DIR, "solvers", "tsit5.jl"))
+include(joinpath(SRC_DIR, "solvers", "rk4.jl"))
+include(joinpath(SRC_DIR, "solvers", "ralston3.jl"))
+include(joinpath(SRC_DIR, "mcmc", "priors.jl"))
 
-include(joinpath(SRC_DIR, "bounded_diffusion_domain.jl"))
-include(joinpath(SRC_DIR, "radial_ornstein_uhlenbeck.jl"))
-include(joinpath(SRC_DIR, "euler_maruyama_dom_restr.jl"))
+include(joinpath(SRC_DIR, "stochastic_process", "bounded_diffusion_domain.jl"))
+include(joinpath(SRC_DIR, "examples", "radial_ornstein_uhlenbeck.jl"))
+include(joinpath(SRC_DIR, "solvers", "euler_maruyama_dom_restr.jl"))
 
-include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
-include(joinpath(SRC_DIR, "conjugateUpdt.jl"))
-include(joinpath(SRC_DIR, "random_walk.jl"))
-include(joinpath(SRC_DIR, "blocking_schedule.jl"))
-include(joinpath(SRC_DIR, "starting_pt.jl"))
-include(joinpath(SRC_DIR, "mcmc.jl"))
-include(joinpath(SRC_DIR, "path_to_wiener.jl"))
+include(joinpath(SRC_DIR, "stochastic_process", "guid_prop_bridge.jl"))
+include(joinpath(SRC_DIR, "mcmc", "conjugateUpdt.jl"))
+include(joinpath(SRC_DIR, "transition_kernels", "random_walk.jl"))
+include(joinpath(SRC_DIR, "mcmc_extras", "blocking_schedule.jl"))
+include(joinpath(SRC_DIR, "mcmc_extras", "starting_pt.jl"))
+include(joinpath(SRC_DIR, "mcmc", "mcmc.jl"))
+include(joinpath(SRC_DIR, "stochastic_process", "path_to_wiener.jl"))
 
 
 
@@ -44,7 +43,7 @@ using Random        # to seed the random number generator
 # -----------------------
 using Bridge
 #import Main.BridgeSDEInference.forcedSolve
-include(joinpath(AUX_DIR, "data_simulation_fns.jl"))
+include(joinpath(SRC_DIR, "auxiliary", "data_simulation_fns.jl"))
 Random.seed!(4)
 θ₀ = [0.05, √2.0]
 Pˣ = RadialOU(θ₀...)

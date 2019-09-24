@@ -44,3 +44,94 @@ function addPath!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i) wh
 end
 
 addPath!(adpt::Adaptation{Val{false}}, ::Any, ::Any) = false
+
+
+
+
+
+
+
+
+init_adaptation!(adpt::Adaptation{Val{false}}, 𝓦𝓢::Workspace) = nothing
+
+function init_adaptation!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace)
+    m = length(𝓦𝓢.XX)
+    resize!(adpt, m, [length(𝓦𝓢.XX[i]) for i in 1:m])
+end
+
+function adaptationUpdt!(adpt::Adaptation{Val{false}}, 𝓦𝓢::Workspace, yPr, i,
+                         ll, ::ObsScheme, ::ST) where {ObsScheme,ST}
+    adpt, 𝓦𝓢, yPr, ll
+end
+
+function adaptationUpdt!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace, yPr, i,
+                         ll, ::ObsScheme, ::ST) where {ObsScheme,ST}
+    if i % adpt.skip == 0
+        if adpt.N[2] == adpt.sizes[adpt.N[1]]
+            X̄ = compute_X̄(adpt)
+            m = length(𝓦𝓢.P)
+            for j in 1:m
+                Pt = recentre(𝓦𝓢.P[j].Pt, 𝓦𝓢.XX[j].tt, X̄[j])
+                update_λ!(Pt, adpt.λs[adpt.N[1]])
+                𝓦𝓢.P[j] = GuidPropBridge(𝓦𝓢.P[j], Pt)
+
+                Ptᵒ = recentre(𝓦𝓢.Pᵒ[j].Pt, 𝓦𝓢.XX[j].tt, X̄[j])
+                update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
+                𝓦𝓢.Pᵒ[j] = GuidPropBridge(𝓦𝓢.Pᵒ[j], Ptᵒ)
+            end
+            𝓦𝓢 = Workspace(𝓦𝓢, adpt.ρs[adpt.N[1]])
+
+            solveBackRec!(NoBlocking(), 𝓦𝓢.P, ST())
+            #solveBackRec!(NoBlocking(), 𝓦𝓢.Pᵒ, ST())
+            y = 𝓦𝓢.XX[1].yy[1]
+            yPr = invStartPt(y, yPr, 𝓦𝓢.P[1])
+
+            for j in 1:m
+                invSolve!(Euler(), 𝓦𝓢.XX[j], 𝓦𝓢.WW[j], 𝓦𝓢.P[j])
+            end
+            ll = logpdf(yPr, y)
+            ll += pathLogLikhd(ObsScheme(), 𝓦𝓢.XX, 𝓦𝓢.P, 1:m, 𝓦𝓢.fpt)
+            ll += lobslikelihood(𝓦𝓢.P[1], y)
+            adpt.N[2] = 1
+            adpt.N[1] += 1
+        else
+            adpt.N[2] += 1
+        end
+    end
+    adpt, 𝓦𝓢, yPr, ll
+end
+
+function compute_X̄(adpt::Adaptation{Val{true}})
+    X = adpt.X
+    num_paths = adpt.sizes[adpt.N[1]]
+    num_segments = length(X[1])
+    for i in 2:num_paths
+        for j in 1:num_segments
+            num_pts = length(X[i][j])
+            for k in 1:num_pts
+                X[1][j][k] += X[i][j][k]
+            end
+        end
+    end
+    for j in 1:num_segments
+        num_pts = length(X[1][j])
+        for k in 1:num_pts
+            X[1][j][k] /= num_paths
+        end
+    end
+    X[1]
+end
+
+print_adaptation_info(adpt::Adaptation{Val{false}}, ::Any, ::Any, ::Any) = nothing
+
+function print_adaptation_info(adpt::Adaptation{Val{true}}, accImpCounter,
+                               accUpdtCounter, i)
+    if i % adpt.skip == 0 && adpt.N[2] == adpt.sizes[adpt.N[1]]
+        print("--------------------------------------------------------\n")
+        print(" Adapting...\n")
+        print(" Using ", adpt.N[2], " many paths, thinned by ", adpt.skip, "\n")
+        print(" Previous imputation acceptance rate: ", accImpCounter/i, "\n")
+        print(" Previous param update acceptance rate: ", accUpdtCounter./i, "\n")
+        print("--------------------------------------------------------\n")
+    end
+end

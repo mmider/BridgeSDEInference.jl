@@ -275,3 +275,27 @@ function displayAcceptanceRate(𝔅::BlockingSchedule)
     printAccptRate(𝔅.accpt[1], 𝔅.props[1])
     printAccptRate(𝔅.accpt[2], 𝔅.props[2])
 end
+
+
+
+
+
+
+
+
+"""
+    setBlocking(𝔅::NoBlocking, ::Any, ::Any)
+
+No blocking is to be done, do nothing
+"""
+setBlocking(𝔅::NoBlocking, ::Any, ::Any) = 𝔅
+
+
+"""
+    setBlocking(::ChequeredBlocking, blockingParams, 𝓦𝓢)
+
+Blocking pattern is chosen to be a chequerboard.
+"""
+function setBlocking(::ChequeredBlocking, blockingParams, 𝓦𝓢)
+    ChequeredBlocking(blockingParams..., 𝓦𝓢.P, 𝓦𝓢.WW, 𝓦𝓢.XX)
+end

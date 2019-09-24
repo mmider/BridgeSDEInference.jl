@@ -56,14 +56,17 @@ include(joinpath("mcmc", "conjugateUpdt.jl"))
 include(joinpath("stochastic_process", "bounded_diffusion_domain.jl"))
 include(joinpath("solvers", "euler_maruyama_dom_restr.jl"))
 
+include(joinpath("examples", "fitzHughNagumo.jl"))
 include(joinpath("examples", "radial_ornstein_uhlenbeck.jl"))
 include(joinpath("examples", "lorenz_system.jl"))
 include(joinpath("examples", "lorenz_system_const_vola.jl"))
 
 include(joinpath("transition_kernels", "random_walk.jl"))
 include(joinpath("mcmc_extras", "blocking_schedule.jl"))
+include(joinpath("mcmc_extras", "first_passage_times.jl"))
 include(joinpath("mcmc_extras", "starting_pt.jl"))
 include(joinpath("mcmc_extras", "adaptation.jl"))
+include(joinpath("mcmc", "setup.jl"))
 include(joinpath("mcmc", "mcmc.jl"))
 include(joinpath("stochastic_process", "path_to_wiener.jl"))
 

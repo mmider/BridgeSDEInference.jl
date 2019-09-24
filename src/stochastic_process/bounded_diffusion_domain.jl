@@ -93,3 +93,47 @@ valtype(::BoundedDomain{T,N1,N2}) where {T,N1,N2} = T,N1,N2
 DomainSomehowBounded = Union{LowerBoundedDomain,UpperBoundedDomain,BoundedDomain}
 
 domain(::Any) = UnboundedDomain() # by default no restrictions
+
+
+
+
+"""
+    checkDomainAdherence(P::Vector{ContinuousTimeProcess},
+                         XX::Vector{SamplePath}, iRange)
+
+Verify whether all paths in the range `iRange`, i.e. `XX[i].yy`, i in `iRange`
+fall on the interior of the domain of diffusions `P[i]`, i in `iRange`
+"""
+function checkDomainAdherence(P::Vector{S}, XX::Vector{T}, iRange
+                              ) where {S<:ContinuousTimeProcess, T<:SamplePath}
+    for i in iRange
+        !checkDomainAdherence(P[i], XX[i]) && return false
+    end
+    true
+end
+
+"""
+    checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+                         d::UnboundedDomain=domain(P))
+
+For unrestricted domains there is nothing to check
+"""
+function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+                              d::UnboundedDomain=domain(P.Target))
+    true
+end
+
+"""
+    checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+                         d::DiffusionDomain=domain(P))
+
+Verify whether path `XX.yy` falls on the interior of the domain of diffusion `P`
+"""
+function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+                              d::DiffusionDomain=domain(P.Target))
+    N = length(XX)
+    for i in 1:N
+        !boundSatisfied(d, XX.yy[i]) && false
+    end
+    true
+end
