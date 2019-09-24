@@ -1,5 +1,3 @@
-SRC_DIR = joinpath(Base.source_dir(), "..", "src")
-AUX_DIR = joinpath(SRC_DIR, "auxiliary")
 OUT_DIR = joinpath(Base.source_dir(), "..", "output")
 mkpath(OUT_DIR)
 
@@ -14,7 +12,8 @@ using Bridge, BridgeSDEInference, StaticArrays, Distributions
 using Statistics, Random, LinearAlgebra
 
 #include(joinpath(AUX_DIR, "read_and_write_data.jl"))
-include(joinpath(AUX_DIR, "transforms.jl"))
+include(joinpath("..","src","auxiliary","read_and_write_data.jl"))
+include(joinpath("..","src","auxiliary","transforms.jl"))
 const 𝕏 = SVector
 # decide if first passage time observations or partially observed diffusion
 fptObsFlag = false
@@ -30,14 +29,24 @@ using Makie
 #data[isnan.(data)] .= circshift(data, (2,0))[isnan.(data)]
 #data[isnan.(data)] .= circshift(data, (3,0))[isnan.(data)]
 #any(isnan.(data))
+# t = 0:30:N
+#data = cumsum(0.1rand(200,100), dims=1) # Mock data
 
-data = cumsum(rand(200,100), dims=1) # Mock data
+#N, K = size(data)
 
-N, K = size(data)
+#x0 = [𝕏(x, 0.0) for x in data[:, 1]]
+#obs = map(𝕏, data)
+#obsTime = hcat([range(0, 1, length=N) for k in 1:K]...)
 
-x0 = [𝕏(x, 0.0) for x in data[:, 1]]
-obs = map(𝕏, data)
-obsTime = hcat([range(0, 1, length=N) for k in 1:K]...)
+
+
+
+include("simulate_mix_part_obs.jl")
+K = length(XX)
+N = getunique(length.(XX))
+obs = [map(x->x[1:1], XX[k].yy) for k in 1:K]
+obsTime =  [XX[k].tt for k in 1:K]
+
 fpt = fill(NaN, size(data)) # really needed?
 fptOrPartObs = PartObs()
 
@@ -50,15 +59,16 @@ randomEffects = (false, false, false, false, true)
 # Target law
 P˟ = [FitzhughDiffusion(param, θ₀...) for i in 1:K]
 
-P̃ = map(CartesianIndices((N-1, K))) do I
-      i, j = I[1], I[2]
-      t₀, T, u, v = obsTime[i], obsTime[i+1], obs[i, j], obs[i+1, j]
+P̃ = map(1:K) do i
+      map(1:N-1) do
+      i, k = I[1], I[2]
+      t₀, T, u, v = obsTime[i], obsTime[i+1], obs[k][i], obs[k][i+1]
       FitzhughDiffusionAux(param, θ₀..., t₀, u[1], T, v[1])
 end
 display(P̃[1,1])
 𝕂 = Float64
 L = @SMatrix [1. 0.]
-Σdiagel = 1e-10
+Σdiagel = 1e-1
 Σ = @SMatrix [Σdiagel]
 
 Ls = [L for _ in P̃]
