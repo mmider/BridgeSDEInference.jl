@@ -17,7 +17,7 @@
 
 
 """
-    mcmc(::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w, P˟, P̃, Ls, Σs,
+    mcmc(ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::StartingPtPrior, w, P˟, P̃, Ls, Σs,
          numSteps, tKernel, priors; fpt=fill(NaN, length(obsTimes)-1), ρ=0.0,
          dt=1/5000, timeChange=true, saveIter=NaN, verbIter=NaN,
          updtCoord=(Val((true,)),), paramUpdt=true, skipForSave=1,
@@ -27,7 +27,7 @@ Gibbs sampler alternately imputing unobserved parts of the path and updating
 unknown coordinates of the parameter vector (the latter only if paramUpdt==true)
 ...
 # Arguments
-- `::ObsScheme`: observation scheme---first-passage time or partial observations
+- `ObsScheme`: observation scheme---first-passage time or partial observations
 - `obs`: vector with observations
 - `obsTimes`: times of the observations
 - `yPr`: prior over the starting point of the diffusion path
@@ -53,7 +53,7 @@ unknown coordinates of the parameter vector (the latter only if paramUpdt==true)
 - `warmUp`: number of steps for which no parameter update is to be made
 ...
 """
-function mixedmcmc(::Type{𝕂}, ::ObsScheme, obs, obsTimes, yPr::Vector{<:StartingPtPrior}, w,
+function mixedmcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Vector{<:StartingPtPrior}, w,
               P˟, P̃, Ls, Σs, numSteps, tKernel, priors, τ;
               fpt=fill(NaN, size(obs)), # not sure if right size
               ρ=0.0, dt=1/5000, saveIter=NaN,
@@ -61,27 +61,29 @@ function mixedmcmc(::Type{𝕂}, ::ObsScheme, obs, obsTimes, yPr::Vector{<:Start
               randomEffects=(false,),
               paramUpdt=true,
               skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
-              blocking::Blocking=NoBlocking(),
+              blocking=NoBlocking(),
               blockingParams=([], 0.1, NoChangePt()),
-              solver::ST=Ralston3(), changePt::CP=NoChangePt(), warmUp=0
-              ) where {𝕂, ObsScheme <: AbstractObsScheme, ST, Blocking, CP}
+              solver=Ralston3(), changePt::CP=NoChangePt(), warmUp=0
+              ) where {𝕂, CP}
 
     N, K = size(obs)
-    P = [findProposalLaw(𝕂, obs[:,k], obsTimes[:, k], P˟[k], P̃[:, k], Ls[:, k], Σs[:, k], τ; dt=dt, solver=ST(),
-                         changePt=CP(getChangePt(blockingParams[3])) ) for k in 1:K]
+    P = [findProposalLaw(𝕂, obs[:,k], obsTimes[:, k], P˟[k], P̃[:, k], Ls[:, k], Σs[:, k], τ; dt=dt, solver=solver,
+                     changePt=CP(getChangePt(blockingParams[3])) ) for k in 1:K]
+    dump(P)
     m = N - 1
     updtLen = length(updtCoord)
-    tu = initialise(ObsScheme(), P[1], m, yPr[1], w,
-                                                    fpt[:, 1])
-    vars = (:Wnr, :WWᵒ, :WW, :XXᵒ, :XX, :Pᵒ, :ll, :yPr)
+    tu = initialise(ObsScheme, P[1], m, yPr[1], w, fpt[:, 1])
+    vars = (:Wnr, :WWᵒ, :WW, :XXᵒ, :XX, :Pᵒ, :ll)
     for (i, var) in enumerate(vars)
         eval(:($var = [$tu[$i]])) # e.g. Wnr = [tu[1]]
     end
+    yPr[1] = tu[end]
     for k in 2:K
-        tu = initialise(ObsScheme(), P[1], m, yPr[1], w, fpt[:, 1])
+        tu = initialise(ObsScheme, P[k], m, yPr[k], w, fpt[:, k])
         for (i, var) in enumerate(vars)
             eval(:(push!($var, $tu[$i])))
         end
+        yPr[k] = tu[end]
     end
 
     Paths = []
@@ -94,6 +96,7 @@ function mixedmcmc(::Type{𝕂}, ::ObsScheme, obs, obsTimes, yPr::Vector{<:Start
     # continue here
     recomputeODEs = [any([e in dependsOnParams(P[1].Pt) for e
                          in idx(uc)]) for uc in updtCoord]
+    dump(recomputeODEs)
 
     updtStepCounter = 1
     𝔅 = setBlocking(blocking, blockingParams, P, WW, XX)
@@ -102,17 +105,17 @@ function mixedmcmc(::Type{𝕂}, ::ObsScheme, obs, obsTimes, yPr::Vector{<:Start
         verbose = (i % verbIter == 0)
         i > warmUp && savePath!(Paths, blocking == NoBlocking() ? XX : 𝔅.XX,
                                 (i % saveIter == 0), skipForSave)
-        ll, acc, 𝔅, yPr = impute!(ObsScheme(), 𝔅, Wnr, yPr, WWᵒ, WW, XXᵒ, XX,
+        ll, acc, 𝔅, yPr = impute!(ObsScheme, 𝔅, Wnr, yPr, WWᵒ, WW, XXᵒ, XX,
                                   P, ll, fpt, ρ=ρ, verbose=verbose, it=i,
-                                  solver=ST())
+                                  solver=solver)
         accImpCounter += 1*acc
         if paramUpdt && i > warmUp
             for j in 1:updtLen
                 (ll, acc, θ,
-                 yPr) = updateParam!(ObsScheme(), updtType[j], 𝔅, tKernel, θ,
+                 yPr) = updateParam!(ObsScheme, updtType[j], 𝔅, tKernel, θ,
                                      updtCoord[j], yPr, WW, Pᵒ, P, XXᵒ, XX, ll,
                                      priors[j], fpt, recomputeODEs[j];
-                                     solver=ST(), verbose=verbose, it=i)
+                                     solver=solver, verbose=verbose, it=i)
                 accUpdtCounter[j] += 1*acc
                 updtStepCounter += 1
                 θchain[updtStepCounter] = copy(θ)
