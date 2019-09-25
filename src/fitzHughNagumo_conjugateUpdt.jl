@@ -45,12 +45,13 @@ function conjugateDraw(θ, XX, PT, prior, updtIdx)
     𝓦 = μ*μ'
     ϑ = SVector(thetaex(updtIdx, θ))
     μ, 𝓦 = _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
-
     Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
     Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
     μₚₒₛₜ = Σ * (μ + Vector(prior.Σ\prior.μ))
     rand(Gaussian(μₚₒₛₜ, Σ))
 end
+
+
 mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
 @generated function thetaex(::Val{T}, θ) where T
     z = Expr(:tuple, 1.0, (:(θ[$i]) for i in 1:length(T) if  !T[i])...)
@@ -65,11 +66,9 @@ function _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
             φᶜₜ = SVector(φᶜ(updtIdx, X.tt[i], X.yy[i], PT))
             dt = X.tt[i+1] - X.tt[i]
             dy = X.yy[i+1][2]-X.yy[i][2]
-            μ = μ + φₜ*dy - φₜ*dot(ϑ, φᶜₜ)*dt
-            𝓦 = 𝓦 + φₜ*φₜ'*dt
+            μ = μ + (φₜ*dy - φₜ*dot(ϑ, φᶜₜ)*dt)/PT.σ^2 #safe to use a(X.tt[i], X.yy[i], PT)
+            𝓦 = 𝓦 + (φₜ*φₜ'*dt)/PT.σ^2
         end
     end
-    μ = μ/PT.σ^2
-    𝓦 = 𝓦/PT.σ^2
     μ, 𝓦
 end

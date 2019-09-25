@@ -13,7 +13,7 @@ param = :complexConjug
 FILENAME_OUT = joinpath(OUT_DIR,
                      "test_path_part_obs_"*String(param)*".csv")
 
-K = 50
+K = 20
 
 P = FitzhughDiffusion(param, 10.0, -8.0, 15.0, 0.0, 3.0)
 # starting point under :regular parametrisation
@@ -21,8 +21,8 @@ P = FitzhughDiffusion(param, 10.0, -8.0, 15.0, 0.0, 3.0)
 x0 = [regularToConjug(ℝ{2}(-rand(), rand()), P.ϵ, 0.0) for k in 1:K]
 
 
-dt = 1/5000
-T = 50.0
+dt = 1/50000
+T = 10.0
 tt = 0.0:dt:T
 num_obs = 100
 skip_ = div(length(tt), num_obs)

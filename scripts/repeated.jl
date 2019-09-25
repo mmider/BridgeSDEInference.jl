@@ -40,7 +40,7 @@ using Makie
 
 𝕂 = Float64
 L = @SMatrix [1. 0.]
-Σdiagel = 0.05^2
+Σdiagel = 0.3^2
 Σ = @SMatrix [Σdiagel]
 Noise = Gaussian(𝕏(0.0), Σ)
 sim = [:simulate, :linnea][1]
@@ -49,7 +49,8 @@ if sim == :simulate
       K = length(XX)
       obs = [map(x->L*x + rand(Noise), XX[k].yy) for k in 1:K]
       obsTimes = [XX[k].tt for k in 1:K]
-      θ₀ = (10.0, -8.0, 15.0, 0.0, 3.0) .+ ntuple(i->(i<=3)*2randn(), 5)
+      n = (0.5+rand(), 0.5 + rand(), 0.5 + rand())
+      θ₀ = (10.0n[1], -8.0n[2], 15.0n[3], 0.0, 3.0)
 
 elseif sim == :linnea
 
@@ -99,7 +100,7 @@ end
 
 τ(t₀,T) = (x) -> t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
 
-numSteps=1*10^3
+numSteps=1*10^4
 saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
@@ -111,8 +112,10 @@ priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
 blockingParams = ([], 0.1, NoChangePt())
 changePt = NoChangePt()
 #x0Pr = KnownStartingPt(x0)
-x0Pr = [GsnStartingPt(x, x, @SMatrix [20. 0; 0 20.]) for x in x0]
-warmUp = 50
+#x0Pr = [GsnStartingPt(x, x, @SMatrix [20. 0; 0 20.]) for x in x0]
+x0Pr = [GsnStartingPt(𝕏(obs[k][1][1], -4rand()), 𝕏(obs[k][1][1], 0.0), @SMatrix [20. 0; 0 20.]) for k in 1:K]
+
+warmUp = 100
 
 Random.seed!(4)
 start = time()
@@ -122,7 +125,7 @@ start = time()
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.975,
-                         dt=1/100,
+                         dt=1/1000,
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),

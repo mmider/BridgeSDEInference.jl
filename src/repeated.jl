@@ -74,14 +74,12 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
     Wnr = [tu[1]]; WWᵒ = [tu[2]]; WW = [tu[3]];
     XXᵒ= [tu[4]]; XX = [tu[5]]; Pᵒ = [tu[6]];
     ll = [tu[7]]
-
     yPr[1] = tu[8]
     for k in 2:K
         tu = initialise(ObsScheme, P[k], length(obs[k]) - 1, yPr[k], w, fpt[k])
         push!(Wnr, tu[1]); push!(WWᵒ, tu[2]); push!(WW, tu[3]);
         push!(XXᵒ, tu[4]); push!(XX, tu[5]); push!(Pᵒ, tu[6]);
         push!(ll, tu[7]);
-
         yPr[k] = tu[end]
     end
 
@@ -152,12 +150,12 @@ function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅,
                       fpt, recomputeODEs; solver=Ralston3(), verbose=false,
                       it=NaN) where {ObsScheme <: AbstractObsScheme, UpdtIdx}
     K = length(P)
-
+    # warn if targets are different?
     ϑ = conjugateDraw(θ, XX, P[1][1].Target, priors[1], UpdtIdx())   # sample new parameter
     θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())     # align so that dimensions agree
     for k in 1:K
         m = length(P[k])
-        updateLaws!(P[k], θᵒ)
+        updateLaws!(P[k], θᵒ) # hardcoded: NO Blocking
         recomputeODEs && solveBackRec!(NoBlocking(), P[k], solver) # compute (H, Hν, c)
 
         for i in 1:m    # compute wiener path WW that generates XX
@@ -168,7 +166,7 @@ function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅,
         yPr[k] = invStartPt(y, yPr[k], P[k][1])
 
         ll[k] = logpdf(yPr[k], y)
-        ll[k] += pathLogLikhd(ObsScheme(), XX[k], P[k], 1:m, fpt; skipFPT=true)
+        ll[k] += pathLogLikhd(ObsScheme(), XX[k], P[k], 1:m, fpt[k]; skipFPT=true)
         ll[k] += lobslikelihood(P[k][1], y)
     end
 
