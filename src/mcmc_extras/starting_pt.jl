@@ -94,13 +94,13 @@ rand(G::KnownStartingPt, ::Any=nothing) = G
 
 
 """
-    startPt(G::GsnStartingPt, P)
+    start_pt(G::GsnStartingPt, P)
 
 Compute a new starting point from the white noise for a given posterior
 distribution obtained from combining prior `G` and the likelihood encoded by the
 object `P`.
 """
-function startPt(G::GsnStartingPt, P::GuidPropBridge)
+function start_pt(G::GsnStartingPt, P::GuidPropBridge)
     μₚₒₛₜ = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
     Σₚₒₛₜ = inv(P.H[1] + G.Λ)
     Σₚₒₛₜ = 0.5 * (Σₚₒₛₜ + Σₚₒₛₜ') # remove numerical inaccuracies
@@ -109,34 +109,34 @@ end
 
 
 """
-    startPt(G::GsnStartingPt, P)
+    start_pt(G::GsnStartingPt, P)
 
 Compute a new starting point from the white noise for a given prior
 distribution `G`
 """
-startPt(G::GsnStartingPt) = unwhiten(G.Σ, G.z) + G.μ
+start_pt(G::GsnStartingPt) = unwhiten(G.Σ, G.z) + G.μ
 
 """
-    startPt(G::KnownStartingPt, P)
-
-Return starting point
-"""
-startPt(G::KnownStartingPt, P::GuidPropBridge) = G.y
-
-"""
-    startPt(G::KnownStartingPt, P)
+    start_pt(G::KnownStartingPt, P)
 
 Return starting point
 """
-startPt(G::KnownStartingPt) = G.y
+start_pt(G::KnownStartingPt, P::GuidPropBridge) = G.y
 
 """
-    invStartPt(y, G::GsnStartingPt, P::GuidPropBridge)
+    start_pt(G::KnownStartingPt, P)
+
+Return starting point
+"""
+start_pt(G::KnownStartingPt) = G.y
+
+"""
+    inv_start_pt(y, G::GsnStartingPt, P::GuidPropBridge)
 
 Compute the driving noise that is needed to obtain starting point `y` under
 prior `G` and likelihood `P`. Return a new starting point object
 """
-function invStartPt(y, G::GsnStartingPt, P::GuidPropBridge)
+function inv_start_pt(y, G::GsnStartingPt, P::GuidPropBridge)
     μₚₒₛₜ = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
     Σₚₒₛₜ = inv(P.H[1] + G.Λ)
     Σₚₒₛₜ = 0.5 * (Σₚₒₛₜ + Σₚₒₛₜ')
@@ -144,11 +144,11 @@ function invStartPt(y, G::GsnStartingPt, P::GuidPropBridge)
 end
 
 """
-    invStartPt(y, G::KnownStartingPt, P::GuidPropBridge)
+    inv_start_pt(y, G::KnownStartingPt, P::GuidPropBridge)
 
 Starting point known, no need for dealing with white noise
 """
-invStartPt(y, G::KnownStartingPt, P::GuidPropBridge) = G
+inv_start_pt(y, G::KnownStartingPt, P::GuidPropBridge) = G
 
 """
     logpdf(::KnownStartingPt, y)

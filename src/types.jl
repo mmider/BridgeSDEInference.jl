@@ -44,12 +44,12 @@ struct SimpleChangePt <: ODEChangePt
 end
 
 """
-    getChangePt(changePt::ODEChangePt)
+    get_change_pt(changePt::ODEChangePt)
 
 Return the length of terminal interval over which ODE solvers for L,M⁺,μ are
 used
 """
-getChangePt(changePt::ODEChangePt) = changePt.λ
+get_change_pt(changePt::ODEChangePt) = changePt.λ
 
 
 """

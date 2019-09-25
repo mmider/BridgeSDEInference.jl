@@ -122,8 +122,8 @@ with the exact observation scheme. In particular, ODE solver for L̃, M̃⁺, μ
 cannot be used to solve for L̃, M̃⁺, μ when the terminal point in a given interval
 has not been observed exactly.
 """
-function reserveMemLM⁺μ(changePt::ODEChangePt, ::TH, ::THν) where {TH,THν}
-    N = getChangePt(changePt)
+function reserveMemLM⁺μ(change_pt::ODEChangePt, ::TH, ::THν) where {TH,THν}
+    N = get_change_pt(change_pt)
     L̃ = zeros(TH, N) # NOTE: not TL
     M̃⁺ = zeros(TH, N) # NOTE: not TΣ
     μ = zeros(THν, N) # NOTE: not Tv
@@ -191,7 +191,7 @@ observation when ODE solver for `H`, `Hν` and `c` is used exclusively on a
 given interval. In particular, elements `H⁽ᵀ⁺⁾`, `Hν⁽ᵀ⁺⁾` and `c⁽ᵀ⁺⁾` come from
 the backward scheme applied to a subsequent interval.
 """
-function initHHνc!(changePt::NoChangePt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν,
+function initHHνc!(change_pt::NoChangePt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν,
                    c, m)
     H[end] = H⁽ᵀ⁺⁾ + L' * (Σ \ L)
     Hν[end] = Hν⁽ᵀ⁺⁾ + L' * (Σ \ v)
@@ -235,16 +235,16 @@ Compute elements `H`, `Hν`, `c`, on a grid of time-points.
 ...
 """
 function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, P,
-                   changePt::ODEChangePt, solver::ST = Ralston3()) where ST
+                   change_pt::ODEChangePt, solver::ST = Ralston3()) where ST
     m, d = size(L)
     @assert size(L[:,1]) == (m,)
     @assert size(L*L') == size(Σ) == (m, m)
 
     # gpupdate on the terminal section of the interval via L̃, M̃⁺, μ solvers
-    λ = _gpupdate!(changePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P, ST())
+    λ = _gpupdate!(change_pt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P, ST())
 
     # initialisation of H, Hν and c at terminal point (in case of no change point)
-    initHHνc!(changePt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, m)
+    initHHνc!(change_pt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, m)
 
     # udpate remaining H, Hν and c using ODE solvers for H, Hν and c
     toUpdate = (HMatrix(), HνVector(), cScalar())
@@ -258,7 +258,7 @@ function gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H
 end
 
 """
-    _gpupdate!(changePt::ODEChangePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P,
+    _gpupdate!(change_pt::ODEChangePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P,
                solver::ST = Ralston3())
 
 Compute the elements `L̃`, `M̃⁺`, `μ` on a grid of time-points on the terminal
@@ -280,14 +280,14 @@ computed values of `L̃`, `M̃⁺`, `μ`.
 - `P`: Law of a proposal diffusion
 - `solver`: numerical solver used for solving the backward ODEs
 """
-function _gpupdate!(changePt::ODEChangePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P,
+function _gpupdate!(change_pt::ODEChangePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P,
                     solver::ST = Ralston3()) where ST
     toUpdate = (LMatrix(), M⁺Matrix(), μVector())
-    λ = getChangePt(changePt)
+    λ = getChangePt(change_pt)
     N = length(t)
-    tableau = createTableau(ST())  # solver(changePt)) (i.e. TODO allow for a different solver)
+    tableau = createTableau(ST())  # solver(change_pt)) (i.e. TODO allow for a different solver)
 
-    initLM⁺μ!(changePt, L̃, M̃⁺, μ, L, Σ)
+    initLM⁺μ!(change_pt, L̃, M̃⁺, μ, L, Σ)
 
     for i in λ-1:-1:1
         dt = t[N-λ+i] - t[N-λ+i+1]
@@ -321,7 +321,7 @@ function gpupdate!(P, H⁽ᵀ⁺⁾ = zero(typeof(P.H[1])),
                    Hν⁽ᵀ⁺⁾ = zero(typeof(P.Hν[1])), c⁽ᵀ⁺⁾ = 0.0;
                    solver::ST = Ralston3) where ST
     gpupdate!(P.tt, P.L, P.Σ, P.v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, P.H,
-              P.Hν, P.c, P.L̃, P.M̃⁺, P.μ, P.Pt, P.changePt, ST())
+              P.Hν, P.c, P.L̃, P.M̃⁺, P.μ, P.Pt, P.change_pt, ST())
 end
 
 
@@ -398,7 +398,7 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
     L::S1               # observation operator (for observation at the end-pt)
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
-    changePt::TC        # Info about the change point between ODE solvers
+    change_pt::TC        # Info about the change point between ODE solvers
 
     function GuidPropBridge(::Type{K}, tt_, P, Pt, L::S1, v::S2,
                             Σ::S3 = Bridge.outer(zero(K)*zero(v)),
@@ -407,7 +407,7 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
                             c⁽ᵀ⁺⁾ = zero(K);
                             # H⁻¹prot is currently not used
                             H⁻¹prot::TH⁻¹ = SVector{prod(size(TH))}(rand(prod(size(TH)))),
-                            changePt::TC = NoChangePt(),
+                            change_pt::TC = NoChangePt(),
                             solver::ST = Ralston3()
                             ) where {K,Tν,TH,TH⁻¹,S1,S2,S3,ST,TC}
         tt = collect(tt_)
@@ -417,18 +417,18 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
         Hν = zeros(Tν, N)
         c = zeros(K, N)
 
-        L̃, M̃⁺, μ = reserveMemLM⁺μ(changePt, H[1], Hν[1])
+        L̃, M̃⁺, μ = reserveMemLM⁺μ(change_pt, H[1], Hν[1])
 
 
         gpupdate!(tt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, Pt,
-                  changePt, ST())
+                  change_pt, ST())
 
         T = Bridge.valtype(P)
         R = typeof(P)
         R2 = typeof(Pt)
 
         new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(P, Pt, tt, H, H⁻¹, Hν, c, L̃, M̃⁺, μ,
-                                             L, v, Σ, changePt)
+                                             L, v, Σ, change_pt)
     end
 
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC},
@@ -436,17 +436,17 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
         new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(clone(P.Target,θ), clone(P.Pt,θ),
                                              P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
                                              P.M̃⁺, P.μ, P.L, P.v, P.Σ,
-                                             P.changePt)
+                                             P.change_pt)
     end
 
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,TC̃},
-                            L::S1, v::S2, Σ::S3, changePt::TC, θ
+                            L::S1, v::S2, Σ::S3, change_pt::TC, θ
                             ) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3,TC̃,TC}
         PtNew = clone(P.Pt, θ, v)
         R̃2 = typeof(PtNew)
         new{T,K,R,R̃2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(clone(P.Target,θ), PtNew,
                                              P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
-                                             P.M̃⁺, P.μ, L, v, Σ, changePt)
+                                             P.M̃⁺, P.μ, L, v, Σ, change_pt)
     end
 
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC},
@@ -454,7 +454,7 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
         new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(P.Target, Pt,
                                              P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
                                              P.M̃⁺, P.μ, P.L, P.v, P.Σ,
-                                             P.changePt)
+                                             P.change_pt)
     end
 end
 

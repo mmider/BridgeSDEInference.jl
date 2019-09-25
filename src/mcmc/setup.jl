@@ -47,6 +47,7 @@ mutable struct MCMCSetup{ObsScheme}
     Wnr                 # Definition of the driving Wiener law
     XX                  # Container for the path
     WW                  # Container for the driving noise
+    P                   # Container for the guided proposals
 
     """
         MCMCSetup(P˟, P̃, ::ObsScheme)
@@ -291,7 +292,7 @@ Determine the data type of the containers with path and driving noise
 """
 function determine_data_type(setup::MCMCSetup)
     check_if_complete(setup, [:prior]) || throw(UndefRefError())
-    x = start_pt(x0_prior)
+    x = start_pt(setup.x0_prior)
     drift = b(0.0, x, setup.P˟)
     vola = σ(0.0, x, setup.P˟)
     # @assert typeof(x) == typeof(drift) # maybe this assertion is too strong
@@ -330,7 +331,7 @@ Define containers for the observations, observation noise and observation
 operators based on the passed data-type
 """
 function prepare_obs_containers!(::Type{T}, setup::MCMCSetup) where T <: Number
-    correct_data_type!(setup, T)
+    correct_data_type!(setup, T, T)
 end
 
 """
@@ -340,7 +341,7 @@ Define containers for the observations, observation noise and observation
 operators based on the passed data-type
 """
 function prepare_obs_containers!(::Type{T}, setup::MCMCSetup) where T <: Array
-    correct_data_type!(setup, Array)
+    correct_data_type!(setup, Array, Array)
 end
 
 """
@@ -351,19 +352,23 @@ operators based on the passed data-type
 """
 function prepare_obs_containers!(::Type{T}, setup::MCMCSetup) where T <:SArray
     f(x) = SMatrix{_dim(x)...}(x)
-    correct_data_type!(setup, f)
+
+    g(x, ::Val{1}=Val{ndims(x)}()) = SVector{size(x)...}(x)
+    g(x, ::Val{2}=Val{ndims(x)}()) = SMatrix{size(x)...}(x)
+
+    correct_data_type!(setup, f, g)
 end
 
 """
-    correct_data_type!(setup::MCMCSetup, f)
+    correct_data_type!(setup::MCMCSetup, f, g)
 
 Transform the elements of observations, observation noise and observation
-operators collections stored in `setup` according to function `f`
+operators collections stored in `setup` according to functions `f` and `g`
 """
-function correct_data_type!(setup::MCMCSetup, f)
+function correct_data_type!(setup::MCMCSetup, f, g)
     setup.Σs = map(f, setup.Σs)
     setup.Ls = map(f, setup.Ls)
-    setup.obs = map(f, setup.obs)
+    setup.obs = map(g, setup.obs)
 end
 
 """
@@ -410,8 +415,8 @@ for the simulation of the guided proposals
 """
 function find_proposal_law!(::Type{K}, setup::MCMCSetup) where K
     xx, tt, P˟, P̃ = setup.obs, setup.obs_times, setup.P˟, setup.P̃
-    Ls, Σs, solver = setup.Ls, setup.Σs, setup.solver
-    change_pt = typeof(setup.change_pt)(setup.blocking_params[3])
+    Ls, Σs, solver, dt, τ = setup.Ls, setup.Σs, setup.solver, setup.dt, setup.τ
+    change_pt = typeof(setup.change_pt)(get_change_pt(setup.blocking_params[3]))
 
     m = length(xx)-1
     P = Array{ContinuousTimeProcess,1}(undef,m)
@@ -433,7 +438,7 @@ end
 Initialise the internal containers of `setup`. Check if all the necessary data
 has been passed to `setup`
 """
-function initialise(::Type{K}, setup::MCMCSetup, verbose=false) where K
+function initialise!(::Type{K}, setup::MCMCSetup, verbose=false) where K
     verbose && print("Initialising MCMC setup...\nPreparing containers...\n")
     prepare_containers!(setup)
     verbose && print("Initialising proposal laws...\n")
