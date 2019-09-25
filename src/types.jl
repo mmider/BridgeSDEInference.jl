@@ -113,6 +113,13 @@ according to which blocking is done
 """
 abstract type BlockingSchedule end
 
+"""
+    struct NoBlocking <: BlockingSchedule end
+
+Regular updates with no blocking
+"""
+struct NoBlocking <: BlockingSchedule end
+
 
 
 abstract type ActionType end

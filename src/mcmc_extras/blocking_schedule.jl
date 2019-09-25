@@ -2,14 +2,6 @@ import Base: display
 
 
 """
-    struct NoBlocking <: BlockingSchedule end
-
-Regular updates with no blocking
-"""
-struct NoBlocking <: BlockingSchedule end
-
-
-"""
     ChequeredBlocking
 
 Struct
