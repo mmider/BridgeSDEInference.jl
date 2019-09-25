@@ -36,7 +36,7 @@ using Makie
 
 #x0 = [𝕏(x, 0.0) for x in data[:, 1]]
 #obs = map(𝕏, data)
-#obsTime = hcat([range(0, 1, length=N) for k in 1:K]...)
+#obsTimes = hcat([range(0, 1, length=N) for k in 1:K]...)
 
 𝕂 = Float64
 L = @SMatrix [1. 0.]
@@ -48,8 +48,8 @@ if sim == :simulate
       include("simulate_repeated_part_obs.jl")
       K = length(XX)
       obs = [map(x->L*x + rand(Noise), XX[k].yy) for k in 1:K]
-      obsTime = [XX[k].tt for k in 1:K]
-      θ₀ = (10.0, -8.0, 15.0, 0.0, 3.0)
+      obsTimes = [XX[k].tt for k in 1:K]
+      θ₀ = (10.0, -8.0, 15.0, 0.0, 3.0) .+ ntuple(i->(i<=3)*2randn(), 5)
 
 elseif sim == :linnea
 
@@ -69,7 +69,7 @@ elseif sim == :linnea
       end
       K = length(XX)
       obs = [map(y->𝕏(y), XX[k].yy) for k in 1:K]
-      obsTime = [XX[k].tt for k in 1:K]
+      obsTimes = [XX[k].tt for k in 1:K]
       x0 = [𝕏(X.yy[1], 0.0) for X in XX]
       θ₀ = (10.0, -8.0, 15.0, 0.0, 3.0)
 
@@ -92,7 +92,7 @@ P˟ = FitzhughDiffusion(param, θ₀...)
 
 P̃ = map(1:K) do k
       map(1:length(obs[k])-1) do i
-            t₀, T, u, v = obsTime[k][i], obsTime[k][i+1], obs[k][i], obs[k][i+1]
+            t₀, T, u, v = obsTimes[k][i], obsTimes[k][i+1], obs[k][i], obs[k][i+1]
             FitzhughDiffusionAux(param, θ₀..., t₀, u[1], T, v[1])
       end
 end
@@ -118,7 +118,7 @@ Random.seed!(4)
 start = time()
 (chain, accRateImp, accRateUpdt,
  #   paths, time_
-    ) = BSI.mcmc(𝕂, fptOrPartObs, obs, obsTime, x0Pr, 0.0, P˟,
+    ) = BSI.mcmc(𝕂, fptOrPartObs, obs, obsTimes, x0Pr, 0.0, P˟,
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.975,
@@ -161,7 +161,7 @@ df3 = saveChainToFile(chain, joinpath(OUT_DIR, "chain.csv"))
 include(joinpath("..","src","auxiliary","plotting_fns.jl"))
 set_default_plot_size(30cm, 20cm)
 plotPaths(df2, obs=[Float64.(df.x1), [x0⁺[2]]],
-          obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
+          obsTimes=[Float64.(df.time), [0.0]], obsCoords=[1,2])
 
 plotChain(df3, coords=[1])
 plotChain(df3, coords=[2])
