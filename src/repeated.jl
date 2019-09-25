@@ -68,17 +68,16 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
     K = length(obs)
     P = [findProposalLaw(𝕂, obs[k], obsTimes[k], P˟, P̃[k], Ls[k], Σs[k], τ; dt=dt, solver=solver,
                      changePt=CP(getChangePt(blockingParams[3])) ) for k in 1:K]
-    N = length(obs[1])
-    m = N - 1
+
     updtLen = length(updtCoord)
-    tu = initialise(ObsScheme, P[1], m, yPr[1], w, fpt[1])
+    tu = initialise(ObsScheme, P[1], length(obs[1]) - 1, yPr[1], w, fpt[1])
     Wnr = [tu[1]]; WWᵒ = [tu[2]]; WW = [tu[3]];
     XXᵒ= [tu[4]]; XX = [tu[5]]; Pᵒ = [tu[6]];
     ll = [tu[7]]
 
     yPr[1] = tu[8]
     for k in 2:K
-        tu = initialise(ObsScheme, P[k], m, yPr[k], w, fpt[k])
+        tu = initialise(ObsScheme, P[k], length(obs[k]) - 1, yPr[k], w, fpt[k])
         push!(Wnr, tu[1]); push!(WWᵒ, tu[2]); push!(WW, tu[3]);
         push!(XXᵒ, tu[4]); push!(XX, tu[5]); push!(Pᵒ, tu[6]);
         push!(ll, tu[7]);
@@ -101,8 +100,8 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
     acc = zeros(Bool, K)
     for i in 1:numSteps
         verbose = (i % verbIter == 0)
-        i > warmUp && savePath!(Paths, blocking == NoBlocking() ? XX : 𝔅.XX,
-                                (i % saveIter == 0), skipForSave)
+    #    i > warmUp && savePath!(Paths, blocking == NoBlocking() ? XX : 𝔅.XX,
+#                                (i % saveIter == 0), skipForSave)
         for k in 1:K
 
             tu = impute!(ObsScheme, 𝔅[k], Wnr[k], yPr[k], WWᵒ[k], WW[k], XXᵒ[k], XX[k],
@@ -128,12 +127,12 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
                              "------\n")
         end
     end
-    displayAcceptanceRate(𝔅)
-    Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))
-    θchain, accImpCounter/numSteps, accUpdtCounter./numSteps, Paths, Time
+#    displayAcceptanceRate(𝔅)
+#    Time = [collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P)) for P in PP]
+    θchain, accImpCounter/numSteps, accUpdtCounter./numSteps#, Paths, Time
 end
 
-function conjugateDraw(θ, XX::Vector, PT, prior, updtIdx)
+function conjugateDraw(θ, XX::Vector{<:Vector}, PT, prior, updtIdx)
     μ = mustart(updtIdx)
     𝓦 = μ*μ'
     ϑ = SVector(thetaex(updtIdx, θ))
@@ -153,11 +152,11 @@ function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅,
                       fpt, recomputeODEs; solver=Ralston3(), verbose=false,
                       it=NaN) where {ObsScheme <: AbstractObsScheme, UpdtIdx}
     K = length(P)
-    m = length(P[1])
+
     ϑ = conjugateDraw(θ, XX, P[1][1].Target, priors[1], UpdtIdx())   # sample new parameter
     θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())     # align so that dimensions agree
-    llᵒ = zeros(K)
     for k in 1:K
+        m = length(P[k])
         updateLaws!(P[k], θᵒ)
         recomputeODEs && solveBackRec!(NoBlocking(), P[k], solver) # compute (H, Hν, c)
 
@@ -168,11 +167,11 @@ function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅,
         y = XX[k][1].yy[1]
         yPr[k] = invStartPt(y, yPr[k], P[k][1])
 
-        llᵒ[k] = logpdf(yPr[k], y)
-        llᵒ[k] += pathLogLikhd(ObsScheme(), XX[k], P[k], 1:m, fpt; skipFPT=true)
-        llᵒ[k] += lobslikelihood(P[k][1], y)
+        ll[k] = logpdf(yPr[k], y)
+        ll[k] += pathLogLikhd(ObsScheme(), XX[k], P[k], 1:m, fpt; skipFPT=true)
+        ll[k] += lobslikelihood(P[k][1], y)
     end
 
     #printInfo(verbose, it, value(ll), value(llᵒ))
-    return llᵒ, true, θᵒ, yPr
+    return ll, true, θᵒ, yPr
 end

@@ -9,21 +9,20 @@ OUT_DIR = joinpath(Base.source_dir(), "..", "output")
 mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
-param = :simpleConjug
+param = :complexConjug
 FILENAME_OUT = joinpath(OUT_DIR,
                      "test_path_part_obs_"*String(param)*".csv")
 
-K = 200
+K = 50
 
 P = FitzhughDiffusion(param, 10.0, -8.0, 15.0, 0.0, 3.0)
 # starting point under :regular parametrisation
-x0_ = ℝ{2}(-0.5, 0.6)
 # translate to conjugate parametrisation
-x0 = [regularToConjug(x0_, P.ϵ, 0.0) for k in 1:K]
+x0 = [regularToConjug(ℝ{2}(-rand(), rand()), P.ϵ, 0.0) for k in 1:K]
 
 
-dt = 1/50000
-T = 10.0
+dt = 1/5000
+T = 50.0
 tt = 0.0:dt:T
 num_obs = 100
 skip_ = div(length(tt), num_obs)
