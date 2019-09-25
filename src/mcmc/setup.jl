@@ -156,7 +156,7 @@ function set_transition_kernels!(setup::MCMCSetup, transition_kernel,
     setup.param_updt = param_updt
     setup.updt_coord = updt_coord
     setup.updt_type = updt_type
-    setup.adaptive_proposals = adaptive_proposals
+    setup.adaptive_prop = adaptive_proposals
     setup.setup_completion[:tkern] = true
 end
 

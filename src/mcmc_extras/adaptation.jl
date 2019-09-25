@@ -21,6 +21,8 @@ end
 
 NoAdaptation() = Adaptation{Val{false},Nothing}()
 
+check_if_adapt(::Adaptation{Val{T}}) where T = T
+
 function still_adapting(adpt::Adaptation{Val{true}})
     adpt.N[1] > length(adpt.sizes) ? NoAdaptation() : adpt
 end
@@ -42,7 +44,7 @@ function addPath!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i) wh
         end
     end
 end
-
+#=
 addPath!(adpt::Adaptation{Val{false}}, ::Any, ::Any) = false
 
 
@@ -135,3 +137,4 @@ function print_adaptation_info(adpt::Adaptation{Val{true}}, accImpCounter,
         print("--------------------------------------------------------\n")
     end
 end
+=#
