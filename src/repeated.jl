@@ -115,12 +115,13 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
                                      priors[j], fpt, recomputeODEs[j];
                                      solver=solver, verbose=verbose, it=i)
 
-
+                P˟ = clone(P˟, θ)
                 accUpdtCounter[j] += 1*accp
                 updtStepCounter += 1
                 θchain[updtStepCounter] = copy(θ)
                 verbose && print("\n")
             end
+            verbose && println(prod("$v=$x " for (v, x) in zip(param_names(P˟), orig_params(P˟))))
             verbose && print("------------------------------------------------",
                              "------\n")
         end

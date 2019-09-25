@@ -45,35 +45,39 @@ L = @SMatrix [1. 0.]
 Noise = Gaussian(𝕏(0.0), Σ)
 sim = [:simulate, :linnea][1]
 if sim == :simulate
-      include("simulate_repeated_part_obs.jl")
+      include("simulate_repeated_fhn.jl")
       K = length(XX)
       obs = [map(x->L*x + rand(Noise), XX[k].yy) for k in 1:K]
       obsTimes = [XX[k].tt for k in 1:K]
       n = (0.5+rand(), 0.5 + rand(), 0.5 + rand())
       θ₀ = (10.0n[1], -8.0n[2], 15.0n[3], 0.0, 3.0)
+      dt = 1/1000
 
 elseif sim == :linnea
 
       data = readdlm("../LinneasData190920.csv", ';')
+      data = data[1:end, 1:end÷3]
       _, K = size(data)
       y = data[:, 1]
-      t = range(0.0, length=length(y), step= 30.0)
+      st = 0.01
+      t = range(0.0, length=length(y), step = st)
       s = .!isnan.(y)
       X = SamplePath(t[s], y[s])
       XX = [X]
       for k in 2:K
             y = data[:, k]
-            t = range(0.0, length=length(y), step= 30.0)
+            t = range(0.0, length=length(y), step = st)
             s = .!isnan.(y)
             X = SamplePath(t[s], y[s])
             push!(XX, X)
       end
       K = length(XX)
-      obs = [map(y->𝕏(y), XX[k].yy) for k in 1:K]
+      obs = [map(y->2*(𝕏(y)-0.5), XX[k].yy) for k in 1:K]
       obsTimes = [XX[k].tt for k in 1:K]
       x0 = [𝕏(X.yy[1], 0.0) for X in XX]
-      θ₀ = (10.0, -8.0, 15.0, 0.0, 3.0)
-
+      θ₀ = (10.0, -8.0, 15.0, 0.0, 0.3*10)
+      dt = 1/100
+      # 0.0993388433093311, -0.46293689190595844, 1.307687515228687
 end
 
 
@@ -100,7 +104,7 @@ end
 
 τ(t₀,T) = (x) -> t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
 
-numSteps=1*10^4
+numSteps=5*10^3
 saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
@@ -125,7 +129,7 @@ start = time()
                          P̃, Ls, Σs, numSteps, tKernel, priors, τ;
                          fpt=fpt,
                          ρ=0.975,
-                         dt=1/1000,
+                         dt=dt,
                          saveIter=saveIter,
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),
@@ -175,3 +179,6 @@ plotChain(df3, coords=[5])
 lines(df3[!,1])
 lines!(df3[!,2])
 lines!(df3[!,3])
+
+θ̂ = mean(chain[end÷2:end])
+P̂ = BSI.clone(P˟, θ̂)

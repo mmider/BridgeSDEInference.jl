@@ -13,7 +13,7 @@ param = :complexConjug
 FILENAME_OUT = joinpath(OUT_DIR,
                      "test_path_part_obs_"*String(param)*".csv")
 
-K = 20
+K = 4
 
 P = FitzhughDiffusion(param, 10.0, -8.0, 15.0, 0.0, 3.0)
 # starting point under :regular parametrisation
