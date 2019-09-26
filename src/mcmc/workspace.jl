@@ -141,10 +141,10 @@ last(ph::ParamHistory) = copy(ph.θ_chain[ph.counter])
 
 Keeps track of what to do on a given iteration
 """
-struct ActionTracker
-    save_iter::Int64    # Save the path every ... iteration
-    verb_iter::Int64    # Print progress message to console every ... iteration
-    warm_up::Int64      # Number of steps of the chain in which no param update is made
+struct ActionTracker{T,S,R}
+    save_iter::T    # Save the path every ... iteration
+    verb_iter::S   # Print progress message to console every ... iteration
+    warm_up::R      # Number of steps of the chain in which no param update is made
     param_updt::Bool    # Flag for whether to update parameters at all
 
     """
@@ -154,7 +154,10 @@ struct ActionTracker
     of the mcmc sampler
     """
     function ActionTracker(setup::MCMCSetup)
-        new(setup.save_iter, setup.verb_iter, setup.warm_up, setup.param_updt)
+        i1, i2, i3 = setup.save_iter, setup.verb_iter, setup.warm_up
+        s1, s2, s3 = typeof(i1), typeof(i2), typeof(i3)
+        @assert (s1 <: Number) && (s2 <: Number) && (s3 <: Number)
+        new{s1,s2,s3}(i1, i2, i3, setup.param_updt)
     end
 end
 
@@ -216,9 +219,13 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
 
     Initialise workspace of the mcmc sampler according to a `setup` variable
     """
-    function Workspace(setup::MCMCSetup{ObsScheme}) where ObsScheme# m
-        x0_prior, Wnr, XX, WW = setup.x0_prior, setup.Wnr, setup.XX, setup.WW
-        P, fpt, ρ, updt_coord = setup.P, setup.fpt, setup.ρ, setup.updt_coord
+    function Workspace(setup::MCMCSetup{ObsScheme}) where ObsScheme
+        # just to make sure that nothing gets messed up if the user decides
+        # to later modify `setup` use deepcopies
+        x0_prior, Wnr = deepcopy(setup.x0_prior), deepcopy(setup.Wnr)
+        XX, WW = deepcopy(setup.XX), deepcopy(setup.WW)
+        P, fpt = deepcopy(setup.P), deepcopy(setup.fpt)
+        ρ, updt_coord = deepcopy(setup.ρ), deepcopy(setup.updt_coord)
         TW, TX, S, R = eltype(WW), eltype(XX), valtype(Wnr), eltype(P)
 
         m = length(P)
@@ -251,12 +258,13 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
 
         θ_history = ParamHistory(setup)
 
-        (new{ObsScheme,S,TX,TW,R}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P, fpt, ρ,
-                                  check_if_recompute_ODEs(setup),
-                                  AccptTracker(setup), θ_history,
-                                  ActionTracker(setup), skip,
-                                  setup.blocking == NoBlocking(), [], _time),
-         ll, x0_prior, last(θ_history))
+        (workspace = new{ObsScheme,S,TX,TW,R}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P, fpt,
+                                              ρ, check_if_recompute_ODEs(setup),
+                                              AccptTracker(setup), θ_history,
+                                              ActionTracker(setup), skip,
+                                              setup.blocking == NoBlocking(),
+                                              [], _time),
+         ll = ll, x0_prior = x0_prior, θ = last(θ_history))
     end
 
     """

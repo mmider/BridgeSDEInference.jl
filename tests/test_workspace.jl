@@ -174,69 +174,97 @@ end
 
     initialise!(Float64, setup)
 
-    ws = Workspace(setup)
+    ws = Workspace(setup).workspace
     @testset "initialisation" begin
-        @test 2+2==4
+        @test typeof(ws.Wnr) == Wiener{Float64}
+        @test length(ws.XX) == length(ws.XXᵒ) == 2
+        @test length(ws.WWᵒ) == length(ws.WW) == 2
+        @test all([ws.XX[i].tt == ws.XXᵒ[i].tt for i in 1:2])
+        @test all([ws.XX[i].yy == ws.XXᵒ[i].yy for i in 1:2])
+        @test all([ws.WW[i].tt == ws.WWᵒ[i].tt for i in 1:2])
+        @test all([ws.WW[i].yy == ws.WWᵒ[i].yy for i in 1:2])
+        @test eltype(eltype(ws.WW)) == Float64
+        @test eltype(eltype(ws.XX)) == SArray{Tuple{2},Float64,1,2}
+        @test ws.WW[1].tt[1] == ws.XX[1].tt[1] == tt[1]
+        @test ws.WW[2].tt[1] == ws.XX[2].tt[1] == tt[2]
+        @test typeof(ws.P[1].Target) <: FitzhughDiffusion
+        @test typeof(ws.P[1].Pt) <: FitzhughDiffusionAux
+        @test all([ws.P[i].tt == ws.WW[i].tt == ws.XX[i].tt for i in 1:2])
+        @test ws.recompute_ODEs == [true, true]
+        @test ws.ρ == 0.5
+    end
+
+    ws2 = Workspace(ws, 0.25)
+    @testset "copy constructor" begin
+        @test ws2.ρ == 0.25
+        @test ws.ρ == 0.5
+        @test ws.Wnr == ws2.Wnr
+        @test ws.XX == ws2.XX
+        @test ws.WW == ws2.WW
+        @test ws.P == ws.P
+    end
+
+    @testset "action determination" begin
+        @test !act(SavePath(), ws, 1)
+        @test !act(SavePath(), ws, 10)
+        @test !act(SavePath(), ws, 60)
+        @test !act(SavePath(), ws, 51)
+        @test !act(SavePath(), ws, 61)
+        @test !act(SavePath(), ws, 40000)
+
+        @test !act(Verbose(), ws, 1)
+        @test !act(Verbose(), ws, 3)
+        @test !act(Verbose(), ws, 10)
+        @test !act(Verbose(), ws, 30)
+
+        @test act(ParamUpdate(), ws, 1)
+        @test act(ParamUpdate(), ws, 10)
+        @test act(ParamUpdate(), ws, 50)
+        @test act(ParamUpdate(), ws, 51)
+        @test act(ParamUpdate(), ws, 1000)
     end
 end
 
-out = init_setup()
-setup, θ, trgt, obs, tt = out.setup, out.θ, out.trgt, out.obs, out.tt
-aux = out.aux
-
-L = [1. 0.; 0. 1.]
-Σ = [0.5 0.0; 0.0 1.0]
-set_observations!(setup, [L, L], [Σ, 2*Σ], obs, tt)
-
-dt = 0.01
-τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-set_imputation_grid!(setup, dt, τ)
-
-t_kernels = [RandomWalk([0.002, 0.1], [true, true]),
-             RandomWalk([0.2, 1.0], [false, true])]
-ρ = 0.5
-param_updt = true
-updt_coord = (Val((true,true,false)),
-              Val((false,true,true)))
-updt_type=(MetropolisHastingsUpdt(),
-           ConjugateUpdt())
-set_transition_kernels!(setup, t_kernels, ρ, param_updt, updt_coord,
-                        updt_type)
-
-priors = Priors((ImproperPrior(), ImproperPrior()))
-x0_prior = KnownStartingPt(obs[1])
-set_priors!(setup, priors, x0_prior)
-
-num_mcmc_steps = 100
-set_mcmc_params!(setup, num_mcmc_steps)
-
-set_solver!(setup)
-
-initialise!(Float64, setup)
-
-setup
-ws = Workspace(setup)
 
 
-#=
+@testset "definition of gibbs sweep" begin
+    setup = init_setup().setup
+    L = [1. 0.; 0. 1.]
+    Σ = [0.5 0.0; 0.0 1.0]
+    set_observations!(setup, [L, L], [Σ, 2*Σ], obs, tt)
 
-t_kernels = [RandomWalk([0.002, 0.1], [true, true]),
-             RandomWalk([0.2, 1.0], [false, true])]
-ρ = 0.5
-param_updt = true
-updt_coord = (Val((true,true,false)),
-              Val((false,true,true)))
-updt_type=(MetropolisHastingsUpdt(),
-           ConjugateUpdt())
-set_transition_kernels!(setup, t_kernels, ρ, param_updt, updt_coord,
-                        updt_type)
+    dt = 0.01
+    τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
+    set_imputation_grid!(setup, dt, τ)
 
+    t_kernels = [RandomWalk([0.002, 0.1], [true, true]),
+                 RandomWalk([0.2, 1.0], [false, true])]
+    ρ = 0.5
+    param_updt = true
+    updt_coord = (Val((true,true,false)),
+                  Val((false,true,true)))
+    updt_type=(MetropolisHastingsUpdt(),
+               ConjugateUpdt())
+    set_transition_kernels!(setup, t_kernels, ρ, param_updt, updt_coord,
+                            updt_type)
 
-num_mcmc_steps = 1000
-save_iter = 10
-verb_iter = 3
-skip_for_save = 2
-warm_up = 50
-set_mcmc_params!(setup, num_mcmc_steps, save_iter, verb_iter, skip_for_save,
-                 warm_up)
-=#
+    priors = Priors((ImproperPrior(), ImproperPrior()))
+    x0_prior = KnownStartingPt(obs[1])
+    set_priors!(setup, priors, x0_prior)
+
+    num_mcmc_steps = 100
+    set_mcmc_params!(setup, num_mcmc_steps)
+
+    set_solver!(setup)
+
+    initialise!(Float64, setup)
+    gs = GibbsDefn(setup)
+    @testset "initialisation" begin
+        @test length(gs) == 2
+        @test all([gs[i] == gs.updates[i] for i in 1:2])
+        @test all([gs[i].updt_type == updt_type[i] for i in 1:2])
+        @test all([gs[i].updt_coord == updt_coord[i] for i in 1:2])
+        @test all([gs[i].priors == priors[i] for i in 1:2])
+        @test gs[1].recompute_ODEs && gs[2].recompute_ODEs
+    end
+end

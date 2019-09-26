@@ -406,6 +406,12 @@ undefined
 _dim(mat, ::T) where T = throw(ArgumentError())
 
 
+function _build_time_grid(τ, dt, t0, T)
+    num_pts = Int64(ceil((T-t0)/dt))+1
+    tt = τ(t0, T).( range(t0, stop=T, length=num_pts) )
+    tt
+end
+
  #TODO remove this K, it's most likely not needed
 """
     find_proposal_law!(::Type{K}, setup::MCMCSetup) where K
@@ -419,18 +425,19 @@ function find_proposal_law!(::Type{K}, setup::MCMCSetup) where K
     change_pt = typeof(setup.change_pt)(get_change_pt(setup.blocking_params[3]))
 
     m = length(xx)-1
-    P = Array{ContinuousTimeProcess,1}(undef,m)
+    t = _build_time_grid(τ, dt, tt[m], tt[m+1])
+    P = GuidPropBridge(K, t, P˟, P̃[m], Ls[m], xx[m+1], Σs[m];
+                       change_pt=change_pt, solver=solver)
+    #P = Array{ContinuousTimeProcess,1}(undef,m)
+    Ps = [deepcopy(P)]
 
-    for i in m:-1:1
-        num_pts = Int64(ceil((tt[i+1]-tt[i])/dt))+1
-        t = τ(tt[i], tt[i+1]).( range(tt[i], stop=tt[i+1], length=num_pts) )
-        P[i] = ( (i==m) ? GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i];
-                                         change_pt=change_pt, solver=solver) :
-                          GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i],
-                                         P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1];
-                                         change_pt=change_pt, solver=solver) )
+    for i in m-1:-1:1
+        t = _build_time_grid(τ, dt, tt[i], tt[i+1])
+        P = GuidPropBridge(K, t, P˟, P̃[i], Ls[i], xx[i+1], Σs[i], P.H[1],
+                           P.Hν[1], P.c[1]; change_pt=change_pt, solver=solver)
+        push!(Ps, deepcopy(P))
     end
-    setup.P = P
+    setup.P = reverse(Ps)
 end
 
 """
