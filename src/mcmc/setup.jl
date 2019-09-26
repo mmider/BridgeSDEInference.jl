@@ -446,6 +446,18 @@ function initialise!(::Type{K}, setup::MCMCSetup, verbose=false) where K
     #TODO initialise for computation of gradients
 end
 
+"""
+    check_if_recompute_ODEs(setup::MCMCSetup)
+
+Utility function for checking if H,Hν,c need to be re-computed for a respective
+parameter update
+"""
+function check_if_recompute_ODEs(setup::MCMCSetup)
+    [any([e in depends_on_params(setup.P[1].Pt) for e
+          in idx(uc)]) for uc in setup.updt_coord]
+end
+
+
 #NOTE code to adapt:
 #θ = params(P[1].Target)
 #ϑs = [[θ[j] for j in idx(uc)] for uc in updtCoord]
