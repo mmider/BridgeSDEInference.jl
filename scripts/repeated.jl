@@ -109,7 +109,7 @@ saveIter=3*10^2
 tKernel = RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
                      [false, false, false, false, true])
 priors = Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
-                 #ImproperPrior(),
+                 ImproperPrior(),
                  #ImproperPrior(),
                  ),)
 𝔅 = NoBlocking()
@@ -134,12 +134,12 @@ start = time()
                          verbIter=10^2,
                          updtCoord=(Val((true, true, true, false, false)),
                                     #Val((true, false, false, false, false)),
-                                    #Val((false, false, false, false, true)),
+                                    Val((false, false, false, false, true)),
                                     ),
                          paramUpdt=true,
                          updtType=(ConjugateUpdt(),
                                     #MetropolisHastingsUpdt(),
-                                   #MetropolisHastingsUpdt(),
+                                   MetropolisHastingsUpdt(),
                                    ),
                          skipForSave=10^0,
                          blocking=𝔅,
@@ -176,9 +176,13 @@ plotChain(df3, coords=[3])
 plotChain(df3, coords=[5])
 =#
 
-lines(df3[!,1])
+p1 = lines(df3[!,1])
 lines!(df3[!,2])
 lines!(df3[!,3])
+lines!(df3[!,end])
+
 
 θ̂ = mean(chain[end÷2:end])
 P̂ = BSI.clone(P˟, θ̂)
+
+p1

@@ -15,45 +15,7 @@
 # #surface(0..1, 0..5, data)
 
 
-
-"""
-    mcmc(ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::StartingPtPrior, w, P˟, P̃, Ls, Σs,
-         numSteps, tKernel, priors; fpt=fill(NaN, length(obsTimes)-1), ρ=0.0,
-         dt=1/5000, timeChange=true, saveIter=NaN, verbIter=NaN,
-         updtCoord=(Val((true,)),), paramUpdt=true, skipForSave=1,
-         updtType=(MetropolisHastingsUpdt(),), solver::ST=Ralston3(), warmUp=0)
-
-Gibbs sampler alternately imputing unobserved parts of the path and updating
-unknown coordinates of the parameter vector (the latter only if paramUpdt==true)
-...
-# Arguments
-- `ObsScheme`: observation scheme---first-passage time or partial observations
-- `obs`: vector with observations
-- `obsTimes`: times of the observations
-- `yPr`: prior over the starting point of the diffusion path
-- `w`: dummy variable whose type must agree with the type of the Wiener process
-- `P˟`: law of the target diffusion (with initial θ₀ set)
-- `P̃`: law of the auxiliary process (with initial θ₀ set)
-- `Ls`: vector of observation operators (one per each observation)
-- `Σs`: vector of covariance matrices of the noise (one per each observaiton)
-- `numSteps`: number of mcmc iterations
-- `tKernel`: transition kernel (also with initial θ₀ set)
-- `priors`: a list of lists of priors
-- `τ`: time-change transformation
-- `fpt`: info about first-passage time conditioning
-- `ρ`: memory parameter for the Crank-Nicolson scheme
-- `dt`: time-distance for the path imputation
-- `saveIter`: save path `XX` once every `saveIter` many iterations
-- `verbIter`: print out progress info once every `verbIter` many iterations
-- `updtCoord`: list of objects declaring indices of to-be-updated parameters
-- `paramUpdt`: flag for whether to update parameters at all
-- `skipForSave`: when saving paths, save only one in every `skipForSave` points
-- `updtType`: list of types of updates to cycle through
-- `solver`: numerical solver used for computing backward ODEs
-- `warmUp`: number of steps for which no parameter update is to be made
-...
-"""
-function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Vector{<:StartingPtPrior}, w,
+function mcmc(::Type{𝕂}, obsScheme::AbstractObsScheme, obs, obsTimes, yPr::Vector{<:StartingPtPrior}, w,
               P˟, P̃, Ls, Σs, numSteps, tKernel, priors, τ;
               fpt=fill(NaN, size(obs)), # not sure if right size
               ρ=0.0, dt=1/5000, saveIter=NaN,
@@ -70,13 +32,13 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
                      changePt=CP(getChangePt(blockingParams[3])) ) for k in 1:K]
 
     updtLen = length(updtCoord)
-    tu = initialise(ObsScheme, P[1], length(obs[1]) - 1, yPr[1], w, fpt[1])
+    tu = initialise(obsScheme, P[1], length(obs[1]) - 1, yPr[1], w, fpt[1])
     Wnr = [tu[1]]; WWᵒ = [tu[2]]; WW = [tu[3]];
     XXᵒ= [tu[4]]; XX = [tu[5]]; Pᵒ = [tu[6]];
     ll = [tu[7]]
     yPr[1] = tu[8]
     for k in 2:K
-        tu = initialise(ObsScheme, P[k], length(obs[k]) - 1, yPr[k], w, fpt[k])
+        tu = initialise(obsScheme, P[k], length(obs[k]) - 1, yPr[k], w, fpt[k])
         push!(Wnr, tu[1]); push!(WWᵒ, tu[2]); push!(WW, tu[3]);
         push!(XXᵒ, tu[4]); push!(XX, tu[5]); push!(Pᵒ, tu[6]);
         push!(ll, tu[7]);
@@ -102,7 +64,7 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
 #                                (i % saveIter == 0), skipForSave)
         for k in 1:K
 
-            tu = impute!(ObsScheme, 𝔅[k], Wnr[k], yPr[k], WWᵒ[k], WW[k], XXᵒ[k], XX[k],
+            tu = impute!(obsScheme, 𝔅[k], Wnr[k], yPr[k], WWᵒ[k], WW[k], XXᵒ[k], XX[k],
                                   P[k], ll[k], fpt[k], ρ=ρ, verbose=verbose, it=i,
                                   solver=solver)
             ll[k] = tu[1]; acc[k] = tu[2]; 𝔅[k] = tu[3]; yPr[k] = tu[4]
@@ -110,7 +72,7 @@ function mcmc(::Type{𝕂}, ObsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
         accImpCounter += sum(acc)
         if paramUpdt && i > warmUp
             for j in 1:updtLen
-                ll, accp, θ, yPr = updateParam!(ObsScheme, updtType[j], 𝔅, tKernel, θ,
+                ll, accp, θ, yPr = updateParam!(obsScheme, updtType[j], 𝔅, tKernel, θ,
                                      updtCoord[j], yPr, WW, Pᵒ, P, XXᵒ, XX, ll,
                                      priors[j], fpt, recomputeODEs[j];
                                      solver=solver, verbose=verbose, it=i)
@@ -146,18 +108,18 @@ end
 
 
 # no blocking
-function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅,
-                      tKern, θ, ::UpdtIdx, yPr, WW, Pᵒ, P, XXᵒ, XX, ll, priors,
+function updateParam!(obsScheme::AbstractObsScheme, ::ConjugateUpdt, 𝔅::Vector{<:NoBlocking},
+                      tKern, θ, updtIdx, yPr, WW, Pᵒ, P, XXᵒ, XX, ll::Vector, priors,
                       fpt, recomputeODEs; solver=Ralston3(), verbose=false,
-                      it=NaN) where {ObsScheme <: AbstractObsScheme, UpdtIdx}
+                      it=NaN)
     K = length(P)
     # warn if targets are different?
-    ϑ = conjugateDraw(θ, XX, P[1][1].Target, priors[1], UpdtIdx())   # sample new parameter
-    θᵒ = moveToProperPlace(ϑ, θ, UpdtIdx())     # align so that dimensions agree
+    ϑ = conjugateDraw(θ, XX, P[1][1].Target, priors[1], updtIdx)   # sample new parameter
+    θᵒ = moveToProperPlace(ϑ, θ, updtIdx)     # align so that dimensions agree
     for k in 1:K
         m = length(P[k])
         updateLaws!(P[k], θᵒ) # hardcoded: NO Blocking
-        recomputeODEs && solveBackRec!(NoBlocking(), P[k], solver) # compute (H, Hν, c)
+        recomputeODEs && solveBackRec!(𝔅[k], P[k], solver) # compute (H, Hν, c)
 
         for i in 1:m    # compute wiener path WW that generates XX
             invSolve!(Euler(), XX[k][i], WW[k][i], P[k][i])
@@ -167,10 +129,51 @@ function updateParam!(::ObsScheme, ::ConjugateUpdt, 𝔅,
         yPr[k] = invStartPt(y, yPr[k], P[k][1])
 
         ll[k] = logpdf(yPr[k], y)
-        ll[k] += pathLogLikhd(ObsScheme(), XX[k], P[k], 1:m, fpt[k]; skipFPT=true)
+        ll[k] += pathLogLikhd(obsScheme, XX[k], P[k], 1:m, fpt[k]; skipFPT=true)
         ll[k] += lobslikelihood(P[k][1], y)
     end
 
     #printInfo(verbose, it, value(ll), value(llᵒ))
     return ll, true, θᵒ, yPr
+end
+
+function updateParam!(obsScheme::AbstractObsScheme, ::MetropolisHastingsUpdt, 𝔅::Vector{<:NoBlocking},
+                      tKern, θ, updtIdx, yPr, WW, Pᵒ, P, XXᵒ, XX, ll::Vector, priors,
+                      fpt, recomputeODEs; solver=Ralston3(), verbose=false,
+                      it=NaN)
+    K = length(P)
+    θᵒ = rand(tKern, θ, updtIdx)               # sample new parameter
+    llᵒ = copy(ll)
+    yPrᵒ = copy(yPr)
+    llr = priorKernelContrib(tKern, priors, θ, θᵒ)
+    for k in 1:K
+        m = length(WW[k])
+        updateLaws!(Pᵒ[k], θᵒ)
+        recomputeODEs && solveBackRec!(𝔅[k], Pᵒ[k], solver) # compute (H, Hν, c)
+
+    # find white noise which for a given θᵒ gives a correct starting point
+        y = XX[k][1].yy[1]
+        yPrᵒ[k] = invStartPt(y, yPr[k], Pᵒ[k][1])
+
+        findPathFromWiener!(XXᵒ[k], y, WW[k], Pᵒ[k], 1:m)
+
+        llᵒ[k] = logpdf(yPrᵒ[k], y)
+        llᵒ[k] += pathLogLikhd(obsScheme, XXᵒ[k], Pᵒ[k], 1:m, fpt[k])
+        llᵒ[k] += lobslikelihood(Pᵒ[k][1], y)
+
+        printInfo(verbose, it, ll[k], llᵒ[k])
+        llr += llᵒ[k] - ll[k]
+    end
+
+    # Accept / reject
+    if acceptSample(llr, verbose)
+        for k in 1:K
+            m = length(WW[k])
+            swap!(XX[k], XXᵒ[k], P[k], Pᵒ[k], 1:m)
+        end
+        #ll .= llᵒ
+        return llᵒ, true, θᵒ, yPrᵒ
+    else
+        return ll, false, θ, yPr
+    end
 end

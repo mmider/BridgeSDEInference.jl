@@ -9,7 +9,7 @@ using Random
 Trajectory(X::SamplePath) = Trajectory(X.tt, X.yy)
 Wnr = Wiener()
 P = P̂
-R = 𝕏(1.5,4.0)
+R = 𝕏(1.5,6.0)
 rebirth(α, R) = x -> (rand() > α  ? x : (2rand(typeof(x)) .- 1).*R)
 
 k = 250
@@ -19,7 +19,7 @@ xraw = [copy(pts) for i in 1:k]
 x = [Node(xraw[i]) for i in 1:k]
 col = [Node(RGBA{Float32}(0.0, 0.0, 0.0, 0.0)) for i in 1:k]
 c = 1
-ms = 0.06
+ms = 0.08
 i = 1;
 
 limits = FRect(-R[1], -R[2], 2R[1], 2R[2])
