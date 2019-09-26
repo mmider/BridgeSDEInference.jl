@@ -154,12 +154,12 @@ function swap!(A, Aᵒ, B, Bᵒ, iRange)
 end
 
 """
-    crankNicolson!(yᵒ, y, ρ)
+    crank_nicolson!(yᵒ, y, ρ)
 
-Preconditioned Crank Nicolson update with memory parameter `ρ`, previous vector
+Preconditioned Crank-Nicolson update with memory parameter `ρ`, previous vector
 `y` and new vector `yᵒ`
 """
-crankNicolson!(yᵒ, y, ρ) = (yᵒ .= √(1-ρ)*yᵒ + √(ρ)*y)
+crank_nicolson!(yᵒ, y, ρ) = (yᵒ .= √(1-ρ)*yᵒ + √(ρ)*y)
 
 
 """
@@ -180,7 +180,7 @@ Sample `i`th path segment using preconditioned Crank-Nicolson scheme
 """
 function sample_segment!(i, ws, y)
     sample!(ws.WWᵒ[i], ws.Wnr)
-    crankNicolson!(ws.WWᵒ[i].yy, ws.WW[i].yy, ws.ρ)
+    crank_nicolson!(ws.WWᵒ[i].yy, ws.WW[i].yy, ws.ρ)
     solve!(Euler(), ws.XXᵒ[i], y, ws.WWᵒ[i], ws.P[i])
     ws.XXᵒ[i].yy[end]
 end
@@ -218,7 +218,7 @@ end
 #NOTE deprecated, will be removed once blocking uses containers in ws
 function sample_segment!(i, Wnr, WW, WWᵒ, P, y, XXᵒ, ρ)
     sample!(WWᵒ[i], Wnr)
-    crankNicolson!(WWᵒ[i].yy, WW[i].yy, ρ)
+    crank_nicolson!(WWᵒ[i].yy, WW[i].yy, ρ)
     solve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])
     XXᵒ[i].yy[end]
 end

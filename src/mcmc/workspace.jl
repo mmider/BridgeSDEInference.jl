@@ -91,7 +91,6 @@ function display(at::AccptTracker)
 end
 
 
-
 """
     ParamHistory{T}
 
@@ -108,7 +107,7 @@ mutable struct ParamHistory{T}
     sampler
     """
     function ParamHistory(setup::MCMCSetup)
-        N, n = setup.num_mcmc_steps, setup.warmp_up
+        N, n = setup.num_mcmc_steps, setup.warm_up
         updt_len = length(setup.updt_coord)
 
         θ = params(setup.P˟)
