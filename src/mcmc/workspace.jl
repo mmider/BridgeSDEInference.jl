@@ -12,7 +12,7 @@
     ---------------------------------------------------------------------------
 =#
 
-import Base: last, getindex, length, display
+import Base: last, getindex, length, display, eltype
 
 """
     AccptTracker
@@ -221,7 +221,9 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
         P, fpt, ρ, updt_coord = setup.P, setup.fpt, setup.ρ, setup.updt_coord
         TW, TX, S, R = eltype(WW), eltype(XX), valtype(Wnr), eltype(P)
 
-        y = start_pt(x0_prior)
+        m = length(P)
+        # forcedSolve defines type by starting point, make sure it matches
+        y = eltype(eltype(XX))(start_pt(x0_prior))
         for i in 1:m
             WW[i] = Bridge.samplepath(P[i].tt, zero(S))
             sample!(WW[i], Wnr)
@@ -234,11 +236,12 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
         end
         y = start_pt(x0_prior)
         ll = logpdf(x0_prior, y)
-        ll += pathLogLikhd(ObsScheme(), XX, P, 1:m, fpt, skipFPT=true)
+        ll += path_log_likhd(ObsScheme(), XX, P, 1:m, fpt, skipFPT=true)
         ll += lobslikelihood(P[1], y)
 
         XXᵒ = deepcopy(XX)
         WWᵒ = deepcopy(WW)
+        Pᵒ = deepcopy(P)
         # needed for proper initialisation of the Crank-Nicolson scheme
         x0_prior = inv_start_pt(y, x0_prior, P[1])
 
@@ -273,6 +276,9 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
                                  ws.paths, ws.time)
     end
 end
+
+eltype(::SamplePath{T}) where T = T
+eltype(::Type{SamplePath{T}}) where T = T
 
 """
     act(action, ws::Workspace, i)

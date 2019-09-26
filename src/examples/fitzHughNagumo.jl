@@ -172,13 +172,13 @@ struct FitzhughDiffusionAux{R,S1,S2,TP} <: ContinuousTimeProcess{ℝ{2,R}}
 end
 
 """
-    dependsOnParams(::FitzhughDiffusionAux)
+    depends_on_params(::FitzhughDiffusionAux)
 
 Declare which parameters (1=>`ϵ`, 2=>`s`, 3=>`γ`, 4=>`β`, 5=>`σ`) the
 auxiliary diffusion depends upon. Used for finding out which parameter
 update requires also updating the values of the grid of `H`'s and `r`'s.
 """
-function dependsOnParams end
+function depends_on_params end
 
 
 # REGULAR PARAMETRISATION
@@ -196,7 +196,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:regular}}) where {T,S1,S2}
     ℝ{2}(0.0, P.σ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:regular}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:regular}}) where {T,S1,S2}
     (1, 2, 3, 4, 5)
 end
 
@@ -216,7 +216,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:simpleAlter}}) where {T,S1,S
     ℝ{2}(0.0, P.σ/P.ϵ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleAlter}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleAlter}}) where {T,S1,S2}
     (1, 5)
 end
 
@@ -235,7 +235,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:complexAlter}}) where {T,S1,
     ℝ{2}(0.0, P.σ/P.ϵ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:complexAlter}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:complexAlter}}) where {T,S1,S2}
     (1, 2, 3, 4, 5)
 end
 
@@ -264,7 +264,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:simpleConjug}}) where {T,S1,
     ℝ{2}(0.0, P.σ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleConjug}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleConjug}}) where {T,S1,S2}
     (5,)
 end
 
@@ -283,7 +283,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:complexConjug}}) where {T,S1
     ℝ{2}(0.0, P.σ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:complexConjug}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:complexConjug}}) where {T,S1,S2}
     (1, 2, 3, 4, 5)
 end
 

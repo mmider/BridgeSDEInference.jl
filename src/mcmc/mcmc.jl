@@ -502,8 +502,8 @@ Update parameters
 """
 function update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx,ST},
                       𝔅::NoBlocking, θ, yPr, ws::Workspace{ObsScheme}, ll,
-                      verbose=false, it=NaN, uidx=NaN)
-                      where {ObsScheme <: AbstractObsScheme,UpdtIdx,ST}
+                      verbose=false, it=NaN, uidx=NaN
+                      ) where {ObsScheme <: AbstractObsScheme,UpdtIdx,ST}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(WW)
     θᵒ = rand(pu.t_kernel, θ, UpdtIdx())               # sample new parameter
@@ -565,8 +565,8 @@ Update parameters
 """
 function update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx,ST},
                       𝔅::ChequeredBlocking, θ, yPr, ws::Workspace{ObsScheme},
-                      ll, verbose=false, it=NaN, uidx=NaN)
-                      where {ObsScheme <: AbstractObsScheme,UpdtIdx,ST}
+                      ll, verbose=false, it=NaN, uidx=NaN
+                      ) where {ObsScheme <: AbstractObsScheme,UpdtIdx,ST}
     m = length(𝔅.P)
     θᵒ = rand(pu.t_kernel, θ, UpdtIdx())               # sample new parameter
     update_proposal_laws!(𝔅, θᵒ)                   # update law `Pᵒ` accordingly
@@ -612,8 +612,8 @@ explanation of the arguments.
 """
 function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx,ST},
                        𝔅::NoBlocking, θ, yPr, ws::Workspace{ObsScheme}, ll,
-                       verbose=false, it=NaN, uidx=NaN)
-                       where {ObsScheme <: AbstractObsScheme,UpdtIdx,ST}
+                       verbose=false, it=NaN, uidx=NaN
+                       ) where {ObsScheme <: AbstractObsScheme,UpdtIdx,ST}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(P)
     ϑ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
@@ -648,8 +648,8 @@ explanation of the arguments.
 """
 function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx,ST},
                        𝔅::BlockingSchedule, θ, yPr, ws::Workspace{ObsScheme},
-                       ll, verbose=false, it=NaN, uidx=NaN)
-                       where {ObsScheme <: AbstractObsScheme, UpdtIdx, ST}
+                       ll, verbose=false, it=NaN, uidx=NaN
+                       ) where {ObsScheme <: AbstractObsScheme, UpdtIdx, ST}
     m = length(𝔅.P)
     ϑ = conjugate_draw(θ, 𝔅.XX, 𝔅.P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
     θᵒ = move_to_proper_place(ϑ, θ, UpdtIdx())     # align so that dimensions agree

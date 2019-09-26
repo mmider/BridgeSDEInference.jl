@@ -4,6 +4,15 @@ include(joinpath(SRC_DIR, "mcmc", "workspace.jl"))
 include(joinpath(SRC_DIR, "examples", "fitzHughNagumo.jl"))
 include(joinpath(SRC_DIR, "transition_kernels", "random_walk.jl"))
 include(joinpath(SRC_DIR, "mcmc_extras", "adaptation.jl"))
+include(joinpath(SRC_DIR, "mcmc", "priors.jl"))
+include(joinpath(SRC_DIR, "stochastic_process", "guid_prop_bridge.jl"))
+include(joinpath(SRC_DIR, "mcmc_extras", "starting_pt.jl"))
+include(joinpath(SRC_DIR, "solvers", "ralston3.jl"))
+include(joinpath(SRC_DIR, "stochastic_process", "bounded_diffusion_domain.jl"))
+include(joinpath(SRC_DIR, "solvers", "euler_maruyama_dom_restr.jl"))
+include(joinpath(SRC_DIR, "mcmc_extras", "first_passage_times.jl"))
+include(joinpath(SRC_DIR, "mcmc_extras", "blocking_schedule.jl"))
+include(joinpath(SRC_DIR, "mcmc", "mcmc.jl"))
 
 function init_setup()
     param = :complexConjug
@@ -14,7 +23,7 @@ function init_setup()
     P̃ = [FitzhughDiffusionAux(param, θ₀..., tt[1], obs[1], tt[2], obs[2]),
          FitzhughDiffusionAux(param, θ₀..., tt[2], obs[2], tt[3], obs[3])]
     setup = MCMCSetup(P˟, P̃, PartObs())
-    (setup = setup, θ = θ₀)
+    (setup = setup, θ = θ₀, trgt = P˟, obs = obs, tt = tt, aux = P̃)
 end
 
 @testset "acceptance tracker" begin
@@ -59,7 +68,8 @@ end
 
 
 @testset "parameter history" begin
-    setup, θ = init_setup()
+    out = init_setup()
+    setup, θ = out.setup, out.θ
     updt_coord = (Val((true,true,false)),
                   Val((false,true,true)))
     set_transition_kernels!(setup, nothing, nothing, nothing, updt_coord)
@@ -89,6 +99,123 @@ end
         @test last(ph) != θ
     end
 end
+
+@testset "action tracker" begin
+    setup = init_setup().setup
+    save_iter = 10
+    verb_iter = 3
+    warm_up = 50
+    set_mcmc_params!(setup, nothing, save_iter, verb_iter, nothing, warm_up)
+    param_updt = true
+    set_transition_kernels!(setup, nothing, nothing, param_updt)
+    at = ActionTracker(setup)
+
+    @testset "initialisation" begin
+        @test at.save_iter == save_iter
+        @test at.verb_iter == verb_iter
+        @test at.warm_up == warm_up
+        @test at.param_updt == param_updt
+    end
+
+    @testset "correct acting" begin
+        @test !act(SavePath(), at, 1)
+        @test !act(SavePath(), at, 10)
+        @test act(SavePath(), at, 60)
+        @test !act(SavePath(), at, 51)
+        @test !act(SavePath(), at, 61)
+        @test act(SavePath(), at, 40000)
+
+        @test !act(Verbose(), at, 1)
+        @test act(Verbose(), at, 3)
+        @test !act(Verbose(), at, 10)
+        @test act(Verbose(), at, 30)
+
+        @test !act(ParamUpdate(), at, 1)
+        @test !act(ParamUpdate(), at, 10)
+        @test !act(ParamUpdate(), at, 50)
+        @test act(ParamUpdate(), at, 51)
+        @test act(ParamUpdate(), at, 1000)
+    end
+end
+
+
+@testset "workspace" begin
+    out = init_setup()
+    setup, θ, trgt, obs, tt = out.setup, out.θ, out.trgt, out.obs, out.tt
+    aux = out.aux
+
+    L = [1. 0.; 0. 1.]
+    Σ = [0.5 0.0; 0.0 1.0]
+    set_observations!(setup, [L, L], [Σ, 2*Σ], obs, tt)
+
+    dt = 0.01
+    τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
+    set_imputation_grid!(setup, dt, τ)
+
+    t_kernels = [RandomWalk([0.002, 0.1], [true, true]),
+                 RandomWalk([0.2, 1.0], [false, true])]
+    ρ = 0.5
+    param_updt = true
+    updt_coord = (Val((true,true,false)),
+                  Val((false,true,true)))
+    updt_type=(MetropolisHastingsUpdt(),
+               ConjugateUpdt())
+    set_transition_kernels!(setup, t_kernels, ρ, param_updt, updt_coord,
+                            updt_type)
+
+    priors = Priors((ImproperPrior(), ImproperPrior()))
+    x0_prior = KnownStartingPt(obs[1])
+    set_priors!(setup, priors, x0_prior)
+
+    num_mcmc_steps = 100
+    set_mcmc_params!(setup, num_mcmc_steps)
+
+    set_solver!(setup)
+
+    initialise!(Float64, setup)
+
+    ws = Workspace(setup)
+    @testset "initialisation" begin
+        @test 2+2==4
+    end
+end
+
+out = init_setup()
+setup, θ, trgt, obs, tt = out.setup, out.θ, out.trgt, out.obs, out.tt
+aux = out.aux
+
+L = [1. 0.; 0. 1.]
+Σ = [0.5 0.0; 0.0 1.0]
+set_observations!(setup, [L, L], [Σ, 2*Σ], obs, tt)
+
+dt = 0.01
+τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
+set_imputation_grid!(setup, dt, τ)
+
+t_kernels = [RandomWalk([0.002, 0.1], [true, true]),
+             RandomWalk([0.2, 1.0], [false, true])]
+ρ = 0.5
+param_updt = true
+updt_coord = (Val((true,true,false)),
+              Val((false,true,true)))
+updt_type=(MetropolisHastingsUpdt(),
+           ConjugateUpdt())
+set_transition_kernels!(setup, t_kernels, ρ, param_updt, updt_coord,
+                        updt_type)
+
+priors = Priors((ImproperPrior(), ImproperPrior()))
+x0_prior = KnownStartingPt(obs[1])
+set_priors!(setup, priors, x0_prior)
+
+num_mcmc_steps = 100
+set_mcmc_params!(setup, num_mcmc_steps)
+
+set_solver!(setup)
+
+initialise!(Float64, setup)
+
+setup
+ws = Workspace(setup)
 
 
 #=
