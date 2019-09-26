@@ -250,7 +250,7 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
         θ_history = ParamHistory(setup)
 
         (new{ObsScheme,S,TX,TW,R}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P, fpt, ρ,
-                                  check_if_recompute_ODEs(setup)
+                                  check_if_recompute_ODEs(setup),
                                   AccptTracker(setup), θ_history,
                                   ActionTracker(setup), skip,
                                   setup.blocking == NoBlocking(), [], _time),
@@ -271,7 +271,7 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
                                  ws.recompute_ODEs, ws.accpt_tracker,
                                  ws.θ_chain, ws.action_tracker,
                                  ws.skip_for_save, ws.no_blocking_used,
-                                 ws.paths,  ws.time)
+                                 ws.paths, ws.time)
     end
 end
 
@@ -318,8 +318,8 @@ struct ParamUpdtDefn{R,S,ST,T,U}
     Initialisation of the complete definition of the parameter update step
     """
     function ParamUpdtDefn(updt_type::R, updt_coord::S, t_kernel::T, priors::U,
-                           recompute_ODEs::Bool, ::ST)
-        where {R<:ParamUpdateType,S,T,U,ST<:ODESolverType}
+                           recompute_ODEs::Bool, ::ST
+                           ) where {R<:ParamUpdateType,S,T,U,ST<:ODESolverType}
         new{R,S,ST,T,U}(updt_type, updt_coord, t_kernel, priors, recompute_ODEs)
     end
 end
@@ -330,7 +330,7 @@ end
 Definition of the entire Gibbs sweep.
 """
 struct GibbsDefn{N}
-    updates::NTuple{N,ParamUdptDefn}
+    updates::NTuple{N,ParamUpdtDefn}
 
     """
         GibbsDefn(setup)
