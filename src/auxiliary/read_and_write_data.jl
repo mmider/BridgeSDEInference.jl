@@ -73,3 +73,23 @@ function saveChainToFile(chains, filename)
     CSV.write(filename, df)
     df
 end
+
+
+"""
+    getunique(xs)
+
+Return the first element, error if other elements are not equal to the first.
+"""
+function getunique(xs)
+      ϕ = iterate(xs)
+      if ϕ === nothing
+            throw(ArgumentError("empty iterator"))
+      end
+      x, state = ϕ
+      while true
+            ϕ = iterate(xs, state)
+            ϕ === nothing && return x
+            xnew, state = ϕ
+            x == xnew || throw(ArgumentError("not all the same"))
+      end
+end

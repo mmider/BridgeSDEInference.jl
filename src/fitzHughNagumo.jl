@@ -304,8 +304,8 @@ clone(P::FitzhughDiffusionAux, θ) = FitzhughDiffusionAux(P.param, θ..., P.t,
 # should copy starting point or sth, currently restricted by the same type of u and v
 clone(P::FitzhughDiffusionAux, θ, v) = FitzhughDiffusionAux(P.param, θ..., P.t,
                                                             zero(v), P.T, v)
-params(P::FitzhughDiffusionAux) = [P.ϵ, P.s, P.γ, P.β, P.σ]
-
+params(P::FitzhughDiffusionAux) = (P.ϵ, P.s, P.γ, P.β, P.σ)
+param_names(::FitzhughDiffusion) = (:ϵ, :s, :γ, :β, :σ)
 
 """
     regularToAlter(x, ϵ, offset=0)
@@ -343,6 +343,10 @@ function conjugToRegular(x, ϵ, offset=0)
     ℝ{2}(x[1], x[1] - x[1]^3 - x[2]/ϵ + offset)
 end
 
+function orig_params(P::FitzhughDiffusion{<:Any,<:Val{:complexConjug}})
+    ϵ = 1/P.ϵ
+    ϵ, P.s*ϵ, P.γ*ϵ, P.β*ϵ, P.σ*ϵ
+end
 
 _MSG = ["\n---------------------------------------------------\n",
         "The target diffusion model is set to FitzHugh-Nagumo diffusion, a solution ",
