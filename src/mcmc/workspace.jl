@@ -186,12 +186,12 @@ Determine whether to update parameters on a given iteration, indexed `i`
 act(::ParamUpdate, at::ActionTracker, i) = at.param_updt && (i > at.warm_up)
 
 """
-    Workspace{ObsScheme,S,TX,TW,R}
+    Workspace{ObsScheme,S,TX,TW,R,ST}
 
 The main container of the `mcmc` function from `mcmc.jl` in which most data
 pertinent to sampling is stored
 """
-struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
+struct Workspace{ObsScheme,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
     Wnr::Wiener{S}         # Wiener, driving law
     XXᵒ::Vector{TX}        # Diffusion proposal paths
     XX::Vector{TX}         # Accepted diffusion paths
@@ -227,6 +227,7 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
         P, fpt = deepcopy(setup.P), deepcopy(setup.fpt)
         ρ, updt_coord = deepcopy(setup.ρ), deepcopy(setup.updt_coord)
         TW, TX, S, R = eltype(WW), eltype(XX), valtype(Wnr), eltype(P)
+        ST = typeof(setup.solver)
 
         m = length(P)
         # forcedSolve defines type by starting point, make sure it matches
@@ -258,12 +259,12 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
 
         θ_history = ParamHistory(setup)
 
-        (workspace = new{ObsScheme,S,TX,TW,R}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P, fpt,
-                                              ρ, check_if_recompute_ODEs(setup),
-                                              AccptTracker(setup), θ_history,
-                                              ActionTracker(setup), skip,
-                                              setup.blocking == NoBlocking(),
-                                              [], _time),
+        (workspace = new{ObsScheme,S,TX,TW,R,ST}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P,
+                                                 fpt, ρ, check_if_recompute_ODEs(setup),
+                                                 AccptTracker(setup), θ_history,
+                                                 ActionTracker(setup), skip,
+                                                 setup.blocking == NoBlocking(),
+                                                 [], _time),
          ll = ll, x0_prior = x0_prior, θ = last(θ_history))
     end
 
@@ -274,19 +275,20 @@ struct Workspace{ObsScheme,S,TX,TW,R}# ,Q, where Q = eltype(result)
     with the exception of new memory parameter for the preconditioned
     Crank-Nicolson scheme, which is changed to `new_ρ`.
     """
-    function Workspace(ws::Workspace{ObsScheme,S,TX,TW,R}, new_ρ::Float64
-                       ) where {ObsScheme,S,TX,TW,R}
-        new{ObsScheme,S,TX,TW,R}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
-                                 ws.Pᵒ, ws.P, ws.fpt, new_ρ,
-                                 ws.recompute_ODEs, ws.accpt_tracker,
-                                 ws.θ_chain, ws.action_tracker,
-                                 ws.skip_for_save, ws.no_blocking_used,
-                                 ws.paths, ws.time)
+    function Workspace(ws::Workspace{ObsScheme,S,TX,TW,R,ST}, new_ρ::Float64
+                       ) where {ObsScheme,S,TX,TW,R,ST}
+        new{ObsScheme,S,TX,TW,R,ST}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
+                                    ws.Pᵒ, ws.P, ws.fpt, new_ρ,
+                                    ws.recompute_ODEs, ws.accpt_tracker,
+                                    ws.θ_chain, ws.action_tracker,
+                                    ws.skip_for_save, ws.no_blocking_used,
+                                    ws.paths, ws.time)
     end
 end
 
 eltype(::SamplePath{T}) where T = T
 eltype(::Type{SamplePath{T}}) where T = T
+solver_type(::Workspace{O,S,TX,TW,R,ST}) where {O,S,TX,TW,R,ST} = ST
 
 """
     act(action, ws::Workspace, i)
@@ -375,3 +377,81 @@ getindex(g::GibbsDefn, i::Int) = g.updates[i]
 Return the total number of parameter updates in a single Gibbs sweep
 """
 length(g::GibbsDefn{N}) where N = N
+
+
+
+
+"""
+    init_adaptation!(adpt::Adaptation{Val{false}}, ws::Workspace)
+
+Nothing to do when no adaptation needs to be done
+"""
+init_adaptation!(adpt::Adaptation{Val{false}}, ws::Workspace) = nothing
+
+"""
+    init_adaptation!(adpt::Adaptation{Val{true}}, ws::Workspace)
+
+Resize internal container with paths in `adpt` to match the length of imputed
+paths
+"""
+function init_adaptation!(adpt::Adaptation{Val{true}}, ws::Workspace)
+    m = length(ws.XX)
+    resize!(adpt, m, [length(ws.XX[i]) for i in 1:m])
+end
+
+
+"""
+    update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, yPr, i, ll,
+            solver::ODESolverType)
+
+Nothing to be done for no adaptation
+"""
+function update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, yPr, i,
+                 ll, solver::ODESolverType) where ObsScheme
+    adpt, ws, yPr, ll
+end
+
+
+"""
+    update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, yPr, i, ll,
+            solver::ODESolverType)
+
+Update the proposal law according to the adaptive scheme and the recently saved
+history of the imputed paths
+"""
+function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme}, yPr, i,
+                 ll, solver::ODESolverType) where ObsScheme
+    if i % adpt.skip == 0
+        if adpt.N[2] == adpt.sizes[adpt.N[1]]
+            X_bar = mean_trajectory(adpt)
+            m = length(ws.P)
+            for j in 1:m
+                Pt = recentre(ws.P[j].Pt, ws.XX[j].tt, X_bar[j])
+                update_λ!(Pt, adpt.λs[adpt.N[1]])
+                ws.P[j] = GuidPropBridge(ws.P[j], Pt)
+
+                Ptᵒ = recentre(ws.Pᵒ[j].Pt, ws.XX[j].tt, X_bar[j])
+                update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
+                ws.Pᵒ[j] = GuidPropBridge(ws.Pᵒ[j], Ptᵒ)
+            end
+            ws = Workspace(ws, adpt.ρs[adpt.N[1]])
+
+            solveBackRec!(NoBlocking(), ws.P, ST())
+            #solveBackRec!(NoBlocking(), ws.Pᵒ, ST())
+            y = ws.XX[1].yy[1]
+            yPr = inv_start_pt(y, yPr, ws.P[1])
+
+            for j in 1:m
+                inv_solve!(Euler(), ws.XX[j], ws.WW[j], ws.P[j])
+            end
+            ll = logpdf(yPr, y)
+            ll += path_log_likhd(ObsScheme(), ws.XX, ws.P, 1:m, ws.fpt)
+            ll += lobslikelihood(ws.P[1], y)
+            adpt.N[2] = 1
+            adpt.N[1] += 1
+        else
+            adpt.N[2] += 1
+        end
+    end
+    adpt, ws, yPr, ll
+end

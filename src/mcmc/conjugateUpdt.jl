@@ -34,11 +34,11 @@ Draw from the full conditional distribution of the parameters whose indices are
 specified by the object `updtIdx`, conditionally on the path given in container
 `XX`, and conditionally on all other parameter values given in vector `θ`.
 """
-function conjugateDraw(θ, XX, PT, prior, updtIdx)
+function conjugate_draw(θ, XX, PT, prior, updtIdx)
     μ = mustart(updtIdx)
     𝓦 = μ*μ'
     ϑ = SVector(thetaex(updtIdx, θ))
-    μ, 𝓦 = _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
+    μ, 𝓦 = _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)
 
     Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
     Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
@@ -52,7 +52,7 @@ mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
 end
 
 
-function _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
+function _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)
     for X in XX
         for i in 1:length(X)-1
             φₜ = SVector(φ(updtIdx, X.tt[i], X.yy[i], PT))

@@ -276,10 +276,10 @@ setBlocking(𝔅::NoBlocking, ::Any, ::Any) = 𝔅
 
 
 """
-    setBlocking(::ChequeredBlocking, blockingParams, 𝓦𝓢)
+    setBlocking(::ChequeredBlocking, blockingParams, ws)
 
 Blocking pattern is chosen to be a chequerboard.
 """
-function setBlocking(::ChequeredBlocking, blockingParams, 𝓦𝓢)
-    ChequeredBlocking(blockingParams..., 𝓦𝓢.P, 𝓦𝓢.WW, 𝓦𝓢.XX)
+function setBlocking(::ChequeredBlocking, blockingParams, ws)
+    ChequeredBlocking(blockingParams..., ws.P, ws.WW, ws.XX)
 end

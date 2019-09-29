@@ -103,13 +103,15 @@ end
 
 
 """
-    set_imputation_grid!(setup::MCMCSetup, dt, time_transf)
+    set_imputation_grid!(setup::MCMCSetup, dt,
+                         time_transf=(t₀,T) -> ((x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))))
 
 Define the imputation grid in `setup`. `dt` defines the granulatrity of the
 imputation grid and `time_transf` defines a time transformation to use for
 transforming equidistant grid.
 """
-function set_imputation_grid!(setup::MCMCSetup, dt, time_transf)
+function set_imputation_grid!(setup::MCMCSetup, dt,
+                              time_transf=(t₀,T) -> ((x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))))
     setup.dt = dt
     setup.τ = time_transf
     setup.setup_completion[:imput] = true
@@ -129,7 +131,7 @@ end
 
 """
     set_transition_kernels!(setup::MCMCSetup, transition_kernel,
-                            crank_nicolson_memory=0.0, param_updt=true,
+                            crank_nicolson_memory=0.0, param_updt::Bool=true,
                             updt_coord=(Val((true,)),),
                             updt_type=(MetropolisHastingsUpdt(),),
                             adaptive_proposals=NoAdaptation())
@@ -148,7 +150,8 @@ step in the `setup` object.
 ...
 """
 function set_transition_kernels!(setup::MCMCSetup, transition_kernel,
-                                 crank_nicolson_memory=0.0, param_updt=true,
+                                 crank_nicolson_memory=0.0,
+                                 param_updt::Bool=true,
                                  updt_coord=(Val((true,)),),
                                  updt_type=(MetropolisHastingsUpdt(),),
                                  adaptive_proposals=NoAdaptation())

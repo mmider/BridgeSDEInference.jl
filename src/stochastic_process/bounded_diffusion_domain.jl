@@ -1,3 +1,4 @@
+using Bridge
 import Base.valtype
 
 abstract type DiffusionDomain end

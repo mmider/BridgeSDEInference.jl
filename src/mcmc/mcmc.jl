@@ -1,3 +1,4 @@
+import ForwardDiff: value # currently not needed, but will be
 """
     accept_sample(logThreshold, verbose=false)
 
@@ -87,7 +88,7 @@ Set a new starting point for the proposal path when no blocking is done
 """
 function proposal_start_pt(::NoBlocking, ::Any, ::Any, yPr, P, ρ)
     yPrᵒ = rand(yPr, ρ)
-    y = startPt(yPrᵒ, P)
+    y = start_pt(yPrᵒ, P)
     y, yPrᵒ
 end
 
@@ -683,18 +684,18 @@ unknown coordinates of the parameter vector (the latter only if paramUpdt==true)
 - `setup`: variables that define the markov chain
 ...
 """         #TODO change the definition of the transition kernel!!!!
-function mcmc(::Type{K}, setup) where K
+function mcmc(setup)
     adaptive_prop, num_mcmc_steps = setup.adaptive_prop, setup.num_mcmc_steps
     ws, ll, yPr, θ = Workspace(setup)
     gibbs_defn = GibbsDefn(setup)
     init_adaptation!(adaptive_prop, ws)
 
-    𝔅 = setBlocking(setup.blocking, setup.blocking_params, setup.ws) # last argument?
+    𝔅 = setBlocking(setup.blocking, setup.blocking_params, ws) # last argument?
     display(𝔅)
     for i in 1:num_mcmc_steps
         verbose = act(Verbose(), ws, i)
-        act(SavePath(), ws, i) && savePath!(ws)
-        ll, acc, 𝔅, yPr = impute!(𝔅, yPr, ws, ll, verbose, i, ST())
+        act(SavePath(), ws, i) && save_path!(ws, ws.XX, 𝔅==NoBlocking() ? nothing : 𝔅.XX)
+        ll, acc, 𝔅, yPr = impute!(𝔅, yPr, ws, ll, verbose, i, solver_type(ws))
         update!(ws.accpt_tracker, Imputation(), acc)
 
         if act(ParamUpdate(), ws, i)
@@ -708,11 +709,11 @@ function mcmc(::Type{K}, setup) where K
             verbose && print("------------------------------------------------",
                              "------\n")
         end
-        addPath!(adaptiveProp, ws.XX, i)
-        print_adaptation_info(adaptiveProp, accImpCounter, accUpdtCounter, i)
-        adaptiveProp, ws, yPr, ll = adaptationUpdt!(adaptiveProp, ws, yPr, i,
-                                                     ll, ObsScheme(), ST())
-        adaptiveProp = still_adapting(adaptiveProp)
+        add_path!(adaptive_prop, ws.XX, i)
+        #print_adaptation_info(adaptive_prop, accImpCounter, accUpdtCounter, i)
+        adaptive_prop, ws, yPr, ll = update!(adaptive_prop, ws, yPr, i,
+                                                     ll, solver_type(ws)())
+        adaptive_prop = still_adapting(adaptive_prop)
     end
     displayAcceptanceRate(𝔅)
     ws

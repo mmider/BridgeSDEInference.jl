@@ -1,13 +1,47 @@
+#=
+    --------------------------------------------------------------------------
+    Implements functionality for learning a mean diffusion's trajectory during
+    mcmc sampling. The main object is `Adaptation`.
+    --------------------------------------------------------------------------
+=#
 import Base.resize!
 
-struct Adaptation{TV,T}
-    X::Vector{Vector{Vector{T}}}
-    ρs::Vector{Float64}
-    λs::Vector{Float64}
-    sizes::Vector{Int64}
-    skip::Int64
-    N::Vector{Int64}
+"""
+    Adaptation{TV,T}
 
+Stores the history of imputed paths from which the mean trajectory can be
+computed, as well as the scheme according to which the adaptation is supposed
+to be performed. `TV` indicates whether any adaptation should be done at all.
+`TV` set to `Val{False}` acts as an indicator that no adaptation is to be done.
+"""
+struct Adaptation{TV,T}
+    X::Vector{Vector{Vector{T}}} # history of paths
+    ρs::Vector{Float64}          # ladder of memory param for precond. Crank-Nic
+    λs::Vector{Float64}          # ladder of weights that balance initial
+                                 # auxiliary law and the adaptive law based on
+                                 # the mean trajectory
+    sizes::Vector{Int64}         # ladder indicating number of paths that are to
+                                 # be used for computing mean trajectory
+    skip::Int64                  # save 1 in every ... many sampled paths
+    N::Vector{Int64}             # counter #1-current position on the ladder
+                                 # #2-current index of the last saved path
+
+    """
+        Adaptation(::T, ρs, λs, sizes_of_path_coll, skip=1)
+
+    Initialise adaptation. `ρs`, `λs` and `sizes_of_path_coll` are ladders that
+    are traversed during sampling.
+    ...
+    # Arguments
+    - `::T`: Data type of a diffusion
+    - `ρs`: ladder of memory parameters for the preconditioned Crank-Nicolson
+    - `λs`: ladder of weights that balance between initial choice of auxiliary
+            law and the adaptive law based on the mean trajectory
+    - `sizes_of_path_coll`: ladder giving the number of paths that are to be
+                            used for computing the mean trajectory
+    - `skip`: save 1 in every ... many sampled paths
+    ...
+    """
     function Adaptation(::T, ρs, λs, sizes_of_path_coll, skip=1) where T
         TV = Val{true}
         M = maximum(sizes_of_path_coll)
@@ -16,19 +50,52 @@ struct Adaptation{TV,T}
         new{TV,T}(X, ρs, λs, sizes_of_path_coll, skip, N)
     end
 
+    """
+        Adaptation{TV,T}()
+
+    Empty constructor.
+    """
     Adaptation{TV,T}() where {TV,T} = new{TV,T}()
 end
 
+"""
+    NoAdaptation()
+
+Helper function for constructing a flag saying that no adaptation is to be done
+"""
 NoAdaptation() = Adaptation{Val{false},Nothing}()
 
-check_if_adapt(::Adaptation{Val{T}}) where T = T
+"""
+    check_if_adapt(::Adaptation{Val{T}})
 
+Check if any adaptation needs to be done
+"""
+check_if_adapt(::Adaptation{Val{T}}) where {T<:Bool} = T
+
+
+"""
+    still_adapting(adpt::Adaptation{Val{true}})
+
+If the adaptation has not been completed then do nothing, else return a flag
+that no further adaptation is to be done
+"""
 function still_adapting(adpt::Adaptation{Val{true}})
     adpt.N[1] > length(adpt.sizes) ? NoAdaptation() : adpt
 end
 
+"""
+    still_adapting(adpt::Adaptation{Val{false}})
+
+There is nothing to be done for a flag indicating no adaptation
+"""
 still_adapting(adpt::Adaptation{Val{false}}) = adpt
 
+"""
+    resize!(adpt::Adaptation{TV,T}, m, ns::Vector{Int64})
+
+Resize internal containers `X` with paths so that each storage unit consists of
+`m` subunits and each of these subunits is a length `ns[i]` vector of type `T`
+"""
 function resize!(adpt::Adaptation{TV,T}, m, ns::Vector{Int64}) where {TV,T}
     K = length(adpt.X)
     for i in 1:K
@@ -36,7 +103,13 @@ function resize!(adpt::Adaptation{TV,T}, m, ns::Vector{Int64}) where {TV,T}
     end
 end
 
-function addPath!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i) where T
+"""
+    add_path!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i)
+
+Save path `X` into the history stored by `adpt` object. Do so only if the index
+`i` of the current update step is not supposed to be skipped.
+"""
+function add_path!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i) where T
     if i % adpt.skip == 0
         m = length(X)
         for j in 1:m
@@ -44,66 +117,23 @@ function addPath!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i) wh
         end
     end
 end
-#=
-addPath!(adpt::Adaptation{Val{false}}, ::Any, ::Any) = false
 
 
+"""
+    add_path!(adpt::Adaptation{Val{false}}, ::Any, ::Any)
+
+Nothing to be done when no adaptation is to be performed
+"""
+add_path!(adpt::Adaptation{Val{false}}, ::Any, ::Any) = false
 
 
+"""
+    mean_trajectory(adpt::Adaptation{Val{true}})
 
-
-
-
-init_adaptation!(adpt::Adaptation{Val{false}}, 𝓦𝓢::Workspace) = nothing
-
-function init_adaptation!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace)
-    m = length(𝓦𝓢.XX)
-    resize!(adpt, m, [length(𝓦𝓢.XX[i]) for i in 1:m])
-end
-
-function adaptationUpdt!(adpt::Adaptation{Val{false}}, 𝓦𝓢::Workspace, yPr, i,
-                         ll, ::ObsScheme, ::ST) where {ObsScheme,ST}
-    adpt, 𝓦𝓢, yPr, ll
-end
-
-function adaptationUpdt!(adpt::Adaptation{Val{true}}, 𝓦𝓢::Workspace, yPr, i,
-                         ll, ::ObsScheme, ::ST) where {ObsScheme,ST}
-    if i % adpt.skip == 0
-        if adpt.N[2] == adpt.sizes[adpt.N[1]]
-            X̄ = compute_X̄(adpt)
-            m = length(𝓦𝓢.P)
-            for j in 1:m
-                Pt = recentre(𝓦𝓢.P[j].Pt, 𝓦𝓢.XX[j].tt, X̄[j])
-                update_λ!(Pt, adpt.λs[adpt.N[1]])
-                𝓦𝓢.P[j] = GuidPropBridge(𝓦𝓢.P[j], Pt)
-
-                Ptᵒ = recentre(𝓦𝓢.Pᵒ[j].Pt, 𝓦𝓢.XX[j].tt, X̄[j])
-                update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
-                𝓦𝓢.Pᵒ[j] = GuidPropBridge(𝓦𝓢.Pᵒ[j], Ptᵒ)
-            end
-            𝓦𝓢 = Workspace(𝓦𝓢, adpt.ρs[adpt.N[1]])
-
-            solveBackRec!(NoBlocking(), 𝓦𝓢.P, ST())
-            #solveBackRec!(NoBlocking(), 𝓦𝓢.Pᵒ, ST())
-            y = 𝓦𝓢.XX[1].yy[1]
-            yPr = invStartPt(y, yPr, 𝓦𝓢.P[1])
-
-            for j in 1:m
-                invSolve!(Euler(), 𝓦𝓢.XX[j], 𝓦𝓢.WW[j], 𝓦𝓢.P[j])
-            end
-            ll = logpdf(yPr, y)
-            ll += pathLogLikhd(ObsScheme(), 𝓦𝓢.XX, 𝓦𝓢.P, 1:m, 𝓦𝓢.fpt)
-            ll += lobslikelihood(𝓦𝓢.P[1], y)
-            adpt.N[2] = 1
-            adpt.N[1] += 1
-        else
-            adpt.N[2] += 1
-        end
-    end
-    adpt, 𝓦𝓢, yPr, ll
-end
-
-function compute_X̄(adpt::Adaptation{Val{true}})
+Compute the mean trajectory from the history of accepted paths stored in
+`adpt.X`
+"""
+function mean_trajectory(adpt::Adaptation{Val{true}})
     X = adpt.X
     num_paths = adpt.sizes[adpt.N[1]]
     num_segments = length(X[1])
@@ -124,17 +154,30 @@ function compute_X̄(adpt::Adaptation{Val{true}})
     X[1]
 end
 
+
+"""
+    print_adaptation_info(adpt::Adaptation{Val{false}}, ::Any, ::Any, ::Any)
+
+Nothing to print for no adaptation
+"""
 print_adaptation_info(adpt::Adaptation{Val{false}}, ::Any, ::Any, ::Any) = nothing
 
-function print_adaptation_info(adpt::Adaptation{Val{true}}, accImpCounter,
+
+"""
+    print_adaptation_info(adpt::Adaptation{Val{true}}, acc_imp_counter,
+                          acc_updt_counter, i)
+
+Print some information regarding acceptance rate during adaptation to the
+console
+"""
+function print_adaptation_info(adpt::Adaptation{Val{true}}, acc_imp_counter,
                                accUpdtCounter, i)
     if i % adpt.skip == 0 && adpt.N[2] == adpt.sizes[adpt.N[1]]
         print("--------------------------------------------------------\n")
         print(" Adapting...\n")
         print(" Using ", adpt.N[2], " many paths, thinned by ", adpt.skip, "\n")
-        print(" Previous imputation acceptance rate: ", accImpCounter/i, "\n")
-        print(" Previous param update acceptance rate: ", accUpdtCounter./i, "\n")
+        print(" Previous imputation acceptance rate: ", acc_imp_counter/i, "\n")
+        print(" Previous param update acceptance rate: ", acc_updt_counter./i, "\n")
         print("--------------------------------------------------------\n")
     end
 end
-=#

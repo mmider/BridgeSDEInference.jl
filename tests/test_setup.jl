@@ -54,11 +54,11 @@ include(joinpath(SRC_DIR, "solvers", "ralston3.jl"))
 
     dt = 0.01
     τ(t₀,T) = (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀))
-    set_imputation_grid!(setup, dt, τ)
+    set_imputation_grid!(setup, dt)
 
     @testset "setting imputation grid" begin
         @test setup.dt == dt
-        @test setup.τ == τ
+        @test setup.τ(tt[1], tt[2])(0.5*(tt[1]+tt[2])) == τ(tt[1], tt[2])(0.5*(tt[1]+tt[2]))
         @test @suppress !check_if_complete(setup, [:tkern])
         @test @suppress !check_if_complete(setup, [:prior])
         @test @suppress !check_if_complete(setup, [:mcmc])
@@ -140,7 +140,7 @@ include(joinpath(SRC_DIR, "solvers", "ralston3.jl"))
     initialise!(Float64, setup)
     @testset "initialisation of proposal law" begin
         @test length(setup.P) == 2
-        @test setup.P[1].Pt == setup.P̃[1]
+        @test typeof(setup.P[1].Pt) == typeof(setup.P̃[1])
         @test setup.P[1].Target == setup.P˟
     end
 end
