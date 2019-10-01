@@ -45,10 +45,10 @@ setup = MCMCSetup(Pˣ, P̃, PartObs())
 set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs_vals, obs_times) # uses default fpt
 set_imputation_grid!(setup, 1/2000)
 set_transition_kernels!(setup,
-                        [RandomWalk([2.0, 1.0, 0.64, 0.3], [false, false, false, true]),
-                         RandomWalk([2.0, 1.0, 0.64, 0.3], [false, false, false, true]),
-                         RandomWalk([2.0, 1.0, 0.64, 0.3], [false, false, false, true]),
-                         RandomWalk([2.0, 1.0, 0.64, 0.3], [false, false, false, true])],
+                        [RandomWalk([2.0, 1.0, 0.64, 0.3], 4),
+                         RandomWalk([2.0, 1.0, 0.64, 0.3], 4),
+                         RandomWalk([2.0, 1.0, 0.64, 0.3], 4),
+                         RandomWalk([2.0, 1.0, 0.64, 0.3], 4)],
                         0.995, true,
                         (Val((true, false, false, false)),
                          Val((false, true, false, false)),

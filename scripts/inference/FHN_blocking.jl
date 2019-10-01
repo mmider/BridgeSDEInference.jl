@@ -39,8 +39,7 @@ set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time, fpt
 set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
                         [RandomWalk([],[]),
-                         RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5],
-                                    [false, false, false, false, true])],
+                         RandomWalk([3.0, 5.0, 5.0, 0.01, 0.5], 5)],
                         0.9, true,
                         (Val((true, true, true, false, false)),
                          Val((false, false, false, false, true)),

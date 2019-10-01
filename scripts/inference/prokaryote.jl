@@ -40,7 +40,7 @@ set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time)
 set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
                         [RandomWalk([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
-                                    [true, true, true, true, true, true, true, true])],
+                                    collect(1:8))],
                         0.7, false,
                         (Val((true, false, false, false, false, false, false, false)),),
                         (MetropolisHastingsUpdt(),))

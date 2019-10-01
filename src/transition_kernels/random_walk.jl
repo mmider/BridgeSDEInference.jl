@@ -1,6 +1,7 @@
 using Distributions
 import Random: rand!, rand
 import Distributions: logpdf
+import Base: eltype, length
 
 """
     RandomWalk(ϵ::T, pos::S)
@@ -12,14 +13,45 @@ restricted to take positive values, the update is done via: x⁽ⁿᵉʷ⁾ <- x
 where U ∼ Unif(-ϵ,ϵ). For unrestricted: x⁽ⁿᵉʷ⁾ <- x⁽ᵒˡᵈ⁾ + U,
 where U ∼ Unif(-ϵ,ϵ).
 """
-struct RandomWalk{T, S}
-    ϵ::T
-    pos::S
-    RandomWalk(ϵ::T, pos::S) where {T,S} = new{T,S}(ϵ,pos)
+struct RandomWalk{T,N}
+    ϵ::NTuple{N,T}
+    pos::NTuple{N,Bool}
+
+    function RandomWalk(ϵ::S, pos=nothing
+                        ) where S<:Union{T,Vector{T},NTuple{N,T}} where {N,T}
+        _RandomWalk(T, ϵ, pos)
+    end
+
+    function _RandomWalk(::Type{T}, ϵ, pos::Nothing) where T
+        ϵ, N = Tuple(ϵ), length(ϵ)
+        new{T,N}(ϵ, Tuple([false for i in 1:N]))
+    end
+
+    function _RandomWalk(::Type{T}, ϵ, pos::Array{Any,1}) where T
+        ϵ, N = Tuple(ϵ), length(ϵ)
+        @assert length(pos) == 0
+        new{T,N}(ϵ, Tuple([false for i in 1:N]))
+    end
+
+    function _RandomWalk(::Type{T}, ϵ, pos::R) where {T,R<:Union{S,Vector{S},NTuple{N1,S}}} where {N1,S<:Integer}
+        ϵ, N = Tuple(ϵ), length(ϵ)
+        @assert minimum(pos) >= 1 && maximum(pos) <= N
+        new{T,N}(ϵ, Tuple([i in pos for i in 1:N]))
+    end
+
+    function _RandomWalk(::Type{T}, ϵ, pos::R) where {T,R<:Union{S,Vector{S},NTuple{N1,S}}} where {N1,S<:Bool}
+        ϵ, N = Tuple(ϵ), length(ϵ)
+        pos, N_temp = Tuple(pos), length(pos)
+        @assert N == N_temp
+        new{eltype(ϵ),N}(ϵ, pos)
+    end
+
 end
 
 additiveStep = (x,pos)->pos ? 0.0 : x
 multipStep = (x,pos)->pos ? exp(x) : 1.0
+eltype(::RandomWalk{T}) where T = T
+length(::RandomWalk{T,N}) where {T,N} = N
 
 """
     rand!(rw::RandomWalk, θ)

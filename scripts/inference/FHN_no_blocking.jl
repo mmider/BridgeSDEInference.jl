@@ -38,8 +38,7 @@ set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time, fpt
 set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
                         [RandomWalk([],[]),
-                         RandomWalk([0.0, 0.0, 0.0, 0.0, 0.5],
-                                    [false, false, false, false, true])],
+                         RandomWalk([0.0, 0.0, 0.0, 0.0, 0.5], 5)],
                         0.975, true, # the first is memory param for pCN
                         (Val((true, true, true, false, false)),
                          Val((false, false, false, false, true)),
@@ -54,7 +53,7 @@ set_priors!(setup,
             GsnStartingPt(x0, x0, @SMatrix [20. 0; 0 20.])
             )
 # num_mcmc_steps, save_iter, verb_iter, skip_for_save, warm_up
-set_mcmc_params!(setup, 1*10^2, 3*10^1, 10^1, 10^0, 0) #1*10^4, 3*10^2, 10^2, 10^0, 100
+set_mcmc_params!(setup, 1*10^3, 3*10^2, 10^2, 10^0, 0) #1*10^4, 3*10^2, 10^2, 10^0, 100
 set_blocking!(setup)
 set_solver!(setup, Vern7(), NoChangePt())
 initialise!(eltype(x0), setup)
