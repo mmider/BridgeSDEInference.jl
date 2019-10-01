@@ -1,31 +1,10 @@
-SRC_DIR = joinpath(Base.source_dir(), "..", "src")
-OUT_DIR=joinpath(Base.source_dir(), "..", "output")
+SRC_DIR = joinpath(Base.source_dir(), "..", "..", "src")
+OUT_DIR = joinpath(Base.source_dir(), "..", "..", "output")
 mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
 #using Main.BridgeSDEInference
-#include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
-#include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
-
-include(joinpath(SRC_DIR, "types.jl"))
-include(joinpath(SRC_DIR, "solvers", "vern7.jl"))
-include(joinpath(SRC_DIR, "solvers", "tsit5.jl"))
-include(joinpath(SRC_DIR, "solvers", "rk4.jl"))
-include(joinpath(SRC_DIR, "solvers", "ralston3.jl"))
-include(joinpath(SRC_DIR, "mcmc", "priors.jl"))
-
-include(joinpath(SRC_DIR, "stochastic_process", "bounded_diffusion_domain.jl"))
-include(joinpath(SRC_DIR, "examples", "lorenz_system.jl"))
-include(joinpath(SRC_DIR, "examples", "lorenz_system_const_vola.jl"))
-include(joinpath(SRC_DIR, "solvers", "euler_maruyama_dom_restr.jl"))
-
-include(joinpath(SRC_DIR, "stochastic_process", "guid_prop_bridge.jl"))
-include(joinpath(SRC_DIR, "transition_kernels", "random_walk.jl"))
-include(joinpath(SRC_DIR, "mcmc_extras", "blocking_schedule.jl"))
-include(joinpath(SRC_DIR, "mcmc_extras", "starting_pt.jl"))
-include(joinpath(SRC_DIR, "mcmc_extras", "adaptation.jl"))
-include(joinpath(SRC_DIR, "mcmc", "mcmc.jl"))
-include(joinpath(SRC_DIR, "stochastic_process", "path_to_wiener.jl"))
+include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
 
 
 using StaticArrays

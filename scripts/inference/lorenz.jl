@@ -1,38 +1,15 @@
-SRC_DIR = joinpath(Base.source_dir(), "..", "src")
-OUT_DIR=joinpath(Base.source_dir(), "..", "output")
+SRC_DIR = joinpath(Base.source_dir(), "..", "..", "src")
+OUT_DIR = joinpath(Base.source_dir(), "..", "..", "output")
 mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
 #using Main.BridgeSDEInference
-#include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
-#include(joinpath(SRC_DIR, "fitzHughNagumo_conjugateUpdt.jl"))
-
-include(joinpath(SRC_DIR, "types.jl"))
-include(joinpath(SRC_DIR, "solvers", "vern7.jl"))
-include(joinpath(SRC_DIR, "solvers", "tsit5.jl"))
-include(joinpath(SRC_DIR, "solvers", "rk4.jl"))
-include(joinpath(SRC_DIR, "solvers", "ralston3.jl"))
-include(joinpath(SRC_DIR, "mcmc", "priors.jl"))
-
-include(joinpath(SRC_DIR, "stochastic_process", "bounded_diffusion_domain.jl"))
-include(joinpath(SRC_DIR, "examples", "lorenz_system.jl"))
-include(joinpath(SRC_DIR, "examples", "lorenz_system_const_vola.jl"))
-include(joinpath(SRC_DIR, "solvers", "euler_maruyama_dom_restr.jl"))
-
-include(joinpath(SRC_DIR, "stochastic_process", "guid_prop_bridge.jl"))
-include(joinpath(SRC_DIR, "transition_kernels", "random_walk.jl"))
-include(joinpath(SRC_DIR, "mcmc_extras", "first_passage_times.jl"))
-include(joinpath(SRC_DIR, "mcmc_extras", "blocking_schedule.jl"))
-include(joinpath(SRC_DIR, "mcmc_extras", "starting_pt.jl"))
-include(joinpath(SRC_DIR, "mcmc_extras", "adaptation.jl"))
-include(joinpath(SRC_DIR, "mcmc", "setup.jl"))
-include(joinpath(SRC_DIR, "mcmc", "mcmc.jl"))
-include(joinpath(SRC_DIR, "stochastic_process", "path_to_wiener.jl"))
+include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
 
 
 using StaticArrays
-using Distributions # to define priors
-using Random        # to seed the random number generator
+using Distributions
+using Random
 # Let's generate the data
 # -----------------------
 using Bridge
@@ -47,8 +24,8 @@ tt = 0.0:dt:T
 XX, _ = simulateSegment(ℝ{3}(0.0, 0.0, 0.0), x0, Pˣ, tt)
 
 
-θ₀ = [5.0, 15.0, 6.0, 8.0]
-Pˣ = LorenzCV(θ₀...)
+θ_init = [5.0, 15.0, 6.0, 8.0]
+Pˣ = LorenzCV(θ_init...)
 
 
 skip = 1000
@@ -66,15 +43,13 @@ P̃ = [LorenzCVAux(θ₀..., t₀, u, T, v, aux_flag, x0[3]) for (t₀, T, u, v)
 
 setup = MCMCSetup(Pˣ, P̃, PartObs())
 set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs_vals, obs_times) # uses default fpt
-set_imputation_grid!(setup,
-                     1/2000,                                               # dt
-                     (t₀,T) -> ( (x) ->  t₀ + (x-t₀) * (2-(x-t₀)/(T-t₀)) ) # time transformation
-                     )
+set_imputation_grid!(setup, 1/2000)
 set_transition_kernels!(setup,
-                        RandomWalk([2.0, 1.0, 0.64, 0.3],
-                                   [false, false, false, true]), # transition kernel
-                        0.995,                       # precond. Crank-Nicolson memory parameter
-                        true,                        # whether to update parameters
+                        [RandomWalk([2.0, 1.0, 0.64, 0.3], [false, false, false, true]),
+                         RandomWalk([2.0, 1.0, 0.64, 0.3], [false, false, false, true]),
+                         RandomWalk([2.0, 1.0, 0.64, 0.3], [false, false, false, true]),
+                         RandomWalk([2.0, 1.0, 0.64, 0.3], [false, false, false, true])],
+                        0.995, true,
                         (Val((true, false, false, false)),
                          Val((false, true, false, false)),
                          Val((false, false, true, false)),
@@ -107,16 +82,8 @@ set_blocking!(setup)    # use default no blocking setting
 set_solver!(setup, Vern7(), NoChangePt())
 
 Random.seed!(4)
-#(chain, accRateImp, accRateUpdt,
-#    paths, time_)
-start = time()
-mcmc_results = mcmc(eltype(x0), setup)
-elapsed = time() - start
-print("time elapsed: ", elapsed, "\n")
-
-
-print("imputation acceptance rate: ", accRateImp,
-      ", parameter update acceptance rate: ", accRateUpdt)
+out, elapsed = @timeit mcmc(setup)
+display(out.accpt_tracker)
 
 using Plots
 pTp = [[[x[i] for x in path] for path in paths] for i in 1:3]
