@@ -43,10 +43,7 @@ set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
                         [RandomWalk([0.002, 0.1], [true, true]),
                          RandomWalk([0.002, 0.1], [true, true])],
-                        0.975, true,
-                        (Val((true, false)),
-                         Val((false, true)),
-                        ),
+                        0.975, true, [[1],[2]],
                         (MetropolisHastingsUpdt(),
                          MetropolisHastingsUpdt(),
                         ))

@@ -49,12 +49,7 @@ set_transition_kernels!(setup,
                          RandomWalk([2.0, 1.0, 0.64, 0.3], 4),
                          RandomWalk([2.0, 1.0, 0.64, 0.3], 4),
                          RandomWalk([2.0, 1.0, 0.64, 0.3], 4)],
-                        0.995, true,
-                        (Val((true, false, false, false)),
-                         Val((false, true, false, false)),
-                         Val((false, false, true, false)),
-                         Val((false, false, false, true))
-                        ),                           # coordinate updates
+                        0.995, true, [[1],[2],[3],[4]],
                         (MetropolisHastingsUpdt(),
                          MetropolisHastingsUpdt(),
                          MetropolisHastingsUpdt(),

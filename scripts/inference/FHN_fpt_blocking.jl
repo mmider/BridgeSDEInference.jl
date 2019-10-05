@@ -38,8 +38,7 @@ set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time, fpt
 set_imputation_grid!(setup, 1/5000)
 set_transition_kernels!(setup,
                         [RandomWalk([3.0, 5.0, 1.0, 0.01, 0.5], 5)],
-                        0.99, true,
-                        (Val((false, false, true, false, false)),),
+                        0.99, true, 3,
                         (MetropolisHastingsUpdt(),))
 set_priors!(setup, Priors((ImproperPrior(),)), KnownStartingPt(x0))
 set_mcmc_params!(setup, 3*10^4, 3*10^2, 10^2, 10^1, 100)

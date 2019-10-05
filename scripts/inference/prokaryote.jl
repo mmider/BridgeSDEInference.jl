@@ -41,8 +41,7 @@ set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
                         [RandomWalk([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
                                     collect(1:8))],
-                        0.7, false,
-                        (Val((true, false, false, false, false, false, false, false)),),
+                        0.7, false, 1,
                         (MetropolisHastingsUpdt(),))
 set_priors!(setup,
             Priors((ImproperPrior(), ImproperPrior(), ImproperPrior(),

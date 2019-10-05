@@ -70,8 +70,7 @@ NoAdaptation() = Adaptation{Val{false},Nothing}()
 
 Check if any adaptation needs to be done
 """
-check_if_adapt(::Adaptation{Val{T}}) where {T<:Bool} = T
-
+check_if_adapt(::Adaptation{Val{T}}) where T = T
 
 """
     still_adapting(adpt::Adaptation{Val{true}})

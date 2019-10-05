@@ -151,18 +151,68 @@ step in the `setup` object.
 """
 function set_transition_kernels!(setup::MCMCSetup, transition_kernel,
                                  crank_nicolson_memory=0.0,
-                                 param_updt::Bool=true,
-                                 updt_coord=(Val((true,)),),
+                                 param_updt::Bool=false,
+                                 updt_coord=nothing,
                                  updt_type=(MetropolisHastingsUpdt(),),
                                  adaptive_proposals=NoAdaptation())
     setup.t_kernel = transition_kernel
     setup.ρ = crank_nicolson_memory
     setup.param_updt = param_updt
-    setup.updt_coord = updt_coord
+    setup.updt_coord = reformat_updt_coord(updt_coord, params(setup.P˟))
     setup.updt_type = updt_type
+    @assert length(setup.updt_type) == length(setup.updt_coord)
     setup.adaptive_prop = adaptive_proposals
     setup.setup_completion[:tkern] = true
 end
+
+"""
+    reformat_updt_coord(updt_coord::Nothing, θ)
+
+Chosen not to update parameters, returned object is not important
+"""
+reformat_updt_coord(updt_coord::Nothing, θ) = (Val((true,)),)
+
+
+IntContainer = Union{Number,NTuple{N,<:Integer},Vector{<:Integer}} where N
+IntLongContainer = Union{NTuple{N,<:Integer},Vector{<:Integer}} where N
+DoubleContainer = Union{Vector{<:IntLongContainer},NTuple{N,Tuple}} where N
+"""
+    reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
+
+Single joint update of multiple parameters at once
+"""
+function reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
+    (int_to_val(updt_coord, θ),)
+end
+
+"""
+    reformat_updt_coord(updt_coord::S, θ) where S<:DoubleContainer
+
+Multiple updates, reformat from indices to update to a tuple of Val{...}()
+"""
+function reformat_updt_coord(updt_coord::S, θ) where S<:DoubleContainer
+    Tuple([int_to_val(uc, θ) for uc in updt_coord])
+end
+
+"""
+    int_to_val(updt_coord::S, θ)
+
+Transform from a container of indices to update to a
+Val{tuple of true/false one-hot-encoding}()
+"""
+function int_to_val(updt_coord::S, θ) where S<:IntContainer
+    @assert all([1<= uc <= length(θ) for uc in updt_coord])
+    Val{Tuple([i in updt_coord for i in 1:length(θ)])}()
+end
+
+
+"""
+    reformat_updt_coord(updt_coord::Nothing, θ)
+
+If the user does not use indices of coordinates to be updated it is assumed that
+appropriate Val{(...)}() object is passed and nothing is done, use at your own risk
+"""
+reformat_updt_coord(updt_coord, θ) = updt_coord
 
 """
     incomplete_message(::Val{:tkern})

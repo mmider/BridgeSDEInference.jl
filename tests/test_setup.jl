@@ -67,11 +67,12 @@ include(joinpath(SRC_DIR, "solvers", "ralston3.jl"))
     end
 
     t_kernels = [RandomWalk([0.002, 0.1], [true, true]),
-                 RandomWalk([0.2, 1.0], [false, true])]
+                 RandomWalk([0.2, 1.0], 2)]
     ρ = 0.5
     param_updt = true
-    updt_coord = (Val((true,true,false)),
-                  Val((false,true,true)))
+    updt_coord_true = (Val((true,true,false,false,false)),
+                       Val((false,true,true,false,false)))
+    updt_coord = ((1,2),(2,3))
     updt_type=(MetropolisHastingsUpdt(),
                ConjugateUpdt())
     set_transition_kernels!(setup, t_kernels, ρ, param_updt, updt_coord,
@@ -80,13 +81,20 @@ include(joinpath(SRC_DIR, "solvers", "ralston3.jl"))
         @test setup.t_kernel == t_kernels
         @test setup.ρ == ρ
         @test setup.param_updt == param_updt
-        @test setup.updt_coord == updt_coord
+        @test setup.updt_coord == updt_coord_true
         @test setup.updt_type == updt_type
         @test !check_if_adapt(setup.adaptive_prop)
         @test @suppress !check_if_complete(setup, [:prior])
         @test @suppress !check_if_complete(setup, [:mcmc])
         @test @suppress !check_if_complete(setup, [:solv])
         @test @suppress check_if_complete(setup, [:obs, :imput, :tkern])
+    end
+
+    @testset "reformat updt_coord object" begin
+        @test reformat_updt_coord((1,3),[1,2,3]) == (Val((true,false,true)),)
+        @test reformat_updt_coord(nothing,[1,2,3]) == (Val((true,)),)
+        @test reformat_updt_coord([(1,2),(2,3)],[1,2,3]) == (Val{(true, true, false)}(), Val{(false, true, true)}())
+        @test_throws AssertionError reformat_updt_coord([4],[1,2,3])
     end
 
     priors = Priors((ImproperPrior(), ImproperPrior()))

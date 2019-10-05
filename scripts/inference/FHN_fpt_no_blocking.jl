@@ -38,8 +38,7 @@ set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time, fpt
 set_imputation_grid!(setup, 1/2000)
 set_transition_kernels!(setup,
                         [RandomWalk([3.0, 5.0, 0.5, 0.01, 0.5], 5)],
-                        0.9995, true,
-                        (Val((false, true, true, false, false)),),
+                        0.9995, true, (2,3),
                         (ConjugateUpdt(),))
 set_priors!(setup,
             Priors((MvNormal([0.0,0.0], diagm(0=>[1000.0, 1000.0])),
@@ -55,23 +54,7 @@ Random.seed!(4)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
 
-x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain, #θ=θ₀
-                                       numGibbsSteps=1,
-                                       parametrisation=param,
-                                       warmUp=warmUp)
-
-df2 = savePathsToFile(pathsToSave, time_, joinpath(OUT_DIR, "sampled_paths.csv"))
-df3 = saveChainToFile(chain, joinpath(OUT_DIR, "chain.csv"))
-
-include(joinpath(AUX_DIR, "plotting_fns.jl"))
-set_default_plot_size(30cm, 20cm)
-plotPaths(df2, obs=[Float64.(df.upCross), [x0⁺[2]]],
-          obsTime=[Float64.(df.time), [0.0]], obsCoords=[1,2])
-
-
-print(Float64.(df.time))
-
-plotChain(df3, coords=[1])
-plotChain(df3, coords=[2])
-plotChain(df3, coords=[3])
-plotChain(df3, coords=[5])
+include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
+plot_chains(out; truth=[10.0, -8.0, 15.0, 0.0, 3.0]) # this might not be the truth
+plot_paths(out; transf=[(x,θ)->x, (x,θ)->conjugToRegular(x, θ[1], 0)],
+           obs=(times=obs_time[2:end], vals=obs[2:end], indices=1))

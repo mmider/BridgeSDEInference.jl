@@ -28,9 +28,9 @@ end
 
 @testset "acceptance tracker" begin
     setup = init_setup().setup
-    updt_coord = (Val((true,true,false)),
-                  Val((false,true,true)))
-    set_transition_kernels!(setup, nothing, nothing, nothing, updt_coord)
+    updt_coord = ((1,2),(2,3))
+    set_transition_kernels!(setup, nothing, nothing, true, updt_coord,
+                            (MetropolisHastingsUpdt(),MetropolisHastingsUpdt()))
     at = AccptTracker(setup)
 
     @testset "initialisation" begin
@@ -70,9 +70,9 @@ end
 @testset "parameter history" begin
     out = init_setup()
     setup, θ = out.setup, out.θ
-    updt_coord = (Val((true,true,false)),
-                  Val((false,true,true)))
-    set_transition_kernels!(setup, nothing, nothing, nothing, updt_coord)
+    updt_coord = ((1,2),(2,3))
+    set_transition_kernels!(setup, nothing, nothing, true, updt_coord,
+                            (MetropolisHastingsUpdt(),MetropolisHastingsUpdt()))
 
     num_mcmc_steps = 1000
     warm_up = 50
@@ -228,7 +228,8 @@ end
 
 
 @testset "definition of gibbs sweep" begin
-    setup = init_setup().setup
+    out = init_setup()
+    setup, obs, tt = out.setup, out.obs, out.tt
     L = [1. 0.; 0. 1.]
     Σ = [0.5 0.0; 0.0 1.0]
     set_observations!(setup, [L, L], [Σ, 2*Σ], obs, tt)
