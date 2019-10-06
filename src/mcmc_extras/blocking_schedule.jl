@@ -23,7 +23,7 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     accpt::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of accepted samples
     props::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of proposed samples
     # info about the points at which to switch between the systems of ODEs
-    changePts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
+    change_pts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
 end
 ```
 is a blocking schedule in which two sets of blocks are defined in an interlacing
@@ -31,7 +31,7 @@ manner. For instance, if all knots consist of {1,2,3,4,5,6,7,8,9}, then set A
 will contain {1,3,5,7,9}, whereas set B {2,4,6,8}. These knots will then
 uniquely determine the blocks
 
-    ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64, changePt::ODEChangePt,
+    ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64, change_pt::ODEChangePt,
                       P::TP, WW::TWW, XX::TXX)
 
 Base constructor that takes a set of all `knots` (which it then splits into
@@ -71,10 +71,10 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     accpt::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of accepted samples
     props::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of proposed samples
     # info about the points at which to switch between the systems of ODEs
-    changePts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
+    change_pts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
 
     function ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64,
-                               changePt::ODEChangePt, P::TP, WW::TWW, XX::TXX
+                               change_pt::ODEChangePt, P::TP, WW::TWW, XX::TXX
                                ) where {TP,TWW,TXX}
         findKnots(mod, rem) = [k for (i,k) in enumerate(knots) if i % mod == rem]
         knotsA = findKnots(2, 1)
@@ -92,7 +92,7 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
         ΣsA = findΣ(knotsA)
         ΣsB = findΣ(knotsB)
 
-        findChP(knots) = [(k in knots ? deepcopy(changePt) : p.changePt)
+        findChP(knots) = [(k in knots ? deepcopy(change_pt) : p.change_pt)
                                                     for (k,p) in enumerate(P)]
         chpA = findChP(knotsA)
         chpB = findChP(knotsB)
@@ -130,7 +130,7 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     function ChequeredBlocking(𝔅::ChequeredBlocking{TP̃, TWW, TXX}, P::TP, Pᵒ::TP,
                                idx::Int64) where {TP̃,TP,TWW,TXX}
         new{TP,TWW,TXX}(P, Pᵒ, 𝔅.WW, 𝔅.WWᵒ, 𝔅.XX, 𝔅.XXᵒ, 𝔅.Ls, 𝔅.vs, 𝔅.Σs,
-                        𝔅.knots, 𝔅.blocks, idx, 𝔅.accpt, 𝔅.props, 𝔅.changePts)
+                        𝔅.knots, 𝔅.blocks, idx, 𝔅.accpt, 𝔅.props, 𝔅.change_pts)
     end
 
     function ChequeredBlocking()
@@ -167,7 +167,7 @@ function next(𝔅::ChequeredBlocking, XX, θ)
     vs = findEndPts(𝔅, XX, newIdx)
     Ls = 𝔅.Ls[newIdx]
     Σs = 𝔅.Σs[newIdx]
-    chPts = 𝔅.changePts[newIdx]
+    chPts = 𝔅.change_pts[newIdx]
 
     P = [GuidPropBridge(𝔅.P[i], Ls[i], vs[i], Σs[i], chPts[i], θ)
                                             for (i,_) in enumerate(𝔅.P)]
@@ -228,7 +228,7 @@ end
 
 Register whether the block has been accepted
 """
-function registerAccpt!(𝔅::BlockingSchedule, i, accepted)
+function register_accpt!(𝔅::BlockingSchedule, i, accepted)
     𝔅.props[𝔅.idx][i] += 1
     𝔅.accpt[𝔅.idx][i] += 1*accepted
 end

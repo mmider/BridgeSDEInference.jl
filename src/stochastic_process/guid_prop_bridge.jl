@@ -283,7 +283,7 @@ computed values of `L̃`, `M̃⁺`, `μ`.
 function _gpupdate!(change_pt::ODEChangePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P,
                     solver::ST = Ralston3()) where ST
     toUpdate = (LMatrix(), M⁺Matrix(), μVector())
-    λ = getChangePt(change_pt)
+    λ = get_change_pt(change_pt)
     N = length(t)
     tableau = createTableau(ST())  # solver(change_pt)) (i.e. TODO allow for a different solver)
 

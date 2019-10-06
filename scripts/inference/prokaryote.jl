@@ -58,24 +58,6 @@ Random.seed!(4)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
 
-pTp = [[[x[i] for x in path] for path in paths] for i in 1:4]
-
-using Plots
-
-function plotPaths(j, obsIdxS, obsIdxE)
-    idxS = div((obsIdxS-1)*skip,5)+1
-    idxE = div((obsIdxE-1)*skip,5)+1
-    p = plot()
-    for i in 1:length(paths)
-        plot!(time_[idxS:idxE], pTp[j][i][idxS:idxE], label="", color="steelblue", alpha=0.3)
-    end
-    scatter!(obsTime[obsIdxS:obsIdxE], [x[j] for x in obsVals][obsIdxS:obsIdxE],
-             color="orange", label="")
-    p
-end
-plotPaths(1, 1, 5)
-plotPaths(2, 1, 5)
-plotPaths(3, 1, 5)
-plotPaths(4, 1, 5)
-
-plot([θ[1] for θ in chain])
+include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
+plot_chains(out; truth=[0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1])
+plot_paths(out; obs=(times=obs_time[2:end], vals=obs_vals[2:end], indices=1:4))

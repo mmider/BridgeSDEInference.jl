@@ -27,8 +27,8 @@ filename = "test_path_fpt_simpleConjug.csv"#"path_fpt_simpleConjug.csv"
       fpt_or_part_obs) = readData(Val(fptObsFlag), joinpath(OUT_DIR, filename))
 
 param = :complexConjug
-θ_init = [10.0, -5.0, 5.0, 0.0, 3.0]
-P˟ = FitzhughDiffusion(param, θ₀...)
+θ_init = [10.0, -8.0, 15.0, 0.0, 3.0]
+P˟ = FitzhughDiffusion(param, θ_init...)
 P̃ = std_aux_laws(FitzhughDiffusionAux, param, θ_init, obs, obs_time, 1)
 L = @SMatrix [1. 0.]
 Σ = @SMatrix [10^(-10)]
@@ -38,14 +38,14 @@ set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time, fpt
 set_imputation_grid!(setup, 1/2000)
 set_transition_kernels!(setup,
                         [RandomWalk([3.0, 5.0, 0.5, 0.01, 0.5], 5)],
-                        0.9995, true, (2,3),
+                        0.9995, true, 3,#(2,3),
                         (ConjugateUpdt(),))
 set_priors!(setup,
-            Priors((MvNormal([0.0,0.0], diagm(0=>[1000.0, 1000.0])),
+            Priors((MvNormal([0.0], diagm(0=>[1000.0])),
                     )),
             GsnStartingPt(zero(typeof(x0)), zero(typeof(x0)), @SMatrix [100. 0; 0 100.])
             )
-set_mcmc_params!(setup, 3*10^5, 1*10^4, 10^2, 10^1, 100)
+set_mcmc_params!(setup, 1*10^4, 1*10^3, 10^2, 10^1, 100) #3*10^5, 1*10^4, 10^2, 10^1, 100
 set_blocking!(setup)
 set_solver!(setup, Vern7(), NoChangePt())
 initialise!(eltype(x0), setup)

@@ -57,9 +57,6 @@ Random.seed!(4)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
 
-Xs = [[x[1] for x in path] for path in paths]
-
-using Plots
-p = plot(time_, Xs[1], color="steelblue", alpha=0.5, label="", ylims=[0,5])
-scatter!(obsTime, [x[1] for x in obsVals])
-display(p)
+include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
+plot_chains(out; truth=[0.05, √2.0])
+plot_paths(out; obs=(times=obs_time[2:end], vals=obs_vals[2:end], indices=1))

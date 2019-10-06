@@ -656,7 +656,7 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx,ST},
     θᵒ = move_to_proper_place(ϑ, θ, UpdtIdx())     # align so that dimensions agree
 
     update_target_laws!(𝔅, θᵒ)
-    recomputeODEs && solve_back_rec!(𝔅, 𝔅.P, ST())
+    pu.recompute_ODEs && solve_back_rec!(𝔅, 𝔅.P, ST())
     for i in 1:m    # compute wiener path WW that generates XX
         inv_solve!(Euler(), 𝔅.XX[i], 𝔅.WW[i], 𝔅.P[i])
     end
@@ -683,7 +683,7 @@ unknown coordinates of the parameter vector (the latter only if paramUpdt==true)
 - `::ObsScheme`: observation scheme---first-passage time or partial observations
 - `setup`: variables that define the markov chain
 ...
-"""         #TODO change the definition of the transition kernel!!!!
+"""
 function mcmc(setup)
     adaptive_prop, num_mcmc_steps = setup.adaptive_prop, setup.num_mcmc_steps
     ws, ll, yPr, θ = Workspace(setup)
@@ -695,7 +695,7 @@ function mcmc(setup)
     for i in 1:num_mcmc_steps
         verbose = act(Verbose(), ws, i)
         act(SavePath(), ws, i) && save_path!(ws, ws.XX, 𝔅==NoBlocking() ? nothing : 𝔅.XX)
-        ll, acc, 𝔅, yPr = impute!(𝔅, yPr, ws, ll, verbose, i, solver_type(ws))
+        ll, acc, 𝔅, yPr = impute!(𝔅, yPr, ws, ll, verbose, i, solver_type(ws)())
         update!(ws.accpt_tracker, Imputation(), acc)
 
         if act(ParamUpdate(), ws, i)
