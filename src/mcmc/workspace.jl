@@ -211,6 +211,7 @@ struct Workspace{ObsScheme,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
     no_blocking_used::Bool          # Flag for whether blocking is used
     paths::Vector                   # Storage with historical, accepted paths
     time::Vector{Float64}           # Storage with time axis
+    blidx::Int64
     #result::Vector{Q} #TODO come back to later
     #resultᵒ::Vector{Q} #TODO come back to later
 
@@ -264,7 +265,7 @@ struct Workspace{ObsScheme,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
                                                  AccptTracker(setup), θ_history,
                                                  ActionTracker(setup), skip,
                                                  setup.blocking == NoBlocking(),
-                                                 [], _time),
+                                                 [], _time, 1),
          ll = ll, x0_prior = x0_prior, θ = last(θ_history))
     end
 
@@ -282,7 +283,17 @@ struct Workspace{ObsScheme,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
                                     ws.recompute_ODEs, ws.accpt_tracker,
                                     ws.θ_chain, ws.action_tracker,
                                     ws.skip_for_save, ws.no_blocking_used,
-                                    ws.paths, ws.time)
+                                    ws.paths, ws.time, ws.blidx)
+    end
+
+    function Workspace(ws::Workspace{ObsScheme,S,TX,TW,R̃,ST}, P::Vector{R},
+                       Pᵒ::Vector{R}, idx) where {ObsScheme,S,TX,TW,R̃,ST,R}
+        new{ObsScheme,S,TX,TW,R,ST}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
+                                    Pᵒ, P, ws.fpt, ws.ρ,
+                                    ws.recompute_ODEs, ws.accpt_tracker,
+                                    ws.θ_chain, ws.action_tracker,
+                                    ws.skip_for_save, ws.no_blocking_used,
+                                    ws.paths, ws.time, idx)
     end
 end
 
@@ -307,6 +318,13 @@ points is saved to reduce storage space. To-be-saved `XX` is set to `wsXX` or
 """
 function save_path!(ws, wsXX, bXX) #TODO deprecate bXX
     XX = ws.no_blocking_used ? wsXX : bXX
+    skip = ws.skip_for_save
+    push!(ws.paths, collect(Iterators.flatten(XX[i].yy[1:skip:end-1]
+                                               for i in 1:length(XX))))
+end
+
+# remember to remove ws.no_blocking_used
+function save_path!(ws, XX)
     skip = ws.skip_for_save
     push!(ws.paths, collect(Iterators.flatten(XX[i].yy[1:skip:end-1]
                                                for i in 1:length(XX))))

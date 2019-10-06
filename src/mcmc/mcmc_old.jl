@@ -36,8 +36,8 @@ end
 Solve backward recursion to find H, Hν, c and Q, which together define r̃(t,x)
 and p̃(x, 𝓓) under the auxiliary law, when blocking is done
 """
-function solve_back_rec!(𝔅::BlockingSchedule, ws::Workspace, P, solver::ST=Ralston3()) where ST
-    for block in reverse(𝔅.blocks[ws.blidx])
+function solve_back_rec!(𝔅::BlockingSchedule, P, solver::ST=Ralston3()) where ST
+    for block in reverse(𝔅.blocks[𝔅.idx])
         gpupdate!(P[block[end]]; solver=ST())
         for i in reverse(block[1:end-1])
             gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1]; solver=ST())
@@ -276,9 +276,9 @@ function impute!(𝔅::NoBlocking, yPr, ws::Workspace{ObsScheme}, ll,
 
     if accept_sample(llᵒ-ll, verbose)
         swap!(XX, XXᵒ, WW, WWᵒ, 1:m)
-        return llᵒ, true, yPrᵒ
+        return llᵒ, true, 𝔅, yPrᵒ
     else
-        return ll, false, yPr
+        return ll, false, 𝔅, yPr
     end
 end
 
@@ -288,8 +288,8 @@ end
 
 Compute driving Wiener noise `WW` from path `XX` drawn under law `P`
 """
-function noise_from_path!(𝔅::BlockingSchedule, ws::Workspace, XX, WW, P)
-    for block in 𝔅.blocks[ws.blidx]
+function noise_from_path!(𝔅::BlockingSchedule, XX, WW, P)
+    for block in 𝔅.blocks[𝔅.idx]
         for i in block
             inv_solve!(Euler(), XX[i], WW[i], P[i])
         end
@@ -341,47 +341,48 @@ Imputation step of the MCMC scheme (without blocking).
 function impute!(𝔅::ChequeredBlocking, yPr, ws::Workspace{ObsScheme}, ll,
                  verbose=false, it=NaN, solver::ST=Ralston3(), headStart=false
                  ) where {ObsScheme <: AbstractObsScheme, ST}
-    WWᵒ, WW, Pᵒ, P, XXᵒ, XX = ws.WWᵒ, ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX
-    solve_back_rec!(𝔅, ws, P, ST())         # compute (H, Hν, c) for given blocks
-    noise_from_path!(𝔅, ws, XX, WW, P) # find noise WW that generates XX under 𝔅.P
+    θ = params(𝔅.P[1].Target)             # current parameter
+    𝔅 = next(𝔅, 𝔅.XX, θ)
+    solve_back_rec!(𝔅, 𝔅.P, ST())         # compute (H, Hν, c) for given blocks
+    noise_from_path!(𝔅, 𝔅.XX, 𝔅.WW, 𝔅.P) # find noise WW that generates XX under 𝔅.P
 
     # compute white noise generating starting point under 𝔅
-    yPr = inv_start_pt(XX[1].yy[1], yPr, P[1])
+    yPr = inv_start_pt(𝔅.XX[1].yy[1], yPr, 𝔅.P[1])
 
     ll_total = 0.0
-    for (blockIdx, block) in enumerate(𝔅.blocks[ws.blidx])
+    for (blockIdx, block) in enumerate(𝔅.blocks[𝔅.idx])
         blockFlag = Val{block[1]}()
-        y = XX[block[1]].yy[1]       # accepted starting point
+        y = 𝔅.XX[block[1]].yy[1]       # accepted starting point
 
         # proposal starting point for the block (can be non-y only for the first block)
-        yᵒ, yPrᵒ = proposal_start_pt(𝔅, blockFlag, y, yPr, P[block[1]], ws.ρ)
+        yᵒ, yPrᵒ = proposal_start_pt(𝔅, blockFlag, y, yPr, 𝔅.P[block[1]], ws.ρ)
 
         # sample path in block
-        sample_segments!(block, ws, yᵒ)
-        set_end_pt_manually!(𝔅, blockIdx, block, ws)
+        sample_segments!(block, ws.Wnr, 𝔅.WW, 𝔅.WWᵒ, 𝔅.P , yᵒ, 𝔅.XXᵒ, ws.ρ)
+        set_end_pt_manually!(𝔅, blockIdx, block)
 
         # starting point, path and observations contribution
         llᵒ = start_pt_log_pdf(blockFlag, yPrᵒ, yᵒ)
-        llᵒ += path_log_likhd(ObsScheme(), XXᵒ, P, block, ws.fpt)
-        llᵒ += lobslikelihood(P[block[1]], yᵒ)
+        llᵒ += path_log_likhd(ObsScheme(), 𝔅.XXᵒ, 𝔅.P, block, ws.fpt)
+        llᵒ += lobslikelihood(𝔅.P[block[1]], yᵒ)
 
         llPrev = start_pt_log_pdf(blockFlag, yPr, y)
-        llPrev += path_log_likhd(ObsScheme(), XX, P, block, ws.fpt; skipFPT=true)
-        llPrev += lobslikelihood(P[block[1]], y)
+        llPrev += path_log_likhd(ObsScheme(), 𝔅.XX, 𝔅.P, block, ws.fpt; skipFPT=true)
+        llPrev += lobslikelihood(𝔅.P[block[1]], y)
 
         print_info(verbose, it, value(llPrev), value(llᵒ), "impute")
         if accept_sample(llᵒ-llPrev, verbose)
-            swap!(XX, XXᵒ, block)
-            register_accpt!(𝔅, ws, blockIdx, true)
+            swap!(𝔅.XX, 𝔅.XXᵒ, block)
+            register_accpt!(𝔅, blockIdx, true)
             yPr = yPrᵒ # can do something non-trivial only for the first block
             ll_total += llᵒ
         else
-            register_accpt!(𝔅, ws, blockIdx, false)
+            register_accpt!(𝔅, blockIdx, false)
             ll_total += llPrev
         end
     end
     # acceptance indicator does not matter for sampling with blocking
-    return ll_total, true, yPr
+    return ll_total, true, 𝔅, yPr
 end
 
 """
@@ -396,7 +397,6 @@ function update_laws!(Ps, θᵒ)
     end
 end
 
-#NOTE deprecated
 """
     update_target_laws!(𝔅::NoBlocking, θᵒ)
 
@@ -404,7 +404,6 @@ Nothing to do
 """
 update_target_laws!(𝔅::NoBlocking, θᵒ) = nothing
 
-#NOTE deprecated
 """
     update_target_laws!(𝔅::BlockingSchedule, θᵒ)
 
@@ -418,7 +417,6 @@ function update_target_laws!(𝔅::BlockingSchedule, θᵒ)
     end
 end
 
-#NOTE deprecated
 """
     update_proposal_laws!(𝔅::BlockingSchedule, θᵒ)
 
@@ -431,16 +429,6 @@ function update_proposal_laws!(𝔅::BlockingSchedule, θᵒ)
         end
     end
 end
-
-function update_laws!(𝔅::BlockingSchedule, P, θᵒ, ws)
-    for block in 𝔅.blocks[ws.blidx]
-        for i in block
-            P[i] = GuidPropBridge(P[i], θᵒ)
-        end
-    end
-end
-
-
 
 """
     find_path_from_wiener!(XX, y, WW, P, iRange)
@@ -478,9 +466,9 @@ Manually set the end-point of the proposal path under blocking so that it agrees
 with the end-point of the previously accepted path. If it is the last block,
 then do nothing
 """
-function set_end_pt_manually!(𝔅::BlockingSchedule, blockIdx, block, ws::Workspace)
-    if blockIdx < length(𝔅.blocks[ws.blidx])
-        ws.XXᵒ[block[end]].yy[end] = ws.XX[block[end]].yy[end]
+function set_end_pt_manually!(𝔅::BlockingSchedule, blockIdx, block)
+    if blockIdx < length(𝔅.blocks[𝔅.idx])
+        𝔅.XXᵒ[block[end]].yy[end] = 𝔅.XX[block[end]].yy[end]
     end
 end
 
@@ -580,21 +568,20 @@ function update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx,ST},
                       𝔅::ChequeredBlocking, θ, yPr, ws::Workspace{ObsScheme},
                       ll, verbose=false, it=NaN, uidx=NaN
                       ) where {ObsScheme <: AbstractObsScheme,UpdtIdx,ST}
-    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
-    m = length(P)
+    m = length(𝔅.P)
     θᵒ = rand(pu.t_kernel, θ, UpdtIdx())               # sample new parameter
-    update_laws!(𝔅, Pᵒ, θᵒ, ws)                   # update law `Pᵒ` accordingly
-    solve_back_rec!(𝔅, ws, Pᵒ, ST())                 # compute (H, Hν, c)
+    update_proposal_laws!(𝔅, θᵒ)                   # update law `Pᵒ` accordingly
+    solve_back_rec!(𝔅, 𝔅.Pᵒ, ST())                 # compute (H, Hν, c)
 
-    llᵒ = logpdf(yPr, XX[1].yy[1])
-    for (blockIdx, block) in enumerate(𝔅.blocks[ws.blidx])
-        y = XX[block[1]].yy[1]
-        find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, block)
-        set_end_pt_manually!(𝔅, blockIdx, block, ws)
+    llᵒ = logpdf(yPr, 𝔅.XX[1].yy[1])
+    for (blockIdx, block) in enumerate(𝔅.blocks[𝔅.idx])
+        y = 𝔅.XX[block[1]].yy[1]
+        find_path_from_wiener!(𝔅.XXᵒ, y, 𝔅.WW, 𝔅.Pᵒ, block)
+        set_end_pt_manually!(𝔅, blockIdx, block)
 
         # Compute log-likelihood ratio
-        llᵒ += path_log_likhd(ObsScheme(), XXᵒ, Pᵒ, block, ws.fpt)
-        llᵒ += lobslikelihood(Pᵒ[block[1]], y)
+        llᵒ += path_log_likhd(ObsScheme(), 𝔅.XXᵒ, 𝔅.Pᵒ, block, ws.fpt)
+        llᵒ += lobslikelihood(𝔅.Pᵒ[block[1]], y)
     end
     print_info(verbose, it, ll, llᵒ)
 
@@ -602,18 +589,17 @@ function update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx,ST},
 
     # Accept / reject
     if accept_sample(llr, verbose)
-        swap!(XX, XXᵒ, P, Pᵒ, 1:m)
+        swap!(𝔅.XX, 𝔅.XXᵒ, 𝔅.P, 𝔅.Pᵒ, 1:m)
         return llᵒ, true, θᵒ, yPr
     else
         return ll, false, θ, yPr
     end
 end
 
-#NOTE deprecated
-#fetchTargetLaw(𝔅::NoBlocking, P) = P[1].Target
 
-#NOTE deprecated
-#fetchTargetLaw(𝔅::BlockingSchedule, P) = 𝔅.P[1].Target
+fetchTargetLaw(𝔅::NoBlocking, P) = P[1].Target
+
+fetchTargetLaw(𝔅::BlockingSchedule, P) = 𝔅.P[1].Target
 
 
 """
@@ -665,23 +651,22 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx,ST},
                        𝔅::BlockingSchedule, θ, yPr, ws::Workspace{ObsScheme},
                        ll, verbose=false, it=NaN, uidx=NaN
                        ) where {ObsScheme <: AbstractObsScheme, UpdtIdx, ST}
-    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
-    m = length(P)
-    ϑ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
+    m = length(𝔅.P)
+    ϑ = conjugate_draw(θ, 𝔅.XX, 𝔅.P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
     θᵒ = move_to_proper_place(ϑ, θ, UpdtIdx())     # align so that dimensions agree
 
-    update_laws!(𝔅, P, θᵒ, ws)
-    pu.recompute_ODEs && solve_back_rec!(𝔅, ws, P, ST())
+    update_target_laws!(𝔅, θᵒ)
+    pu.recompute_ODEs && solve_back_rec!(𝔅, 𝔅.P, ST())
     for i in 1:m    # compute wiener path WW that generates XX
-        inv_solve!(Euler(), XX[i], WW[i], P[i])
+        inv_solve!(Euler(), 𝔅.XX[i], 𝔅.WW[i], 𝔅.P[i])
     end
     # compute white noise that generates starting point
-    y = XX[1].yy[1]
-    yPr = inv_start_pt(y, yPr, P[1])
+    y = 𝔅.XX[1].yy[1]
+    yPr = inv_start_pt(y, yPr, 𝔅.P[1])
     llᵒ = logpdf(yPr, y)
-    for block in 𝔅.blocks[ws.blidx]
-        llᵒ += path_log_likhd(ObsScheme(), XX, P, block, ws.fpt; skipFPT=true)
-        llᵒ += lobslikelihood(P[block[1]], XX[block[1]].yy[1])
+    for block in 𝔅.blocks[𝔅.idx]
+        llᵒ += path_log_likhd(ObsScheme(), 𝔅.XX, 𝔅.P, block, ws.fpt; skipFPT=true)
+        llᵒ += lobslikelihood(𝔅.P[block[1]], 𝔅.XX[block[1]].yy[1])
     end
     print_info(verbose, it, value(ll), value(llᵒ))
     return llᵒ, true, θᵒ, yPr
@@ -709,9 +694,8 @@ function mcmc(setup)
     display(𝔅)
     for i in 1:num_mcmc_steps
         verbose = act(Verbose(), ws, i)
-        act(SavePath(), ws, i) && save_path!(ws, ws.XX)
-        ws = next!(𝔅, ws)  # advance blocking if any
-        ll, acc, yPr = impute!(𝔅, yPr, ws, ll, verbose, i, solver_type(ws)())
+        act(SavePath(), ws, i) && save_path!(ws, ws.XX, 𝔅==NoBlocking() ? nothing : 𝔅.XX)
+        ll, acc, 𝔅, yPr = impute!(𝔅, yPr, ws, ll, verbose, i, solver_type(ws)())
         update!(ws.accpt_tracker, Imputation(), acc)
 
         if act(ParamUpdate(), ws, i)

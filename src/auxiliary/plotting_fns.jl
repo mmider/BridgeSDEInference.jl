@@ -59,7 +59,7 @@ end
 function θs_for_transform(ws::Workspace)
     θs = ws.θ_chain.θ_chain
     if ws.θ_chain.counter < 2
-        θs = [params(ws.P.Target) for i in 1:length(paths)]
+        θs = [params(ws.P[1].Target) for i in 1:length(ws.paths)]
     else
         warm_up, save_iter = ws.action_tracker.warm_up, ws.action_tracker.save_iter
         num_updts = ws.accpt_tracker.updt_len
