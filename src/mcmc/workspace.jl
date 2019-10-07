@@ -191,7 +191,7 @@ act(::ParamUpdate, at::ActionTracker, i) = at.param_updt && (i > at.warm_up)
 The main container of the `mcmc` function from `mcmc.jl` in which most data
 pertinent to sampling is stored
 """
-struct Workspace{ObsScheme,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
+struct Workspace{ObsScheme,B,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
     Wnr::Wiener{S}         # Wiener, driving law
     XXᵒ::Vector{TX}        # Diffusion proposal paths
     XX::Vector{TX}         # Accepted diffusion paths
@@ -207,10 +207,9 @@ struct Workspace{ObsScheme,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
     θ_chain::ParamHistory           # Object for tracking parameter history
     action_tracker::ActionTracker   # Object for tracking steps to perform on a given iteration
     skip_for_save::Int64            # Thining parameter for saving path
-    #TODO deprecate this↓ by depracating seperate containers for 𝔅
-    no_blocking_used::Bool          # Flag for whether blocking is used
     paths::Vector                   # Storage with historical, accepted paths
     time::Vector{Float64}           # Storage with time axis
+    blocking::B
     blidx::Int64
     #result::Vector{Q} #TODO come back to later
     #resultᵒ::Vector{Q} #TODO come back to later
@@ -260,12 +259,15 @@ struct Workspace{ObsScheme,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
 
         θ_history = ParamHistory(setup)
 
-        (workspace = new{ObsScheme,S,TX,TW,R,ST}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P,
-                                                 fpt, ρ, check_if_recompute_ODEs(setup),
-                                                 AccptTracker(setup), θ_history,
-                                                 ActionTracker(setup), skip,
-                                                 setup.blocking == NoBlocking(),
-                                                 [], _time, 1),
+        blocking = set_blocking(setup.blocking, setup.blocking_params, P)
+        display(blocking)
+        B = typeof(blocking)
+
+        (workspace = new{ObsScheme,B,S,TX,TW,R,ST}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P,
+                                                   fpt, ρ, check_if_recompute_ODEs(setup),
+                                                   AccptTracker(setup), θ_history,
+                                                   ActionTracker(setup), skip,
+                                                   [], _time, blocking, 1),
          ll = ll, x0_prior = x0_prior, θ = last(θ_history))
     end
 
@@ -276,30 +278,57 @@ struct Workspace{ObsScheme,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
     with the exception of new memory parameter for the preconditioned
     Crank-Nicolson scheme, which is changed to `new_ρ`.
     """
-    function Workspace(ws::Workspace{ObsScheme,S,TX,TW,R,ST}, new_ρ::Float64
-                       ) where {ObsScheme,S,TX,TW,R,ST}
-        new{ObsScheme,S,TX,TW,R,ST}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
-                                    ws.Pᵒ, ws.P, ws.fpt, new_ρ,
-                                    ws.recompute_ODEs, ws.accpt_tracker,
-                                    ws.θ_chain, ws.action_tracker,
-                                    ws.skip_for_save, ws.no_blocking_used,
-                                    ws.paths, ws.time, ws.blidx)
+    function Workspace(ws::Workspace{ObsScheme,B,S,TX,TW,R,ST}, new_ρ::Float64
+                       ) where {ObsScheme,B,S,TX,TW,R,ST}
+        new{ObsScheme,B,S,TX,TW,R,ST}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
+                                      ws.Pᵒ, ws.P, ws.fpt, new_ρ,
+                                      ws.recompute_ODEs, ws.accpt_tracker,
+                                      ws.θ_chain, ws.action_tracker,
+                                      ws.skip_for_save, ws.paths, ws.time,
+                                      ws.blocking, ws.blidx)
     end
 
-    function Workspace(ws::Workspace{ObsScheme,S,TX,TW,R̃,ST}, P::Vector{R},
-                       Pᵒ::Vector{R}, idx) where {ObsScheme,S,TX,TW,R̃,ST,R}
-        new{ObsScheme,S,TX,TW,R,ST}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
-                                    Pᵒ, P, ws.fpt, ws.ρ,
-                                    ws.recompute_ODEs, ws.accpt_tracker,
-                                    ws.θ_chain, ws.action_tracker,
-                                    ws.skip_for_save, ws.no_blocking_used,
-                                    ws.paths, ws.time, idx)
+    function Workspace(ws::Workspace{ObsScheme,B,S,TX,TW,R̃,ST}, P::Vector{R},
+                       Pᵒ::Vector{R}, idx) where {ObsScheme,B,S,TX,TW,R̃,ST,R}
+        new{ObsScheme,B,S,TX,TW,R,ST}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
+                                      Pᵒ, P, ws.fpt, ws.ρ,
+                                      ws.recompute_ODEs, ws.accpt_tracker,
+                                      ws.θ_chain, ws.action_tracker,
+                                      ws.skip_for_save, ws.paths, ws.time,
+                                      ws.blocking, idx)
     end
 end
 
 eltype(::SamplePath{T}) where T = T
 eltype(::Type{SamplePath{T}}) where T = T
-solver_type(::Workspace{O,S,TX,TW,R,ST}) where {O,S,TX,TW,R,ST} = ST
+solver_type(::Workspace{O,B,S,TX,TW,R,ST}) where {O,B,S,TX,TW,R,ST} = ST
+
+
+next_set_of_blocks(ws::Workspace{O,NoBlocking}) where O = ws
+
+"""
+    next(𝔅::ChequeredBlocking, XX, θ)
+
+Switch the set of blocks that are being updated. `XX` is the most recently
+sampled (accepted) path. `θ` can be used to change parametrisation.
+"""
+function next_set_of_blocks(ws::Workspace{O,ChequeredBlocking}) where O
+    XX, P, Pᵒ, 𝔅 = ws.XX, ws.P, ws.Pᵒ, ws.blocking
+    idx = (ws.blidx % 2) + 1
+    θ = params(P[1].Target)
+
+    vs = find_end_pts(𝔅, XX, idx)
+    Ls = 𝔅.Ls[idx]
+    Σs = 𝔅.Σs[idx]
+    ch_pts = 𝔅.change_pts[idx]
+
+    P_new = [GuidPropBridge(P[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ)
+             for (i,_) in enumerate(P)]
+    Pᵒ_new = [GuidPropBridge(Pᵒ[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ)
+              for (i,_) in enumerate(Pᵒ)]
+    Workspace(ws, P_new, Pᵒ_new, idx)
+end
+
 
 """
     act(action, ws::Workspace, i)
@@ -316,18 +345,10 @@ Save the entire path spanning all segments in `XX`. Only 1 in every `ws.skip`
 points is saved to reduce storage space. To-be-saved `XX` is set to `wsXX` or
 `bXX` depending on whether blocking is used.
 """
-function save_path!(ws, wsXX, bXX) #TODO deprecate bXX
-    XX = ws.no_blocking_used ? wsXX : bXX
+function save_path!(ws)
     skip = ws.skip_for_save
-    push!(ws.paths, collect(Iterators.flatten(XX[i].yy[1:skip:end-1]
-                                               for i in 1:length(XX))))
-end
-
-# remember to remove ws.no_blocking_used
-function save_path!(ws, XX)
-    skip = ws.skip_for_save
-    push!(ws.paths, collect(Iterators.flatten(XX[i].yy[1:skip:end-1]
-                                               for i in 1:length(XX))))
+    push!(ws.paths, collect(Iterators.flatten(ws.XX[i].yy[1:skip:end-1]
+                                               for i in 1:length(ws.XX))))
 end
 
 

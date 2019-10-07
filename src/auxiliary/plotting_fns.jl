@@ -24,7 +24,8 @@ function plot_chains(ws::Workspace,indices=nothing;truth=nothing,figsize=(15,10)
 end
 
 function plot_paths(ws::Workspace, coords=nothing; transf=nothing,
-                    figsize=(12,8), alpha=0.5, obs=nothing)
+                    figsize=(12,8), alpha=0.5, obs=nothing,
+                    path_indices=1:length(out.paths))
     yy, tt = out.paths, out.time
     if coords === nothing
         coords = 1:length(yy[1][1])
@@ -36,11 +37,16 @@ function plot_paths(ws::Workspace, coords=nothing; transf=nothing,
     θs = θs_for_transform(ws)
 
     fig, ax = plt.subplots(n_coords, 1, figsize=figsize, sharex=true)
-    cmap = plt.get_cmap("cividis")(range(0, 1, length=length(yy)))
+    M = min(length(yy), length(path_indices))
+    cmap = plt.get_cmap("BuPu")(range(0, 1, length=M)) #"cividis"
     for (i,ind) in enumerate(coords)
+        cc = 1
         for j in 1:length(yy)
-            path = [transf[i](y, θs[j])[ind] for y in yy[j]]
-            ax[i].plot(tt, path, color=cmap[j,1:end], alpha=alpha, linewidth=0.5)
+            if j in path_indices
+                path = [transf[i](y, θs[j])[ind] for y in yy[j]]
+                ax[i].plot(tt, path, color=cmap[cc,1:end], alpha=alpha, linewidth=0.5)
+                cc += 1
+            end
         end
     end
 

@@ -310,3 +310,70 @@ function mcmc(::Type{K}, ::ObsScheme, obs, obsTimes, yPr::StartingPtPrior, w,
     Time = collect(Iterators.flatten(p.tt[1:skipForSave:end-1] for p in P))
     θchain, accImpCounter/numSteps, accUpdtCounter./numSteps, Paths, Time
 end
+
+
+#NOTE deprecated, will be removed once blocking uses containers in ws
+function sample_segments!(iRange, Wnr, WW, WWᵒ, P, y, XXᵒ, ρ)
+    for i in iRange
+        y = sample_segment!(i, Wnr, WW, WWᵒ, P, y, XXᵒ, ρ)
+    end
+end
+
+#NOTE deprecated, will be removed once blocking uses containers in ws
+function sample_segment!(i, Wnr, WW, WWᵒ, P, y, XXᵒ, ρ)
+    sample!(WWᵒ[i], Wnr)
+    crank_nicolson!(WWᵒ[i].yy, WW[i].yy, ρ)
+    solve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])
+    XXᵒ[i].yy[end]
+end
+
+#NOTE deprecated
+"""
+    update_target_laws!(𝔅::NoBlocking, θᵒ)
+
+Nothing to do
+"""
+update_target_laws!(𝔅::NoBlocking, θᵒ) = nothing
+
+#NOTE deprecated
+"""
+    update_target_laws!(𝔅::BlockingSchedule, θᵒ)
+
+Set new parameter `θᵒ` for the target laws in blocking object `𝔅`
+"""
+function update_target_laws!(𝔅::BlockingSchedule, θᵒ)
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            𝔅.P[i] = GuidPropBridge(𝔅.P[i], θᵒ)
+        end
+    end
+end
+
+#NOTE deprecated
+"""
+    update_proposal_laws!(𝔅::BlockingSchedule, θᵒ)
+
+Set new parameter `θᵒ` for the proposal laws inside blocking object `𝔅`
+"""
+function update_proposal_laws!(𝔅::BlockingSchedule, θᵒ)
+    for block in 𝔅.blocks[𝔅.idx]
+        for i in block
+            𝔅.Pᵒ[i] = GuidPropBridge(𝔅.Pᵒ[i], θᵒ)
+        end
+    end
+end
+
+#NOTE deprecated
+#fetchTargetLaw(𝔅::NoBlocking, P) = P[1].Target
+
+#NOTE deprecated
+#fetchTargetLaw(𝔅::BlockingSchedule, P) = 𝔅.P[1].Target
+
+function save_path!(ws, wsXX, bXX) #TODO deprecate bXX
+    XX = ws.no_blocking_used ? wsXX : bXX
+    skip = ws.skip_for_save
+    push!(ws.paths, collect(Iterators.flatten(XX[i].yy[1:skip:end-1]
+                                               for i in 1:length(XX))))
+end
+
+# remember to remove ws.no_blocking_used

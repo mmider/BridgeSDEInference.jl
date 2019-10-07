@@ -86,12 +86,12 @@ struct ChequeredBlocking <: BlockingSchedule
         chpB = find_ch_pt(knotsB)
 
         """
-            knotsToBlocks(knots, idxLast, i)
+            knots_to_blocks(knots, idxLast, i)
 
         Given a list of `knots` fetch the indices of the intervals that together
         make up the `i`-th block. `idxLast` is the index of the last interval.
         """
-        function knotsToBlocks(knots, idxLast, i)
+        function knots_to_blocks(knots, idxLast, i)
             M = length(knots)
             @assert M > 0
             if M >= i > 1
@@ -102,8 +102,8 @@ struct ChequeredBlocking <: BlockingSchedule
                 return (knots[M]+1):idxLast
             end
         end
-        blocks = ([collect(knotsToBlocks(knotsA, length(P), i)) for i in 1:length(knotsA)+1],
-                  [collect(knotsToBlocks(knotsB, length(P), i)) for i in 1:length(knotsB)+1])
+        blocks = ([collect(knots_to_blocks(knotsA, length(P), i)) for i in 1:length(knotsA)+1],
+                  [collect(knots_to_blocks(knotsB, length(P), i)) for i in 1:length(knotsB)+1])
 
         accpt = (zeros(Int64, length(blocks[1])),
                  zeros(Int64, length(blocks[2])))
@@ -132,31 +132,6 @@ function find_end_pts(𝔅::ChequeredBlocking, XX, idx)
     [( k in 𝔅.knots[idx] ? X.yy[end] : 𝔅.vs[k]) for (k,X) in enumerate(XX)]
 end
 
-
-next!(𝔅::NoBlocking, ws) = ws
-
-"""
-    next(𝔅::ChequeredBlocking, XX, θ)
-
-Switch the set of blocks that are being updated. `XX` is the most recently
-sampled (accepted) path. `θ` can be used to change parametrisation.
-"""
-function next!(𝔅::ChequeredBlocking, ws)
-    XX, P, Pᵒ = ws.XX, ws.P, ws.Pᵒ
-    idx = (ws.blidx % 2) + 1
-    θ = params(P[1].Target)
-
-    vs = find_end_pts(𝔅, XX, idx)
-    Ls = 𝔅.Ls[idx]
-    Σs = 𝔅.Σs[idx]
-    ch_pts = 𝔅.change_pts[idx]
-
-    P_new = [GuidPropBridge(P[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ)
-             for (i,_) in enumerate(P)]
-    Pᵒ_new = [GuidPropBridge(Pᵒ[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ)
-              for (i,_) in enumerate(Pᵒ)]
-    Workspace(ws, P_new, Pᵒ_new, idx)
-end
 
 """
     display(𝔅::NoBlocking)
@@ -209,7 +184,8 @@ end
 
 Register whether the block has been accepted
 """
-function register_accpt!(𝔅::BlockingSchedule, ws, i, accepted)
+function register_accpt!(ws, i, accepted)
+    𝔅 = ws.blocking
     𝔅.props[ws.blidx][i] += 1
     𝔅.accpt[ws.blidx][i] += 1*accepted
 end
@@ -249,18 +225,18 @@ end
 
 
 """
-    setBlocking(𝔅::NoBlocking, ::Any, ::Any)
+    set_blocking(𝔅::NoBlocking, ::Any, ::Any)
 
 No blocking is to be done, do nothing
 """
-setBlocking(𝔅::NoBlocking, ::Any, ::Any) = 𝔅
+set_blocking(𝔅::NoBlocking, ::Any, ::Any) = 𝔅
 
 
 """
-    setBlocking(::ChequeredBlocking, blockingParams, ws)
+    set_blocking(::ChequeredBlocking, blockingParams, ws)
 
 Blocking pattern is chosen to be a chequerboard.
 """
-function setBlocking(::ChequeredBlocking, blocking_params, ws)
-    ChequeredBlocking(blocking_params..., ws.P)
+function set_blocking(::ChequeredBlocking, blocking_params, P)
+    ChequeredBlocking(blocking_params..., P)
 end
