@@ -185,13 +185,18 @@ Determine whether to update parameters on a given iteration, indexed `i`
 """
 act(::ParamUpdate, at::ActionTracker, i) = at.param_updt && (i > at.warm_up)
 
+
+mutable struct SingleElem{T} val::T end
+
+set!(x::SingleElem{T}, y::T) where T = (x.val = y)
+
 """
     Workspace{ObsScheme,S,TX,TW,R,ST}
 
 The main container of the `mcmc` function from `mcmc.jl` in which most data
 pertinent to sampling is stored
 """
-struct Workspace{ObsScheme,B,ST,S,TX,TW,R}# ,Q, where Q = eltype(result)
+struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     Wnr::Wiener{S}         # Wiener, driving law
     XXᵒ::Vector{TX}        # Diffusion proposal paths
     XX::Vector{TX}         # Accepted diffusion paths
@@ -211,6 +216,8 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R}# ,Q, where Q = eltype(result)
     time::Vector{Float64}           # Storage with time axis
     blocking::B
     blidx::Int64
+    x0_prior::TP
+    z::SingleElem{TZ}
     #result::Vector{Q} #TODO come back to later
     #resultᵒ::Vector{Q} #TODO come back to later
 
@@ -226,12 +233,14 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R}# ,Q, where Q = eltype(result)
         XX, WW = deepcopy(setup.XX), deepcopy(setup.WW)
         P, fpt = deepcopy(setup.P), deepcopy(setup.fpt)
         ρ, updt_coord = deepcopy(setup.ρ), deepcopy(setup.updt_coord)
+        # forcedSolve defines type by the starting point, make sure it matches
+        x0_guess = eltype(eltype(XX))(setup.x0_guess)
         TW, TX, S, R = eltype(WW), eltype(XX), valtype(Wnr), eltype(P)
-        ST = typeof(setup.solver)
+        ST, TP = typeof(setup.solver), typeof(x0_prior)
 
         m = length(P)
-        # forcedSolve defines type by starting point, make sure it matches
-        y = eltype(eltype(XX))(start_pt(x0_prior))
+
+        y = copy(x0_guess)
         for i in 1:m
             WW[i] = Bridge.samplepath(P[i].tt, zero(S))
             sample!(WW[i], Wnr)
@@ -242,7 +251,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R}# ,Q, where Q = eltype(result)
             end
             y = XX[i].yy[end]
         end
-        y = start_pt(x0_prior)
+        y = x0_guess
         ll = logpdf(x0_prior, y)
         ll += path_log_likhd(ObsScheme(), XX, P, 1:m, fpt, skipFPT=true)
         ll += lobslikelihood(P[1], y)
@@ -250,8 +259,11 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R}# ,Q, where Q = eltype(result)
         XXᵒ = deepcopy(XX)
         WWᵒ = deepcopy(WW)
         Pᵒ = deepcopy(P)
-        # needed for proper initialisation of the Crank-Nicolson scheme
-        x0_prior = inv_start_pt(y, x0_prior, P[1])
+
+        # compute the white noise that generates x0_guess under the initial posterior
+        z = inv_start_pt(y, x0_prior, P[1])
+        TZ = typeof(z)
+        z = SingleElem{TZ}(z)
 
         #TODO come back to gradient initialisation
         skip = setup.skip_for_save
@@ -263,11 +275,15 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R}# ,Q, where Q = eltype(result)
         display(blocking)
         B = typeof(blocking)
 
-        (workspace = new{ObsScheme,B,ST,S,TX,TW,R}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P,
-                                                   fpt, ρ, check_if_recompute_ODEs(setup),
-                                                   AccptTracker(setup), θ_history,
-                                                   ActionTracker(setup), skip,
-                                                   [], _time, blocking, 1),
+        (workspace = new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}(Wnr, XXᵒ, XX, WWᵒ, WW,
+                                                         Pᵒ, P, fpt, ρ,
+                                                         check_if_recompute_ODEs(setup),
+                                                         AccptTracker(setup),
+                                                         θ_history,
+                                                         ActionTracker(setup),
+                                                         skip, [], _time,
+                                                         blocking, 1, x0_prior,
+                                                         z),
          ll = ll, x0_prior = x0_prior, θ = last(θ_history))
     end
 
@@ -278,24 +294,26 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R}# ,Q, where Q = eltype(result)
     with the exception of new memory parameter for the preconditioned
     Crank-Nicolson scheme, which is changed to `new_ρ`.
     """
-    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R}, new_ρ::Float64
-                       ) where {ObsScheme,B,ST,S,TX,TW,R}
-        new{ObsScheme,B,ST,S,TX,TW,R}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
-                                      ws.Pᵒ, ws.P, ws.fpt, new_ρ,
-                                      ws.recompute_ODEs, ws.accpt_tracker,
-                                      ws.θ_chain, ws.action_tracker,
-                                      ws.skip_for_save, ws.paths, ws.time,
-                                      ws.blocking, ws.blidx)
+    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}, new_ρ::Float64
+                       ) where {ObsScheme,B,ST,S,TX,TW,R,TP,TZ}
+        new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
+                                            ws.WW, ws.Pᵒ, ws.P, ws.fpt, new_ρ,
+                                            ws.recompute_ODEs, ws.accpt_tracker,
+                                            ws.θ_chain, ws.action_tracker,
+                                            ws.skip_for_save, ws.paths, ws.time,
+                                            ws.blocking, ws.blidx, ws.x0_prior,
+                                            ws.z)
     end
 
-    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R̃}, P::Vector{R},
-                       Pᵒ::Vector{R}, idx) where {ObsScheme,B,ST,S,TX,TW,R̃,R}
-        new{ObsScheme,B,ST,S,TX,TW,R}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
-                                      Pᵒ, P, ws.fpt, ws.ρ,
-                                      ws.recompute_ODEs, ws.accpt_tracker,
-                                      ws.θ_chain, ws.action_tracker,
-                                      ws.skip_for_save, ws.paths, ws.time,
-                                      ws.blocking, idx)
+    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R̃,TP,TZ},
+                       P::Vector{R}, Pᵒ::Vector{R}, idx
+                       ) where {ObsScheme,B,ST,S,TX,TW,R̃,R,TP,TZ}
+        new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
+                                            ws.WW, Pᵒ, P, ws.fpt, ws.ρ,
+                                            ws.recompute_ODEs, ws.accpt_tracker,
+                                            ws.θ_chain, ws.action_tracker,
+                                            ws.skip_for_save, ws.paths, ws.time,
+                                            ws.blocking, idx, ws.x0_prior, ws.z)
     end
 end
 
@@ -445,9 +463,9 @@ end
 
 Nothing to be done for no adaptation
 """
-function update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, yPr, i,
+function update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, i,
                  ll) where ObsScheme
-    adpt, ws, yPr, ll
+    adpt, ws, ll
 end
 
 
@@ -459,7 +477,7 @@ Update the proposal law according to the adaptive scheme and the recently saved
 history of the imputed paths
 """
 function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
-                 yPr, i, ll) where {ObsScheme,B,ST}
+                 i, ll) where {ObsScheme,B,ST}
     if i % adpt.skip == 0
         if adpt.N[2] == adpt.sizes[adpt.N[1]]
             X_bar = mean_trajectory(adpt)
@@ -478,12 +496,13 @@ function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
             solveBackRec!(NoBlocking(), ws.P, ST())
             #solveBackRec!(NoBlocking(), ws.Pᵒ, ST())
             y = ws.XX[1].yy[1]
-            yPr = inv_start_pt(y, yPr, ws.P[1])
+            z = inv_start_pt(y, ws.x0_prior, ws.P[1])
+            set!(ws.z, z)
 
             for j in 1:m
                 inv_solve!(Euler(), ws.XX[j], ws.WW[j], ws.P[j])
             end
-            ll = logpdf(yPr, y)
+            ll = logpdf(ws.x0_prior, y)
             ll += path_log_likhd(ObsScheme(), ws.XX, ws.P, 1:m, ws.fpt)
             ll += lobslikelihood(ws.P[1], y)
             adpt.N[2] = 1
@@ -492,5 +511,5 @@ function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
             adpt.N[2] += 1
         end
     end
-    adpt, ws, yPr, ll
+    adpt, ws, ll
 end

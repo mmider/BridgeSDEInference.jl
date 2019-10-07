@@ -37,6 +37,7 @@ mutable struct MCMCSetup{ObsScheme}
     adaptive_prop       # Object for adapting guided proposals
     priors              # Priors over parameters
     x0_prior            # Prior over the starting position
+    x0_guess            # Guess for a position of a starting point
     num_mcmc_steps      # Total number of steps of the mcmc sampler
     save_iter           # Save the path every ... iteration
     verb_iter           # Print progress message to console every ... iteration
@@ -226,15 +227,21 @@ function incomplete_message(::Val{:tkern})
 end
 
 """
-    set_priors!(setup::MCMCSetup, priors, x0_prior)
+    set_priors!(setup::MCMCSetup, priors, x0_prior, x0_guess=nothing)
 
 Store the priors over parameters (in `priors`) and over the starting point (in
 `x0_prior`) into the object `setup`.
 """
-function set_priors!(setup::MCMCSetup, priors, x0_prior)
+function set_priors!(setup::MCMCSetup, priors, x0_prior, x0_guess=nothing)
     setup.priors = priors
     setup.x0_prior = x0_prior
     setup.setup_completion[:prior] = true
+    
+    if x0_guess == nothing
+        @assert typeof(x0_prior) <: KnownStartingPt
+        x0_guess = start_pt(nothing, x0_prior)
+    end
+    setup.x0_guess = x0_guess
 end
 
 """

@@ -30,19 +30,46 @@ mean `μ` and covariance matrix `Σ`. It also stores the most recently sampled
 white noise `z` used to compute the starting point and a precision matrix
 `Λ`:=`Σ`⁻¹. `μ₀` and `Σ₀` are the mean and covariance of the white noise
 
+    GsnStartingPt(y::T, μ::T, Σ::S)
+
+Base constructor explicitly initialising starting point `y` (on top of mean `μ`
+and covariance matrix `Σ`) which is internally transformed to its corresponding
+white noise `z`
+
     GsnStartingPt(μ::T, Σ::S)
 
-Base constructor. It initialises the mean `μ` and covariance `Σ` parameters and
-`Λ` is set according to `Λ`:=`Σ`⁻¹
+Base constructor v2. It initialises the mean `μ` and covariance `Σ` parameters
+and samples white noise `z`. `Λ` is set according to `Λ`:=`Σ`⁻¹
+
+    GsnStartingPt(z::T, G::GsnStartingPt{T,S})
+
+Copy constructor. It copies the mean `μ`, covariance `Σ`, precision `Λ` as well
+as mean of the white noise `μ₀` and covariance of the white noise `Σ₀` from
+the old prior `G` and sets a new white noise to `z`.
 """
 struct GsnStartingPt{T,S} <: StartingPtPrior{T} where {S}
+    z::T
     μ::T
     Σ::S
     Λ::S
     μ₀::T
     Σ₀::UniformScaling
 
-    GsnStartingPt(μ::T, Σ::S) where {T,S} = new{T,S}(μ, Σ, inv(Σ), 0*μ, I)
+    function GsnStartingPt(y::T, μ::T, Σ::S) where {T,S}
+        z = whiten(Σ, y-μ)
+        new{T,S}(z, μ, Σ, inv(Σ), 0*μ, I)
+    end
+
+    function GsnStartingPt(μ::T, Σ::S) where {T,S}
+        μ₀ = 0*μ
+        Σ₀ = I
+        z = rand(Gaussian(μ₀, Σ₀))
+        new{T,S}(z, μ, Σ, inv(Σ), μ₀, Σ₀)
+    end
+
+    function GsnStartingPt(z::T, G::GsnStartingPt{T,S}) where {T,S}
+        new{T,S}(z, G.μ, G.Σ, G.Λ, G.μ₀, G.Σ₀)
+    end
 end
 
 
@@ -52,9 +79,10 @@ end
 Sample new white noise using Crank-Nicolson scheme with memory parameter `ρ` and
 a previous value of the white noise stored inside object `G`
 """
-function rand(G::GsnStartingPt, z, ρ=0.0)
+function rand(G::GsnStartingPt, ρ=0.0)
     zᵒ = rand(Gaussian(G.μ₀, G.Σ₀))
-    √(1-ρ)*zᵒ + √(ρ)*z # preconditioned Crank-Nicolson
+    z = √(1-ρ)*zᵒ + √(ρ)*G.z # preconditioned Crank-Nicolson
+    GsnStartingPt(z, G)
 end
 
 """
@@ -62,7 +90,7 @@ end
 
 If starting point is known then nothing can be sampled
 """
-rand(G::KnownStartingPt, ::Any=nothing, ::Any=nothing) = nothing
+rand(G::KnownStartingPt, ::Any=nothing) = G
 
 
 """
@@ -72,12 +100,13 @@ Compute a new starting point from the white noise for a given posterior
 distribution obtained from combining prior `G` and the likelihood encoded by the
 object `P`.
 """
-function start_pt(z, G::GsnStartingPt, P::GuidPropBridge)
-    μ_post = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
-    Σ_post = inv(P.H[1] + G.Λ)
-    Σ_post = 0.5 * (Σ_post + Σ_post') # remove numerical inaccuracies
-    unwhiten(Σ_post, z) + μ_post
+function start_pt(G::GsnStartingPt, P::GuidPropBridge)
+    μₚₒₛₜ = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
+    Σₚₒₛₜ = inv(P.H[1] + G.Λ)
+    Σₚₒₛₜ = 0.5 * (Σₚₒₛₜ + Σₚₒₛₜ') # remove numerical inaccuracies
+    unwhiten(Σₚₒₛₜ, G.z) + μₚₒₛₜ
 end
+
 
 """
     start_pt(G::GsnStartingPt, P)
@@ -85,33 +114,33 @@ end
 Compute a new starting point from the white noise for a given prior
 distribution `G`
 """
-start_pt(z, G::GsnStartingPt) = unwhiten(G.Σ, z) + G.μ
+start_pt(G::GsnStartingPt) = unwhiten(G.Σ, G.z) + G.μ
 
 """
     start_pt(G::KnownStartingPt, P)
 
 Return starting point
 """
-start_pt(z, G::KnownStartingPt, P::GuidPropBridge) = G.y
+start_pt(G::KnownStartingPt, P::GuidPropBridge) = G.y
 
 """
     start_pt(G::KnownStartingPt, P)
 
 Return starting point
 """
-start_pt(z, G::KnownStartingPt) = G.y
+start_pt(G::KnownStartingPt) = G.y
 
 """
     inv_start_pt(y, G::GsnStartingPt, P::GuidPropBridge)
 
 Compute the driving noise that is needed to obtain starting point `y` under
-prior `G` and likelihood `P`
+prior `G` and likelihood `P`. Return a new starting point object
 """
 function inv_start_pt(y, G::GsnStartingPt, P::GuidPropBridge)
-    μ_post = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
-    Σ_post = inv(P.H[1] + G.Λ)
-    Σ_post = 0.5 * (Σ_post + Σ_post')
-    whiten(Σ_post, y-μ_post)
+    μₚₒₛₜ = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
+    Σₚₒₛₜ = inv(P.H[1] + G.Λ)
+    Σₚₒₛₜ = 0.5 * (Σₚₒₛₜ + Σₚₒₛₜ')
+    GsnStartingPt(whiten(Σₚₒₛₜ, y-μₚₒₛₜ), G)
 end
 
 """
@@ -119,7 +148,7 @@ end
 
 Starting point known, no need for dealing with white noise
 """
-inv_start_pt(y, G::KnownStartingPt, P::GuidPropBridge) = nothing
+inv_start_pt(y, G::KnownStartingPt, P::GuidPropBridge) = G
 
 """
     logpdf(::KnownStartingPt, y)
