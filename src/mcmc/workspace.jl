@@ -191,7 +191,7 @@ act(::ParamUpdate, at::ActionTracker, i) = at.param_updt && (i > at.warm_up)
 The main container of the `mcmc` function from `mcmc.jl` in which most data
 pertinent to sampling is stored
 """
-struct Workspace{ObsScheme,B,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
+struct Workspace{ObsScheme,B,ST,S,TX,TW,R}# ,Q, where Q = eltype(result)
     Wnr::Wiener{S}         # Wiener, driving law
     XXᵒ::Vector{TX}        # Diffusion proposal paths
     XX::Vector{TX}         # Accepted diffusion paths
@@ -263,7 +263,7 @@ struct Workspace{ObsScheme,B,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
         display(blocking)
         B = typeof(blocking)
 
-        (workspace = new{ObsScheme,B,S,TX,TW,R,ST}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P,
+        (workspace = new{ObsScheme,B,ST,S,TX,TW,R}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ, P,
                                                    fpt, ρ, check_if_recompute_ODEs(setup),
                                                    AccptTracker(setup), θ_history,
                                                    ActionTracker(setup), skip,
@@ -278,9 +278,9 @@ struct Workspace{ObsScheme,B,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
     with the exception of new memory parameter for the preconditioned
     Crank-Nicolson scheme, which is changed to `new_ρ`.
     """
-    function Workspace(ws::Workspace{ObsScheme,B,S,TX,TW,R,ST}, new_ρ::Float64
-                       ) where {ObsScheme,B,S,TX,TW,R,ST}
-        new{ObsScheme,B,S,TX,TW,R,ST}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
+    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R}, new_ρ::Float64
+                       ) where {ObsScheme,B,ST,S,TX,TW,R}
+        new{ObsScheme,B,ST,S,TX,TW,R}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
                                       ws.Pᵒ, ws.P, ws.fpt, new_ρ,
                                       ws.recompute_ODEs, ws.accpt_tracker,
                                       ws.θ_chain, ws.action_tracker,
@@ -288,9 +288,9 @@ struct Workspace{ObsScheme,B,S,TX,TW,R,ST}# ,Q, where Q = eltype(result)
                                       ws.blocking, ws.blidx)
     end
 
-    function Workspace(ws::Workspace{ObsScheme,B,S,TX,TW,R̃,ST}, P::Vector{R},
-                       Pᵒ::Vector{R}, idx) where {ObsScheme,B,S,TX,TW,R̃,ST,R}
-        new{ObsScheme,B,S,TX,TW,R,ST}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
+    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R̃}, P::Vector{R},
+                       Pᵒ::Vector{R}, idx) where {ObsScheme,B,ST,S,TX,TW,R̃,R}
+        new{ObsScheme,B,ST,S,TX,TW,R}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW,
                                       Pᵒ, P, ws.fpt, ws.ρ,
                                       ws.recompute_ODEs, ws.accpt_tracker,
                                       ws.θ_chain, ws.action_tracker,
@@ -301,7 +301,7 @@ end
 
 eltype(::SamplePath{T}) where T = T
 eltype(::Type{SamplePath{T}}) where T = T
-solver_type(::Workspace{O,B,S,TX,TW,R,ST}) where {O,B,S,TX,TW,R,ST} = ST
+solver_type(::Workspace{O,B,ST}) where {O,B,ST} = ST
 
 
 next_set_of_blocks(ws::Workspace{O,NoBlocking}) where O = ws
@@ -446,7 +446,7 @@ end
 Nothing to be done for no adaptation
 """
 function update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, yPr, i,
-                 ll, solver::ODESolverType) where ObsScheme
+                 ll) where ObsScheme
     adpt, ws, yPr, ll
 end
 
@@ -458,8 +458,8 @@ end
 Update the proposal law according to the adaptive scheme and the recently saved
 history of the imputed paths
 """
-function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme}, yPr, i,
-                 ll, solver::ODESolverType) where ObsScheme
+function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
+                 yPr, i, ll) where {ObsScheme,B,ST}
     if i % adpt.skip == 0
         if adpt.N[2] == adpt.sizes[adpt.N[1]]
             X_bar = mean_trajectory(adpt)

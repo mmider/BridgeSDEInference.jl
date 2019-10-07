@@ -234,8 +234,8 @@ Imputation step of the MCMC scheme (without blocking).
 - `headstart`: flag for whether to 'ease into' fpt conditions
 ...
 """
-function impute!(yPr, ws::Workspace{ObsScheme,NoBlocking}, ll, verbose=false,
-                 it=NaN, solver::ST=Ralston3(), headstart=false
+function impute!(yPr, ws::Workspace{ObsScheme,NoBlocking,ST}, ll, verbose=false,
+                 it=NaN, headstart=false
                  ) where {ObsScheme <: AbstractObsScheme, ST}
     WWᵒ, WW, Pᵒ, P, XXᵒ, XX, fpt, ρ = ws.WWᵒ, ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt, ws.ρ
     # sample proposal starting point
@@ -325,8 +325,8 @@ Imputation step of the MCMC scheme (without blocking).
 - `headstart`: flag for whether to 'ease into' fpt conditions
 ...
 """
-function impute!(yPr, ws::Workspace{ObsScheme,ChequeredBlocking}, ll,
-                 verbose=false, it=NaN, solver::ST=Ralston3(), headstart=false
+function impute!(yPr, ws::Workspace{ObsScheme,ChequeredBlocking,ST}, ll,
+                 verbose=false, it=NaN, headstart=false
                  ) where {ObsScheme <: AbstractObsScheme, ST}
     WWᵒ, WW, Pᵒ, P, XXᵒ, XX = ws.WWᵒ, ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX
     𝔅 = ws.blocking
@@ -660,7 +660,7 @@ function mcmc(setup)
         verbose = act(Verbose(), ws, i)
         act(SavePath(), ws, i) && save_path!(ws)
         ws = next_set_of_blocks(ws)
-        ll, acc, yPr = impute!(yPr, ws, ll, verbose, i, solver_type(ws)())
+        ll, acc, yPr = impute!(yPr, ws, ll, verbose, i)
         update!(ws.accpt_tracker, Imputation(), acc)
 
         if act(ParamUpdate(), ws, i)
@@ -676,8 +676,7 @@ function mcmc(setup)
         end
         add_path!(adaptive_prop, ws.XX, i)
         #print_adaptation_info(adaptive_prop, accImpCounter, accUpdtCounter, i)
-        adaptive_prop, ws, yPr, ll = update!(adaptive_prop, ws, yPr, i,
-                                             ll, solver_type(ws)())
+        adaptive_prop, ws, yPr, ll = update!(adaptive_prop, ws, yPr, i, ll)
         adaptive_prop = still_adapting(adaptive_prop)
     end
     display_acceptance_rate(ws.blocking)
