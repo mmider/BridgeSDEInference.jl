@@ -16,7 +16,7 @@ using Random        # to seed the random number generator
 using Bridge
 include(joinpath(SRC_DIR, "auxiliary", "data_simulation_fns.jl"))
 Random.seed!(4)
-# values taken from table 1 of Golithly and Wilkinson
+# values taken from table 1 of Golightly and Wilkinson
 θ_init = [0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1]
 K = 10.0
 Pˣ = Prokaryote(θ_init..., K)
