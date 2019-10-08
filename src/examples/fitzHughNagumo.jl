@@ -114,6 +114,16 @@ clone(P::FitzhughDiffusion, θ) = FitzhughDiffusion(P.param, θ...)
 params(P::FitzhughDiffusion) = [P.ϵ, P.s, P.γ, P.β, P.σ]
 
 
+# Basis functions for conjugate update
+phi(::Val{0}, t, x, P::FitzhughDiffusion) = -x[2]
+phi(::Val{1}, t, x, P::FitzhughDiffusion) = x[1]-x[1]^3+(1-3*x[1]^2)*x[2]
+phi(::Val{2}, t, x, P::FitzhughDiffusion) = one(x[1])
+phi(::Val{3}, t, x, P::FitzhughDiffusion) = -x[1]
+phi(::Val{4}, t, x, P::FitzhughDiffusion) = zero(x[1])
+phi(::Val{5}, t, x, P::FitzhughDiffusion) = zero(x[1])
+
+
+
 """
     struct FitzhughDiffusionAux <: ContinuousTimeProcess{ℝ{2}}
 
@@ -162,13 +172,13 @@ struct FitzhughDiffusionAux{R,S1,S2,TP} <: ContinuousTimeProcess{ℝ{2,R}}
 end
 
 """
-    dependsOnParams(::FitzhughDiffusionAux)
+    depends_on_params(::FitzhughDiffusionAux)
 
 Declare which parameters (1=>`ϵ`, 2=>`s`, 3=>`γ`, 4=>`β`, 5=>`σ`) the
 auxiliary diffusion depends upon. Used for finding out which parameter
 update requires also updating the values of the grid of `H`'s and `r`'s.
 """
-function dependsOnParams end
+function depends_on_params end
 
 
 # REGULAR PARAMETRISATION
@@ -186,7 +196,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:regular}}) where {T,S1,S2}
     ℝ{2}(0.0, P.σ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:regular}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:regular}}) where {T,S1,S2}
     (1, 2, 3, 4, 5)
 end
 
@@ -206,7 +216,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:simpleAlter}}) where {T,S1,S
     ℝ{2}(0.0, P.σ/P.ϵ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleAlter}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleAlter}}) where {T,S1,S2}
     (1, 5)
 end
 
@@ -225,7 +235,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:complexAlter}}) where {T,S1,
     ℝ{2}(0.0, P.σ/P.ϵ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:complexAlter}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:complexAlter}}) where {T,S1,S2}
     (1, 2, 3, 4, 5)
 end
 
@@ -254,7 +264,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:simpleConjug}}) where {T,S1,
     ℝ{2}(0.0, P.σ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleConjug}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:simpleConjug}}) where {T,S1,S2}
     (5,)
 end
 
@@ -273,7 +283,7 @@ function σ(t, P::FitzhughDiffusionAux{T,S1,S2,Val{:complexConjug}}) where {T,S1
     ℝ{2}(0.0, P.σ)
 end
 
-function dependsOnParams(::FitzhughDiffusionAux{T,S1,S2,Val{:complexConjug}}) where {T,S1,S2}
+function depends_on_params(::FitzhughDiffusionAux{T,S1,S2,Val{:complexConjug}}) where {T,S1,S2}
     (1, 2, 3, 4, 5)
 end
 

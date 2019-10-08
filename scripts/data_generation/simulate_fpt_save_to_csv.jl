@@ -4,21 +4,23 @@ using Bridge
  using CSV
 
  SRC_DIR = joinpath(Base.source_dir(), "..", "src")
- AUX_DIR = joinpath(SRC_DIR, "auxiliary")
- include(joinpath(AUX_DIR, "data_simulation_fns.jl"))
+ include(joinpath(SRC_DIR, "auxiliary", "data_simulation_fns.jl"))
  OUT_DIR = joinpath(Base.source_dir(), "..", "output")
  mkpath(OUT_DIR)
 
-
- include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
+ include(joinpath(SRC_DIR, "types.jl"))
+ include(joinpath(SRC_DIR, "stochastic_process", "guid_prop_bridge.jl"))
+ include(joinpath(SRC_DIR, "stochastic_process", "bounded_diffusion_domain.jl"))
+ include(joinpath(SRC_DIR, "solvers", "euler_maruyama_dom_restr.jl"))
+ include(joinpath(SRC_DIR, "examples", "fitzHughNagumo.jl"))
 
  param = :simpleConjug
  FILENAME_OUT = joinpath(OUT_DIR,
                          "test_path_fpt_"*String(param)*".csv")
  let
-     P = FitzhughDiffusion(param, 10.0, -8.0, 25.0, 0.0, 3.0)
+     P = FitzhughDiffusion(param, 10.0, -8.0, 15.0, 0.0, 3.0)
      # starting point under :regular parametrisation
-     x0 = ℝ{2}(-0.5, 0.6)
+     x0 = ℝ{2}(-0.5, -0.3)
      # tranlate to conjugate parametrisation
      x0 = regularToConjug(x0, P.ϵ, 0.0)
 
@@ -31,12 +33,12 @@ using Bridge
      # start from indicator that the down-crossing has already occured
      recentlyUpSearch = true
      tt_temp = copy(tt)
-     Random.seed!(4)
+     Random.seed!(10)
 
      upLvl = 0.5
      downLvl = -0.5
      # Effective simulation of FPT over N*T interval
-     N = 4
+     N = 20
      upCrossingTimes = Float64[]
      upCrossingLvls = Float64[]
      downCrossingLvls = Float64[]

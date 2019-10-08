@@ -7,7 +7,7 @@ import Bridge: ProcessOrCoefficients
 Compute Wiener process `W` that would have been needed to be simulated in order
 to obtain path `Y` under law `P` when using Euler-Maruyama numerical scheme
 """
-function invSolve!(::EulerMaruyama, Y, W::SamplePath, P::ProcessOrCoefficients
+function inv_solve!(::EulerMaruyama, Y, W::SamplePath, P::ProcessOrCoefficients
                   ) where {T}
     N = length(W)
     N != length(Y) && error("Y and W differ in length.")

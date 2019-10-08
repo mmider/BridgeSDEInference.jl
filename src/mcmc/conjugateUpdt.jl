@@ -25,12 +25,6 @@ complements φ.
     return z
 end
 
-phi(::Val{0}, t, x, P::FitzhughDiffusion) = -x[2]
-phi(::Val{1}, t, x, P::FitzhughDiffusion) = x[1]-x[1]^3+(1-3*x[1]^2)*x[2]
-phi(::Val{2}, t, x, P::FitzhughDiffusion) = one(x[1])
-phi(::Val{3}, t, x, P::FitzhughDiffusion) = -x[1]
-phi(::Val{4}, t, x, P::FitzhughDiffusion) = zero(x[1])
-phi(::Val{5}, t, x, P::FitzhughDiffusion) = zero(x[1])
 
 
 """
@@ -40,15 +34,16 @@ Draw from the full conditional distribution of the parameters whose indices are
 specified by the object `updtIdx`, conditionally on the path given in container
 `XX`, and conditionally on all other parameter values given in vector `θ`.
 """
-function conjugateDraw(θ, XX, PT, prior, updtIdx)
+function conjugate_draw(θ, XX, PT, prior, updtIdx)
     μ = mustart(updtIdx)
     𝓦 = μ*μ'
     ϑ = SVector(thetaex(updtIdx, θ))
-    μ, 𝓦 = _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
+    μ, 𝓦 = _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)
+
     Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
     Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
-    μₚₒₛₜ = Σ * (μ + Vector(prior.Σ\prior.μ))
-    rand(Gaussian(μₚₒₛₜ, Σ))
+    μ_post = Σ * (μ + Vector(prior.Σ\prior.μ))
+    rand(Gaussian(μ_post, Σ))
 end
 
 
@@ -59,7 +54,7 @@ mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
 end
 
 
-function _conjugateDraw(ϑ, μ, 𝓦, XX, PT, updtIdx)
+function _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)
     for X in XX
         for i in 1:length(X)-1
             φₜ = SVector(φ(updtIdx, X.tt[i], X.yy[i], PT))

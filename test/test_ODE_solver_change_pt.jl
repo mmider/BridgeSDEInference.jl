@@ -35,8 +35,10 @@ function change_point_test_prep(N=10000, λ=N/10)
 end
 
 @testset "change point between ODE solvers" begin
-
-    parametrisation = POSSIBLE_PARAMS[5]
+    include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
+    include(joinpath(SRC_DIR, "types.jl"))
+    include(joinpath(SRC_DIR, "vern7.jl"))
+    include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
     N = 10000
     P₁, P₂ = change_point_test_prep(N)
     @testset "comparing H[$i]" for i in 1:div(N,20):N

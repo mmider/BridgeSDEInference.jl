@@ -1,4 +1,4 @@
-import Base: getindex, length
+import Base: getindex, length, iterate
 import Distributions.logpdf
 
 """
@@ -76,3 +76,16 @@ end
 Return the total number of priors held by the object `p`
 """
 length(p::Priors) = length(p.priors)
+
+"""
+    iterate(iter::Priors, state=(1, 0))
+
+Iterates over sets of priors defined for separate parameter update steps
+"""
+function iterate(iter::Priors, state=(1, 0))
+    i, count = state
+    if count >= length(iter)
+        return nothing
+    end
+    return (iter[i], (i + 1, count + 1))
+end

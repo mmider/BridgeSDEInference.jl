@@ -1,21 +1,5 @@
 import Base: display
 
-"""
-    BlockingSchedule
-
-Types inheriting from abstract type `BlockingSchedule` define the schedule
-according to which blocking is done
-"""
-abstract type BlockingSchedule end
-
-
-"""
-    struct NoBlocking <: BlockingSchedule end
-
-Regular updates with no blocking
-"""
-struct NoBlocking <: BlockingSchedule end
-
 
 """
     ChequeredBlocking
@@ -23,11 +7,6 @@ struct NoBlocking <: BlockingSchedule end
 Struct
 ```
 struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
-    P::TP      # blocking workspace: diffusion law
-    WW::TWW    # blocking workspace: accepted Wiener path
-    WWᵒ::TWW   # blocking workspace: proposed Wiener path
-    XX::TXX    # blocking workspace: accepted diffusion path
-    XXᵒ::TXX   # blocking workspace: proposed diffusion path
     Ls         # observation operators for both sets of blocks
     vs         # copied over observations of the process
     Σs         # covariance matrix of the noise for both sets of blocks
@@ -39,7 +18,7 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     accpt::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of accepted samples
     props::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of proposed samples
     # info about the points at which to switch between the systems of ODEs
-    changePts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
+    change_pts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
 end
 ```
 is a blocking schedule in which two sets of blocks are defined in an interlacing
@@ -47,7 +26,7 @@ manner. For instance, if all knots consist of {1,2,3,4,5,6,7,8,9}, then set A
 will contain {1,3,5,7,9}, whereas set B {2,4,6,8}. These knots will then
 uniquely determine the blocks
 
-    ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64, changePt::ODEChangePt,
+    ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64, change_pt::ODEChangePt,
                       P::TP, WW::TWW, XX::TXX)
 
 Base constructor that takes a set of all `knots` (which it then splits into
@@ -69,13 +48,7 @@ update can also be changed via `idx`.
 
 Empty constructor.
 """
-struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
-    P::TP      # blocking workspace: diffusion law
-    Pᵒ::TP     # blocking workspace: diffusion law
-    WW::TWW    # blocking workspace: accepted Wiener path
-    WWᵒ::TWW   # blocking workspace: proposed Wiener path
-    XX::TXX    # blocking workspace: accepted diffusion path
-    XXᵒ::TXX   # blocking workspace: proposed diffusion path
+struct ChequeredBlocking <: BlockingSchedule
     Ls         # observation operators for both sets of blocks
     vs         # copied over observations of the process
     Σs         # covariance matrix of the noise for both sets of blocks
@@ -87,39 +60,38 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
     accpt::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of accepted samples
     props::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of proposed samples
     # info about the points at which to switch between the systems of ODEs
-    changePts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
+    change_pts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
 
     function ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64,
-                               changePt::ODEChangePt, P::TP, WW::TWW, XX::TXX
-                               ) where {TP,TWW,TXX}
-        findKnots(mod, rem) = [k for (i,k) in enumerate(knots) if i % mod == rem]
-        knotsA = findKnots(2, 1)
-        knotsB = findKnots(2, 0)
+                               change_pt::ODEChangePt, P)
+        find_knots(mod, rem) = [k for (i,k) in enumerate(knots) if i % mod == rem]
+        knotsA = find_knots(2, 1)
+        knotsB = find_knots(2, 0)
 
         m, d = size(P[end].L)
 
-        findL(knots) = [( k in knots ? SMatrix{d,d}(1.0*I) : p.L) for (k,p) in enumerate(P)]
-        LsA = findL(knotsA)
-        LsB = findL(knotsB)
+        find_L(knots) = [( k in knots ? SMatrix{d,d}(1.0*I) : p.L) for (k,p) in enumerate(P)]
+        LsA = find_L(knotsA)
+        LsB = find_L(knotsB)
 
         vs = [p.v for p in P]
 
-        findΣ(knots) = [(k in knots ? SMatrix{d,d}(ϵ*I) : p.Σ) for (k,p) in enumerate(P)]
-        ΣsA = findΣ(knotsA)
-        ΣsB = findΣ(knotsB)
+        find_Σ(knots) = [(k in knots ? SMatrix{d,d}(ϵ*I) : p.Σ) for (k,p) in enumerate(P)]
+        ΣsA = find_Σ(knotsA)
+        ΣsB = find_Σ(knotsB)
 
-        findChP(knots) = [(k in knots ? deepcopy(changePt) : p.changePt)
+        find_ch_pt(knots) = [(k in knots ? deepcopy(change_pt) : p.change_pt)
                                                     for (k,p) in enumerate(P)]
-        chpA = findChP(knotsA)
-        chpB = findChP(knotsB)
+        chpA = find_ch_pt(knotsA)
+        chpB = find_ch_pt(knotsB)
 
         """
-            knotsToBlocks(knots, idxLast, i)
+            knots_to_blocks(knots, idxLast, i)
 
         Given a list of `knots` fetch the indices of the intervals that together
         make up the `i`-th block. `idxLast` is the index of the last interval.
         """
-        function knotsToBlocks(knots, idxLast, i)
+        function knots_to_blocks(knots, idxLast, i)
             M = length(knots)
             @assert M > 0
             if M >= i > 1
@@ -130,68 +102,36 @@ struct ChequeredBlocking{TP,TWW,TXX} <: BlockingSchedule
                 return (knots[M]+1):idxLast
             end
         end
-        blocks = ([collect(knotsToBlocks(knotsA, length(P), i)) for i in 1:length(knotsA)+1],
-                  [collect(knotsToBlocks(knotsB, length(P), i)) for i in 1:length(knotsB)+1])
+        blocks = ([collect(knots_to_blocks(knotsA, length(P), i)) for i in 1:length(knotsA)+1],
+                  [collect(knots_to_blocks(knotsB, length(P), i)) for i in 1:length(knotsB)+1])
 
         accpt = (zeros(Int64, length(blocks[1])),
                  zeros(Int64, length(blocks[2])))
         props = (zeros(Int64, length(blocks[1])),
                  zeros(Int64, length(blocks[2])))
-        new{TP,TWW,TXX}(deepcopy(P), deepcopy(P), deepcopy(WW), deepcopy(WW),
-                        deepcopy(XX), deepcopy(XX), (LsA, LsB), vs, (ΣsA, ΣsB),
-                        (knotsA, knotsB), blocks, 1, accpt, props,
-                        (chpA, chpB))
-    end
-
-    function ChequeredBlocking(𝔅::ChequeredBlocking{TP̃, TWW, TXX}, P::TP, Pᵒ::TP,
-                               idx::Int64) where {TP̃,TP,TWW,TXX}
-        new{TP,TWW,TXX}(P, Pᵒ, 𝔅.WW, 𝔅.WWᵒ, 𝔅.XX, 𝔅.XXᵒ, 𝔅.Ls, 𝔅.vs, 𝔅.Σs,
-                        𝔅.knots, 𝔅.blocks, idx, 𝔅.accpt, 𝔅.props, 𝔅.changePts)
+        new( (LsA, LsB), vs, (ΣsA, ΣsB), (knotsA, knotsB), blocks, 1, accpt,
+             props, (chpA, chpB) )
     end
 
     function ChequeredBlocking()
-        new{Nothing, Nothing, Nothing}(nothing, nothing, nothing, nothing,
-                                       nothing, nothing, nothing, nothing,
-                                       nothing, ([0],[0]),([[0]],[[0]]), 1,
-                                       ([0],[0]), ([0],[0]),
-                                       ([NoChangePt()],[NoChangePt()])
-                                       )
+        new( nothing, nothing, nothing, ([0],[0]), ([[0]],[[0]]), 1, ([0],[0]),
+             ([0],[0]), ([NoChangePt()],[NoChangePt()]) )
     end
 end
 
 
 """
-    findEndPts(𝔅::ChequeredBlocking, XX, idx)
+    find_end_pts(𝔅::ChequeredBlocking, XX, idx)
 
 Determine the observations for the update of the `idx`-th set of blocks. In
 particular, on each block with interval indices [a₁,…,aₙ], observations vᵢ with
 i∈{1,…,n-1} are made, whereas the last obesrvation is an exactly observed
 process Xₜ at the terminal time t of the aₙ-th interval.
 """
-function findEndPts(𝔅::ChequeredBlocking, XX, idx)
+function find_end_pts(𝔅::ChequeredBlocking, XX, idx)
     [( k in 𝔅.knots[idx] ? X.yy[end] : 𝔅.vs[k]) for (k,X) in enumerate(XX)]
 end
 
-"""
-    next(𝔅::ChequeredBlocking, XX, θ)
-
-Switch the set of blocks that are being updated. `XX` is the most recently
-sampled (accepted) path. `θ` can be used to change parametrisation.
-"""
-function next(𝔅::ChequeredBlocking, XX, θ)
-    newIdx = (𝔅.idx % 2) + 1
-    vs = findEndPts(𝔅, XX, newIdx)
-    Ls = 𝔅.Ls[newIdx]
-    Σs = 𝔅.Σs[newIdx]
-    chPts = 𝔅.changePts[newIdx]
-
-    P = [GuidPropBridge(𝔅.P[i], Ls[i], vs[i], Σs[i], chPts[i], θ)
-                                            for (i,_) in enumerate(𝔅.P)]
-    Pᵒ = [GuidPropBridge(𝔅.Pᵒ[i], Ls[i], vs[i], Σs[i], chPts[i], θ)
-                                            for (i,_) in enumerate(𝔅.Pᵒ)]
-
-    ChequeredBlocking(𝔅, P, Pᵒ, newIdx)
-end
 
 """
     display(𝔅::NoBlocking)
@@ -208,23 +148,23 @@ end
 Display the pattern of blocks
 """
 function display(𝔅::ChequeredBlocking)
-    function printBlocks(knots, idxLast, m)
+    function print_blocks(knots, idxLast, m)
         M = length(knots)
-        getKnot(knots, i) = (M >= i > 0 ? knots[i] : idxLast * (i>0))
-        function printRange(from, to)
+        get_knot(knots, i) = (M >= i > 0 ? knots[i] : idxLast * (i>0))
+        function print_range(from, to)
             for i in from:to
-                print("|", getKnot(knots,i-1), "|----",
-                      getKnot(knots,i)-getKnot(knots,i-1), "----")
+                print("|", get_knot(knots,i-1), "|----",
+                      get_knot(knots,i)-get_knot(knots,i-1), "----")
             end
         end
 
         if m > div(M, 2)
-            printRange(1, M+1)
+            print_range(1, M+1)
             print("|", idxLast, "|")
         else
-            printRange(1,m)
-            print("|", getKnot(knots, m) ,"|   ...   ")
-            printRange(M+2-m,M+1)
+            print_range(1,m)
+            print("|", get_knot(knots, m) ,"|   ...   ")
+            print_range(M+2-m,M+1)
             print("|", idxLast, "|")
         end
         print("  (number of blocks: ", M+1,")")
@@ -233,9 +173,9 @@ function display(𝔅::ChequeredBlocking)
           "-------------------------\n",
           "Format:\n",
           "block sizes in A: ")
-    printBlocks(𝔅.knots[1], length(𝔅.P), 3)
+    print_blocks(𝔅.knots[1], length(𝔅.vs), 3)
     print("\nblock sizes in B: ")
-    printBlocks(𝔅.knots[2], length(𝔅.P), 3)
+    print_blocks(𝔅.knots[2], length(𝔅.vs), 3)
     print("\n")
 end
 
@@ -244,9 +184,10 @@ end
 
 Register whether the block has been accepted
 """
-function registerAccpt!(𝔅::BlockingSchedule, i, accepted)
-    𝔅.props[𝔅.idx][i] += 1
-    𝔅.accpt[𝔅.idx][i] += 1*accepted
+function register_accpt!(ws, i, accepted)
+    𝔅 = ws.blocking
+    𝔅.props[ws.blidx][i] += 1
+    𝔅.accpt[ws.blidx][i] += 1*accepted
 end
 
 
@@ -255,7 +196,7 @@ end
 
 Nothing to display
 """
-function displayAcceptanceRate(𝔅::NoBlocking) end
+function display_acceptance_rate(𝔅::NoBlocking) end
 
 
 """
@@ -263,15 +204,39 @@ function displayAcceptanceRate(𝔅::NoBlocking) end
 
 Display acceptance rates
 """
-function displayAcceptanceRate(𝔅::BlockingSchedule)
+function display_acceptance_rate(𝔅::BlockingSchedule)
     print("\nAcceptance rates:\n----------------------\n")
-    function printAccptRate(accpt, prop)
+    function print_accpt_rate(accpt, prop)
         m = length(accpt)
         for i in 1:m
             print("b", i, ": ", accpt[i]/prop[i], " | ")
         end
         print("\n- - - - - - - - - - - - - -\n")
     end
-    printAccptRate(𝔅.accpt[1], 𝔅.props[1])
-    printAccptRate(𝔅.accpt[2], 𝔅.props[2])
+    print_accpt_rate(𝔅.accpt[1], 𝔅.props[1])
+    print_accpt_rate(𝔅.accpt[2], 𝔅.props[2])
+end
+
+
+
+
+
+
+
+
+"""
+    set_blocking(𝔅::NoBlocking, ::Any, ::Any)
+
+No blocking is to be done, do nothing
+"""
+set_blocking(𝔅::NoBlocking, ::Any, ::Any) = 𝔅
+
+
+"""
+    set_blocking(::ChequeredBlocking, blockingParams, ws)
+
+Blocking pattern is chosen to be a chequerboard.
+"""
+function set_blocking(::ChequeredBlocking, blocking_params, P)
+    ChequeredBlocking(blocking_params..., P)
 end
