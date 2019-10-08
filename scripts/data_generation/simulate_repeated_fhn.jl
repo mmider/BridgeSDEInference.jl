@@ -3,9 +3,9 @@ using Random
 using DataFrames
 using CSV
 
-
-include(joinpath("..","src","auxiliary","data_simulation_fns.jl"))
-OUT_DIR = joinpath(Base.source_dir(), "..", "output")
+SRC_DIR = joinpath(Base.source_dir(), "..", "..", "src")
+include(joinpath(SRC_DIR, "auxiliary", "data_simulation_fns.jl"))
+OUT_DIR = joinpath(Base.source_dir(), "..", "..", "output")
 mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
