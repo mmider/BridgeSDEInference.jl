@@ -1,4 +1,4 @@
-# Example taken from Golithly and Wilkinson 2005 `Bayesian Inference for Stochastic
+# Example taken from Golightly and Wilkinson 2005 `Bayesian Inference for Stochastic
 # Kinetic Models Using a Diffusion Approximation`
 
 using Bridge
