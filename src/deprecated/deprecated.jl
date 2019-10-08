@@ -377,3 +377,12 @@ function save_path!(ws, wsXX, bXX) #TODO deprecate bXX
 end
 
 # remember to remove ws.no_blocking_used
+
+#NOTE deprecated
+function update_laws!(Ps, θᵒ, ws)
+    for block in ws.blocking.blocks[ws.blidx]
+        for i in block
+            Ps[i] = GuidPropBridge(Ps[i], θᵒ)
+        end
+    end
+end

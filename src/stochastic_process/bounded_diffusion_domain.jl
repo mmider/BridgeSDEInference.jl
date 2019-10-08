@@ -99,38 +99,38 @@ domain(::Any) = UnboundedDomain() # by default no restrictions
 
 
 """
-    checkDomainAdherence(P::Vector{ContinuousTimeProcess},
+    check_domain_adherence(P::Vector{ContinuousTimeProcess},
                          XX::Vector{SamplePath}, iRange)
 
 Verify whether all paths in the range `iRange`, i.e. `XX[i].yy`, i in `iRange`
 fall on the interior of the domain of diffusions `P[i]`, i in `iRange`
 """
-function checkDomainAdherence(P::Vector{S}, XX::Vector{T}, iRange
+function check_domain_adherence(P::Vector{S}, XX::Vector{T}, iRange
                               ) where {S<:ContinuousTimeProcess, T<:SamplePath}
     for i in iRange
-        !checkDomainAdherence(P[i], XX[i]) && return false
+        !check_domain_adherence(P[i], XX[i]) && return false
     end
     true
 end
 
 """
-    checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+    check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
                          d::UnboundedDomain=domain(P))
 
 For unrestricted domains there is nothing to check
 """
-function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+function check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
                               d::UnboundedDomain=domain(P.Target))
     true
 end
 
 """
-    checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+    check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
                          d::DiffusionDomain=domain(P))
 
 Verify whether path `XX.yy` falls on the interior of the domain of diffusion `P`
 """
-function checkDomainAdherence(P::ContinuousTimeProcess, XX::SamplePath,
+function check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
                               d::DiffusionDomain=domain(P.Target))
     N = length(XX)
     for i in 1:N

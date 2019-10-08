@@ -84,22 +84,22 @@ end
 
 
 """
-    checkFullPathFpt(::PartObs, ::Any, ::Any, ::Any)
+    check_full_path_fpt(::PartObs, ::Any, ::Any, ::Any)
 
 First passage time constrains are automatically satisfied for the partially
 observed scheme
 """
-checkFullPathFpt(::PartObs, ::Any, ::Any, ::Any) = true
+check_full_path_fpt(::PartObs, ::Any, ::Any, ::Any) = true
 
 
 """
-    checkFullPathFpt(::PartObs, XXᵒ, m, fpt)
+    check_full_path_fpt(::PartObs, XXᵒ, m, fpt)
 
 Verify whether all paths in the range `iRange`, i.e. `XXᵒ`[i].yy, i in `iRange`
 adhere to the first passage time observation scheme specified by the object
 `fpt`
 """
-function checkFullPathFpt(::FPT, XXᵒ, iRange, fpt)
+function check_full_path_fpt(::FPT, XXᵒ, iRange, fpt)
     for i in iRange
         if !checkFpt(FPT(), XXᵒ[i], fpt[i])
             return false

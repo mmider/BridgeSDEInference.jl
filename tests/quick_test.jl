@@ -70,3 +70,8 @@ end
 @time foo()
 
 @time bar()
+
+foo(::Val{false}=Val{false}()) = print("false...\n")
+foo(::Val{true}=Val{false}()) = print("true...\n")
+
+foo()

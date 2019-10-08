@@ -48,7 +48,8 @@ set_priors!(setup,
             Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
                     ImproperPrior(),
                     )),
-            GsnStartingPt(x0, x0, @SMatrix [3. 0; 0 3.])
+            GsnStartingPt(x0, @SMatrix [3. 0; 0 3.]),
+            x0
             )
 set_mcmc_params!(setup, 1*10^4, 3*10^2, 10^2, 10^0, 100)
 set_blocking!(setup, ChequeredBlocking(),

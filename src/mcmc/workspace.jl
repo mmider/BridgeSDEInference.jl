@@ -284,7 +284,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
                                                          skip, [], _time,
                                                          blocking, 1, x0_prior,
                                                          z),
-         ll = ll, x0_prior = x0_prior, θ = last(θ_history))
+         ll = ll, θ = last(θ_history))
     end
 
     """
@@ -376,7 +376,7 @@ end
 For a given, single parameter update step defines transition kernels, priors,
 which coordinates are updated etc.
 """
-struct ParamUpdtDefn{R,S,ST,T,U}
+struct ParamUpdtDefn{R,S,T,U}
     updt_type::R         # The type of update (Metropolis-Hastings/conjugate etc)
     updt_coord::S        # Which coordinates to update
     t_kernel::T          # Transition kernel for a given parameter update
@@ -385,14 +385,14 @@ struct ParamUpdtDefn{R,S,ST,T,U}
 
     """
         ParamUpdtDefn(updt_type::R, updt_coord::S, t_kernel::T, priors::U,
-                      recompute_ODEs::Bool, ::ST)
+                      recompute_ODEs::Bool)
 
     Initialisation of the complete definition of the parameter update step
     """
     function ParamUpdtDefn(updt_type::R, updt_coord::S, t_kernel::T, priors::U,
-                           recompute_ODEs::Bool, ::ST
-                           ) where {R<:ParamUpdateType,S,T,U,ST<:ODESolverType}
-        new{R,S,ST,T,U}(updt_type, updt_coord, t_kernel, priors, recompute_ODEs)
+                           recompute_ODEs::Bool
+                           ) where {R<:ParamUpdateType,S,T,U}
+        new{R,S,T,U}(updt_type, updt_coord, t_kernel, priors, recompute_ODEs)
     end
 end
 
@@ -410,13 +410,11 @@ struct GibbsDefn{N}
     Initialises Gibbs sweep according to the `setup`
     """
     function GibbsDefn(setup)
-        solver = setup.solver
         recompute_ODEs = check_if_recompute_ODEs(setup)
 
-        updates = [ParamUpdtDefn(ut, uc, tk, pr, ro, solver) for
-                   (ut, uc, tk, pr, ro) in zip(setup.updt_type, setup.updt_coord,
-                                               setup.t_kernel, setup.priors,
-                                               recompute_ODEs)]
+        updates = [ParamUpdtDefn(ut, uc, tk, pr, ro) for (ut, uc, tk, pr, ro)
+                   in zip(setup.updt_type, setup.updt_coord, setup.t_kernel,
+                          setup.priors, recompute_ODEs)]
         new{length(updates)}(Tuple(updates))
     end
 end

@@ -101,10 +101,10 @@ distribution obtained from combining prior `G` and the likelihood encoded by the
 object `P`.
 """
 function start_pt(G::GsnStartingPt, P::GuidPropBridge)
-    μₚₒₛₜ = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
-    Σₚₒₛₜ = inv(P.H[1] + G.Λ)
-    Σₚₒₛₜ = 0.5 * (Σₚₒₛₜ + Σₚₒₛₜ') # remove numerical inaccuracies
-    unwhiten(Σₚₒₛₜ, G.z) + μₚₒₛₜ
+    μ_post = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
+    Σ_post = inv(P.H[1] + G.Λ)
+    Σ_post = 0.5 * (Σ_post + Σ_post') # remove numerical inaccuracies
+    unwhiten(Σ_post, G.z) + μ_post
 end
 
 
@@ -137,10 +137,10 @@ Compute the driving noise that is needed to obtain starting point `y` under
 prior `G` and likelihood `P`. Return a new starting point object
 """
 function inv_start_pt(y, G::GsnStartingPt, P::GuidPropBridge)
-    μₚₒₛₜ = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
-    Σₚₒₛₜ = inv(P.H[1] + G.Λ)
-    Σₚₒₛₜ = 0.5 * (Σₚₒₛₜ + Σₚₒₛₜ')
-    GsnStartingPt(whiten(Σₚₒₛₜ, y-μₚₒₛₜ), G)
+    μ_post = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
+    Σ_post = inv(P.H[1] + G.Λ)
+    Σ_post = 0.5 * (Σ_post + Σ_post')
+    GsnStartingPt(whiten(Σ_post, y-μ_post), G)
 end
 
 """

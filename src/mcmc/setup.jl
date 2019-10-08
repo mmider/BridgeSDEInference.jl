@@ -236,7 +236,7 @@ function set_priors!(setup::MCMCSetup, priors, x0_prior, x0_guess=nothing)
     setup.priors = priors
     setup.x0_prior = x0_prior
     setup.setup_completion[:prior] = true
-    
+
     if x0_guess == nothing
         @assert typeof(x0_prior) <: KnownStartingPt
         x0_guess = start_pt(nothing, x0_prior)
@@ -352,7 +352,7 @@ Determine the data type of the containers with path and driving noise
 """
 function determine_data_type(setup::MCMCSetup)
     check_if_complete(setup, [:prior]) || throw(UndefRefError())
-    x = start_pt(setup.x0_prior)
+    x = setup.x0_guess
     drift = b(0.0, x, setup.P˟)
     vola = σ(0.0, x, setup.P˟)
     # @assert typeof(x) == typeof(drift) # maybe this assertion is too strong
