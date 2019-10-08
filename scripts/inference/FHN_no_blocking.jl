@@ -48,8 +48,7 @@ set_priors!(setup,
                     ImproperPrior(),
                     )),
             GsnStartingPt(x0, @SMatrix [20. 0; 0 20.]),
-            x0
-            )
+            x0)
 # 1*10^3, 3*10^2, 10^2, 10^0, 0
 # num_mcmc_steps, save_iter, verb_iter, skip_for_save, warm_up
 set_mcmc_params!(setup, 1*10^4, 3*10^2, 10^2, 10^0, 100) #1*10^4, 3*10^2, 10^2, 10^0, 100

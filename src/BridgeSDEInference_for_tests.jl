@@ -27,6 +27,7 @@ include(joinpath(_DIR, "setup.jl"))
 include(joinpath(_DIR, "workspace.jl"))
 include(joinpath(_DIR, "conjugateUpdt.jl"))
 include(joinpath(_DIR, "mcmc.jl"))
+include(joinpath(_DIR, "repeated.jl"))
 
 _DIR = "examples"
 include(joinpath(_DIR, "fitzHughNagumo.jl"))

@@ -49,8 +49,7 @@ set_priors!(setup,
                     ImproperPrior(),
                     )),
             GsnStartingPt(x0, @SMatrix [3. 0; 0 3.]),
-            x0
-            )
+            x0)
 set_mcmc_params!(setup, 1*10^4, 3*10^2, 10^2, 10^0, 100)
 set_blocking!(setup, ChequeredBlocking(),
               (collect(1:length(obs)-2)[1:2:end], 10^(-10), SimpleChangePt(100)))

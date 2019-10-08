@@ -177,7 +177,7 @@ julia> moveToProperPlace([10,20,30], [1,2,3,4,5],
  30.0
 ```
 """
-function moveToProperPlace(ϑ, θ, ::Val{v}) where {v}
+function move_to_proper_place(ϑ, θ, ::Val{v}) where {v}
     θᵒ = copy(θ)
     idxNew = [i for i in 1:length(v) if v[i]]
     θᵒ[idxNew] = ϑ
