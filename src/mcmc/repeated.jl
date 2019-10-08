@@ -15,19 +15,16 @@
 # #surface(0..1, 0..5, data)
 
 
-function mcmc(::Type{𝕂}, obsScheme::AbstractObsScheme, obs, obsTimes, yPr::Vector{<:StartingPtPrior}, w,
-              P˟, P̃, Ls, Σs, numSteps, tKernel, priors, τ;
-              fpt=fill(NaN, size(obs)), # not sure if right size
-              ρ=0.0, dt=1/5000, saveIter=NaN,
-              verbIter=NaN, updtCoord=(Val((true,)),),
-              paramUpdt=true,
-              skipForSave=1, updtType=(MetropolisHastingsUpdt(),),
-              blocking=NoBlocking(),
-              blockingParams=([], 0.1, NoChangePt()),
-              solver=Ralston3(), changePt::CP=NoChangePt(), warmUp=0
-              ) where {𝕂, CP}
+function mcmc(setups::Vector{MCMCSetup})
+    num_mcmc_steps, K = setups[1].num_mcmc_steps, length(setups)
+    tu = Workspace(setups[k])
+    ws, ll, θ = tu.workspace, tu.ll, tu.θ
+    for k in 2:K
+        tu = Workspace(setups[k])
+        push!(ws, tu.workspace); push!(ll, tu.ll); push!(θ, tu.θ)
+    end
 
-    K = length(obs)
+    #=
     P = [findProposalLaw(𝕂, obs[k], obsTimes[k], P˟, P̃[k], Ls[k], Σs[k], τ; dt=dt, solver=solver,
                      changePt=CP(getChangePt(blockingParams[3])) ) for k in 1:K]
 
@@ -51,6 +48,7 @@ function mcmc(::Type{𝕂}, obsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
     θ = params(P˟)
     θchain = Vector{typeof(θ)}(undef, (numSteps-warmUp)*updtLen+1)
     θchain[1] = copy(θ)
+
     recomputeODEs = [any([e in dependsOnParams(P[1][1].Pt) for e
                          in idx(uc)]) for uc in updtCoord]
 
@@ -58,10 +56,14 @@ function mcmc(::Type{𝕂}, obsScheme::AbstractObsScheme, obs, obsTimes, yPr::Ve
     𝔅 = [setBlocking(blocking, blockingParams, P[k], WW[k], XX[k]) for k in 1:K]
     #display(𝔅)
     acc = zeros(Bool, K)
-    for i in 1:numSteps
-        verbose = (i % verbIter == 0)
+    =#
+    for i in 1:num_mcmc_steps
+        verbose = act(Verbose(), ws[1], i)#(i % verbIter == 0)
     #    i > warmUp && savePath!(Paths, blocking == NoBlocking() ? XX : 𝔅.XX,
 #                                (i % saveIter == 0), skipForSave)
+        act(SavePath(), ws[1], i) && for k in 1:K save_path!(ws[k]) end
+        for k in 1:K next_set_of_blocks(ws[k]) end
+
         for k in 1:K
 
             tu = impute!(obsScheme, 𝔅[k], Wnr[k], yPr[k], WWᵒ[k], WW[k], XXᵒ[k], XX[k],
@@ -102,8 +104,8 @@ function conjugateDraw(θ, XX::Vector{<:Vector}, PT, prior, updtIdx)
     end
     Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
     Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
-    μₚₒₛₜ = Σ * (μ + Vector(prior.Σ\prior.μ))
-    rand(Gaussian(μₚₒₛₜ, Σ))
+    μ_post = Σ * (μ + Vector(prior.Σ\prior.μ))
+    rand(Gaussian(μ_post, Σ))
 end
 
 

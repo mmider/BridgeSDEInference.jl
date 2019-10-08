@@ -21,7 +21,7 @@ Gibbs sampler alternately imputing unobserved parts of the path and updating
 unknown coordinates of the parameter vector. `setup` defines all variables of
 the Markov Chain
 """
-function mcmc(setup)
+function mcmc(setup::MCMCSetup)
     adaptive_prop, num_mcmc_steps = setup.adaptive_prop, setup.num_mcmc_steps
     ws, ll, θ = Workspace(setup)
     gibbs = GibbsDefn(setup)
