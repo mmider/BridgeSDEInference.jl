@@ -43,7 +43,8 @@ function conjugate_draw(θ, XX, PT, prior, updtIdx)
     Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
     Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies
     μ_post = Σ * (μ + Vector(prior.Σ\prior.μ))
-    rand(Gaussian(μ_post, Σ))
+    ϑ = rand(Gaussian(μ_post, Σ))
+    move_to_proper_place(ϑ, θ, updtIdx)     # align so that dimensions agree
 end
 
 

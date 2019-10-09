@@ -566,8 +566,8 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
                        ) where {UpdtIdx,OS}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(WW)
-    ϑ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
-    θᵒ = move_to_proper_place(ϑ, θ, UpdtIdx())     # align so that dimensions agree
+    θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
+
 
     update_laws!(P, θᵒ)
     pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, P) # compute (H, Hν, c)
@@ -602,8 +602,7 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
                        ) where {UpdtIdx,OS,B}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(WW)
-    ϑ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
-    θᵒ = move_to_proper_place(ϑ, θ, UpdtIdx())     # align so that dimensions agree
+    θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
 
     update_laws!(P, θᵒ)
     pu.recompute_ODEs && solve_back_rec!(ws, P)

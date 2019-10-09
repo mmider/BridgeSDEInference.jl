@@ -17,13 +17,14 @@ using GaussianDistributions
 DIR = "auxiliary"
 include(joinpath(SRC_DIR, DIR, "read_and_write_data.jl"))
 include(joinpath(SRC_DIR, DIR, "transforms.jl"))
+include(joinpath(SRC_DIR, DIR, "utility_functions.jl"))
 const 𝕏 = SVector
 # decide if first passage time observations or partially observed diffusion
 fptObsFlag = false
 
 # pick dataset
-using DelimitedFiles
-using Makie
+# using DelimitedFiles #NOTE uncommented in the original
+#using Makie #NOTE uncommented in the original
 #data = readdlm("../LinneasData190920.csv", ';')
 #
 #data[isnan.(data)] .= circshift(data, (-1,0))[isnan.(data)]
@@ -98,8 +99,6 @@ end
 Ls = fill.(Ref(L), length.(XX))
 Σs = fill.(Ref(Σ), length.(XX))
 
-
-
 setups = [MCMCSetup(P˟, P̃[k], PartObs()) for k in 1:K]
 set_observations!.(setups, Ls, Σs, obs, obs_times)
 for k in 1:K set_imputation_grid!(setups[k], dt) end
@@ -124,15 +123,16 @@ for k in 1:K
                 GsnStartingPt(𝕏(obs[k][1][1], 0.0), @SMatrix [20. 0; 0 20.]),
                 𝕏(obs[k][1][1], -4rand()))
 end
-setups
-for k in 1:K set_mcmc_params!(setups[k], 5*10^3, 3*10^2, 10^2, 10^0, 100) end
+for k in 1:K set_mcmc_params!(setups[k], 5*10^3, 3*10^2, 10^2, 10^0, 100) end # 5*10^2
 for k in 1:K set_solver!(setups[k], Vern7(), NoChangePt()) end
 for k in 1:K initialise!(𝕂, setups[k]) end
-
+setups
 Random.seed!(4)
-out, elapsed = mcmc(𝕂, setup)
-display(out.accpt_tracker)
+out, elapsed = @timeit mcmc(setups)
+for k in 1:K display(out[k].accpt_tracker) end
 
+include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
+plot_chains(out[1]; truth=[10.0, -8.0, 15.0, 0.0, 3.0])
 #=
 x0⁺, pathsToSave = transformMCMCOutput(x0, paths, saveIter; chain=chain,
                                        numGibbsSteps=2,
