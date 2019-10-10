@@ -75,3 +75,59 @@ foo(::Val{false}=Val{false}()) = print("false...\n")
 foo(::Val{true}=Val{false}()) = print("true...\n")
 
 foo()
+
+using StaticArrays
+prog = "SMatrix{2,2}([ 1.0 1.0; 2.0 2.0])"
+ex1 = Meta.parse(prog)
+ex1.args
+ex2 = Expr(:call, SMatrix{2,2}, [1.0 1.0; 2.0 2.0])
+dump(ex2)
+
+
+@inline tuplejoin(x) = x
+@inline tuplejoin(x, y) = (x..., y...)
+@inline tuplejoin(x, y, z...) = tuplejoin(tuplejoin(x, y), z...)
+
+@generated function φ(::Val{T}, args...) where T
+    data = Expr(:call, :tuplejoin, (:(phi(Val($i), args...)) for i in 1:length(T) if T[i])...)
+    mat = Expr(:call, SMatrix{num_non_hypo(args[3]),sum(T)}, data)
+    return mat
+end
+
+@generated function
+
+
+
+@generated function φ(::Val{T}, args...) where T
+    z = Expr(:call, SMatrix{num_non_hypo(args[3]),sum(T)}, (:jointuple, (:(phi(Val($i), args...)) for i in 1:length(T) if T[i])...))
+    return z
+end
+@SVector[1.0, 2.0, 3.0]
+φ(Val{(true, true, true)}(), 10.0, @SVector[1.0,2.0], P˟)
+φᶜlinear(Val{(true, true, true)}(),10.0, @SVector[1.0,2.0], P˟)
+φᶜtemp(Val{(true, true, true)}(),@SVector[1.0], 10.0, @SVector[1.0,2.0], P˟)
+foo_1() = (1,2)
+foo_2() = (2,3)
+SMatrix{2,2}((foo_1(), foo_2()))
+
+
+function foo(args)
+    print(args[2], "\n")
+end
+@generated function foo(P)
+    z = Expr(num_non_hypo(P))
+    return z
+end
+param = :complexConjug
+θ_init = [10.0, -8.0, 15.0, 0.0, 3.0]
+P˟ = FitzhughDiffusion(param, θ_init...)
+foo(P˟)
+num_non_hypo(P˟)
+
+
+SMatrix{2,2}(collect(Iterators.flatten(((1,2),(4,5)))))
+
+Expr(:call, SMatrix{2,2}, [2 3;4 5])
+for i in Iterators.flatten(((1,2),(2,3))) print(i, "\n") end
+
+((1,2),(2,3))

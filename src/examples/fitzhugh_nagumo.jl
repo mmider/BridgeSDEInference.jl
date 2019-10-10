@@ -113,14 +113,18 @@ constdiff(::FitzhughDiffusion) = true
 clone(P::FitzhughDiffusion, θ) = FitzhughDiffusion(P.param, θ...)
 params(P::FitzhughDiffusion) = [P.ϵ, P.s, P.γ, P.β, P.σ]
 
+nonhypo_i_range(P::FitzhughDiffusion) = 2:2
+hypo_a_inv(P::FitzhughDiffusion, t, x) = 1.0/P.σ^2
+num_non_hypo(P::Type{<:FitzhughDiffusion}) = 1
+
 
 # Basis functions for conjugate update
-phi(::Val{0}, t, x, P::FitzhughDiffusion) = -x[2]
-phi(::Val{1}, t, x, P::FitzhughDiffusion) = x[1]-x[1]^3+(1-3*x[1]^2)*x[2]
-phi(::Val{2}, t, x, P::FitzhughDiffusion) = one(x[1])
-phi(::Val{3}, t, x, P::FitzhughDiffusion) = -x[1]
-phi(::Val{4}, t, x, P::FitzhughDiffusion) = zero(x[1])
-phi(::Val{5}, t, x, P::FitzhughDiffusion) = zero(x[1])
+phi(::Val{0}, t, x, P::FitzhughDiffusion) = (-x[2],)
+phi(::Val{1}, t, x, P::FitzhughDiffusion) = (x[1]-x[1]^3+(1-3*x[1]^2)*x[2],)
+phi(::Val{2}, t, x, P::FitzhughDiffusion) = (one(x[1]),)
+phi(::Val{3}, t, x, P::FitzhughDiffusion) = (-x[1],)
+phi(::Val{4}, t, x, P::FitzhughDiffusion) = (zero(x[1]),)
+phi(::Val{5}, t, x, P::FitzhughDiffusion) = (zero(x[1]),)
 
 
 
