@@ -113,7 +113,7 @@ constdiff(::FitzhughDiffusion) = true
 clone(P::FitzhughDiffusion, θ) = FitzhughDiffusion(P.param, θ...)
 params(P::FitzhughDiffusion) = [P.ϵ, P.s, P.γ, P.β, P.σ]
 
-nonhypo_i_range(P::FitzhughDiffusion) = 2:2
+nonhypo(P::FitzhughDiffusion, x) = x[2:2]
 hypo_a_inv(P::FitzhughDiffusion, t, x) = 1.0/P.σ^2
 num_non_hypo(P::Type{<:FitzhughDiffusion}) = 1
 

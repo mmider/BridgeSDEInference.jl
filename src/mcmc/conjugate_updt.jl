@@ -97,15 +97,16 @@ Base definition, assumes no hypoellipticity and no closed form expression for
 the inverse of `a`
 """
 hypo_a_inv(P, t, x) = inv(a(P, t, x))
+nonhypo(::Any, x) = x
 
-function _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx, i_range=nonhypo_i_range(PT))
+function _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)
     for X in XX
         for i in 1:length(X)-1
             φₜ = φ(updtIdx, X.tt[i], X.yy[i], PT)
             φᶜₜ = φᶜ(updtIdx, ϑ, X.tt[i], X.yy[i], PT)
             Γ⁻¹ = hypo_a_inv(PT, X.tt[i], X.yy[i])
             dt = X.tt[i+1] - X.tt[i]
-            dy = X.yy[i+1][i_range]-X.yy[i][i_range]
+            dy = nonhypo(PT, X.yy[i+1])-nonhypo(PT, X.yy[i])
             μ = μ + φₜ'*Γ⁻¹*dy - φₜ'*Γ⁻¹*φᶜₜ*dt
             𝓦 = 𝓦 + φₜ'*Γ⁻¹*φₜ*dt
         end
