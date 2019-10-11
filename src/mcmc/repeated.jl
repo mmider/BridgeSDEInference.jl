@@ -18,6 +18,14 @@
 # recompute_ODEs is the same across all samples, in previous implementation
 # it could be different, to remedy this, adjust the definition of GibbsDefn in
 # workspace.jl
+"""
+    mcmc(setups::Vector{<:MCMCSetup})
+
+Gibbs sampler alternately imputing unobserved parts of the paths and updating
+unknown coordinates of the parameter vector. Version suitable for multiple
+trajectory samples. `setups` defines all variables required for the
+initialisation of the Markov Chain
+"""
 function mcmc(setups::Vector{<:MCMCSetup})
     num_mcmc_steps, K = setups[1].num_mcmc_steps, length(setups)
     tu = Workspace(setups[1])
