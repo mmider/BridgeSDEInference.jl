@@ -46,7 +46,7 @@ export Adaptation, NoAdaptation
 export MCMCSetup, set_observations!, set_imputation_grid!, set_transition_kernels!
 export set_priors!, set_mcmc_params!, set_blocking!, set_solver!, initialise!
 
-
+export Workspace
 
 include("types.jl")
 

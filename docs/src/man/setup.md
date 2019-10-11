@@ -46,7 +46,8 @@ set_observations!
 There are two objects that define the imputation grid. The time step `dt` and
 the time transformation that transforms a regular time-grid with equidistantly
 distributed imputation points. The second defaults to a usual transformation
-employed in papers on the guided proposals. [TO DO add also space-time transformation from the original paper for the bridges]. It is enough to call
+employed in papers on the guided proposals. [TO DO add also space-time
+transformation from the original paper for the bridges]. It is enough to call
 ```julia
 dt = ...
 set_imputation_grid!(setup, dt)
@@ -131,13 +132,19 @@ ImproperPrior
 Additionally, as each Gibbs step needs to have its own set of priors
 corresponding to the parameters being updated by this Gibbs step, the priors,
 similarly to `indices of updated coordinates` need to be grouped into tuples
-of tuples. To make this grouping easier on the user a `Priors` structure is provided.
+of tuples. To make this grouping easier on the user a `Priors` structure is
+provided.
 ```@docs
 Priors
 ```
 #### Example 1
 
-This is perhaps the most common use case. Suppose that `n` coordinates---where we take `n=3` for illustration purposes---of prameter `θ` are being updated by the Markov chain. Suppose further that there are `n` transition kernels, each updating a separate coordinate. Let's assume for simplicity that each coordinate is equipped with an independent, improper prior. Then the `Priors` struct can be set up as follows:
+This is perhaps the most common use case. Suppose that `n` coordinates---where
+we take `n=3` for illustration purposes---of prameter `θ` are being updated by
+the Markov chain. Suppose further that there are `n` transition kernels, each
+updating a separate coordinate. Let's assume for simplicity that each coordinate
+is equipped with an independent, improper prior. Then the `Priors` struct can be
+set up as follows:
 ```julia
 n = 3
 priors = Priors([ImproperPrior() for i in 1:n])
@@ -151,10 +158,16 @@ display(priors.indicesForUpdt)
  [2]
  [3]
 ```
-Notice that only a list of priors had to be supplied and the struct took care of setting up the `indicesForUpdt` container.
+Notice that only a list of priors had to be supplied and the struct took care of
+setting up the `indicesForUpdt` container.
 
 #### Example 2
-Suppose that the Markov chain uses two transition kernels. The first transition kernel updates `3` coordinates of `θ`, which have a corresponding joint, multivariate Normal prior with some pre-specified covariance matrix `Σ` and mean `0`. The second transition kernel updates `2` coordinates of `θ`, and these two are equipped with independent, improper priors. Then the `Priors` struct can be set up as follows:
+Suppose that the Markov chain uses two transition kernels. The first transition
+kernel updates `3` coordinates of `θ`, which have a corresponding joint,
+multivariate Normal prior with some pre-specified covariance matrix `Σ` and mean
+`0`. The second transition kernel updates `2` coordinates of `θ`, and these two
+are equipped with independent, improper priors. Then the `Priors` struct can be
+set up as follows:
 ```julia
 using LinearAlgebra, Distributions
 Σ = diagm(0=>[1000.0, 1000.0, 1000.0])
@@ -166,7 +179,9 @@ display(priors.priors)
 dim: 3
 μ: [0.0, 0.0, 0.0]
 Σ: [1000.0 0.0 0.0; 0.0 1000.0 0.0; 0.0 0.0 1000.0]
-)
+)\mutable struct
+  fields
+end
 , ImproperPrior(), ImproperPrior())
 
 display(priors.indicesForUpdt)
@@ -179,25 +194,112 @@ first transition kernel uses only the first prior, whereas the second
 transition kernel uses two priors from the list.
 
 ### Setting the priors
-
+An example of setting the priors for two-step Gibbs sampler could be
+```julia
+μ, Σ, λ, Ω = ..., ..., ..., ...
+set_priors!(setup, Priors((MvNormal(μ, Σ), ImproperPrior())), GsnStartingPt(λ, Ω), x0)
+```
 ```@docs
 set_priors!
 ```
 
-
-
-
 ## Blocking
 Currently two choices of blocking are available:
-* No blocking at all, in which case
-```julia
-𝔅 = NoBlocking()
-blockingParams = ([], 0.1, NoChangePt())
+* Either no blocking at all, which is the default behaviour of `set_blocking!`
+```@docs
+NoBlocking
 ```
-should be set
-* Blocking using chequerboard updating scheme. For this updating scheme, at each observation a knot can be (but does not have to be) placed. IMPORTANT: The knot indexing starts at the first non-starting point observation. Suppose we have, say, `20` observations (excluding the starting point). Let's put a knot on every other observation, ending up with knots on observations with indices: `[2,4,6,8,10,12,14,16,18,20]`. Chequerboard updating scheme splits these knots into two, disjoint, interlaced subsets, i.e. `[2,6,10,14,18]` and `[4,8,12,16,20]`. This also splits the path into two interlaced sets of blocks: `[1–2,3–6,7–10,11–14,15–18,19–20]`, `[1–4,5–8,9–12,13–16,17–20]` (where interval indexing starts with interval 1, whose end-points are the starting point and the first non-starting point observation). The path is updated in blocks. First, blocks `[1–2,3–6,7–10,11–14,15–18,19–20]` are updated conditionally on full and exact observations indexed with `[2,6,10,14,18]`, as well as all the remaining, partial observations (indexed by `[1,2,3,...,20]`). Then, the other set of blocks is updated in the same manner. This is then repeated. To define the blocking behaviour, only the following needs to be written:
-```julia
-𝔅 = ChequeredBlocking()
-blockingParams = (collect(2:20)[1:2:end], 10^(-10), SimpleChangePt(100))
+* Or blocking using the chequerboard updating scheme.
 ```
-The first defines the blocking updating scheme (in the future there might be a larger choice). The second line places the knots on `[2,4,6,8,10,12,14,16,18,20]`. Splitting into appropriate subsets is done internally. `10^(-10)` is an artificial noise parameter that needs to be added for the numerical purposes. Ideally we want this to be as small as possible, however the algorithm may have problems with dealing with very small values. The last arguments aims to remedy this. `SimpleChangePt(100)` has two functions. One, it is a flag to the `mcmc` sampler that two sets of ODE solvers need to be employed: for the segment directly adjacent to a knot from the left ODE solvers for `M⁺`, `L`, `μ` are employed and `H`, `Hν` and `c` are computed as a by-product. On the remaining part of blocks, the ODE solvers for `H`, `Hν` and `c` are used directly. The second function is to pass the point at which a change needs to be made between these two solvers (which for the example above is set to `100`). The reason for this functionality is that solvers for `M⁺`, `L`, `μ` are more tolerant to very small values of the artificial noise.
+ChequeredBlocking
+```
+
+For chequerboard updating scheme, at each observation a knot can be (but does
+not have to be) placed. IMPORTANT: The knot indexing starts at the first
+non-starting point observation. Suppose we have, say, `20` observations
+(excluding the starting point). Let's put a knot on every other observation,
+ending up with knots on observations with indices:
+`[2,4,6,8,10,12,14,16,18,20]`. Chequerboard updating scheme splits these knots
+into two, disjoint, interlaced subsets, i.e. `[2,6,10,14,18]` and
+`[4,8,12,16,20]`. This also splits the path into two interlaced sets of blocks: `[1–2,3–6,7–10,11–14,15–18,19–20]`, `[1–4,5–8,9–12,13–16,17–20]` (where interval
+indexing starts with interval 1, whose end-points are the starting point and the
+first non-starting point observation). The path is updated in blocks. First,
+blocks `[1–2,3–6,7–10,11–14,15–18,19–20]` are updated conditionally on full and
+exact observations indexed with `[2,6,10,14,18]`, as well as all the remaining,
+partial observations (indexed by `[1,2,3,...,20]`). Then, the other set of
+blocks is updated in the same manner. This is then repeated. To define the
+blocking behaviour, only the following needs to be written:
+```julia
+blocking = ChequeredBlocking()
+blocking_params = (collect(2:20)[1:2:end], 10^(-10), SimpleChangePt(100))
+```
+The first defines the blocking updating scheme (in the future there might be a
+larger choice). The second line places the knots on
+`[2,4,6,8,10,12,14,16,18,20]`. Splitting into appropriate subsets is done
+internally. `10^(-10)` is an artificial noise parameter that needs to be added
+for the numerical purposes. Ideally we want this to be as small as possible,
+however the algorithm may have problems with dealing with very small values. The
+last arguments aims to remedy this. `SimpleChangePt(100)` has two functions.
+One, it is a flag to the `mcmc` sampler that two sets of ODE solvers need to be
+employed: for the segment directly adjacent to a knot from the left ODE solvers
+for `M⁺`, `L`, `μ` are employed and `H`, `Hν` and `c` are computed as a
+by-product. On the remaining part of blocks, the ODE solvers for `H`, `Hν` and
+`c` are used directly. The second function of `SimpleChangePt()` is to indicate
+the point at which a change needs to be made between these two solvers (which
+for the example above is set to `100`). The reason for this functionality is
+that solvers for `M⁺`, `L`, `μ` are more tolerant to very small values of the
+artificial noise.
+
+To define an MCMC sampler with no blocking nothing needs to be done (it's a
+default). Alternatively, one can call
+```julia
+set_blocking!()
+```
+It resets the blocking to none. To pass the blocking scheme defined above one
+could call
+```julia
+set_blocking!(setup, blocking, blocking_params)
+```
+## ODE solvers
+There are a few standard, Runge-Kutta type ODE solvers implemented for solving
+the backward ODE systems defining `M⁺`, `L`, `μ` and `H`, `Hν` and `c`. These
+are:
+```@docs
+Ralston3
+RK4
+Tsit5
+Vern7
+```
+Additionally, the change point between solvers for `M⁺`, `L`, `μ` and `H`, `Hν`
+and `c` can be set outside of blocking when setting the solvers. An example code
+is as follows
+```julia
+set_solver!(setup, Vern7(), NoChangePt())
+```
+```@docs
+set_solver!
+```
+## MCMC parameters
+There are some additional parameters that need to be passed to an MCMC samplers.
+These need to be passed to
+```@docs
+set_mcmc_params!
+```
+## Initialisation of internal containers
+Once all the setting functions above have been run (with the only exception
+`set_blocking!` being optional), i.e.
+```julia
+setup = MCMCSetup(...)
+set_observations!(setup, ...)
+set_imputation_grid(setup, ...)
+set_transition_kernels!(setup, ...)
+set_priors!(setup, ...)
+set_mcmc_params!(setup, ...)
+set_solver!(setup, ...)
+set_blocking(setup, ...) # optionally
+```
+then the following function should be run
+```@docs
+initialise!
+```
+Once run, the setup is complete and it is possible to commence the MCMC sampler. 

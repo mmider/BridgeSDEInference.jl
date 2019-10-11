@@ -27,7 +27,7 @@ scheduled to be introduced to a package are:
 - Gradient based proposals (for parameter and initial state updates)
 - Support for mixed-effects models
 - GPU support for efficient treatment of high-dimensional examples
-- see [issue #18 (TODOs)](issues/18) for an up-to-date list of planned tasks
+- see [issue #18 (TODOs)](https://github.com/mmider/BridgeSDEInference/issues/18) for an up-to-date list of planned tasks
 
 ## Example results
 Results of running an inference algorithm for estimating four parameters of the
