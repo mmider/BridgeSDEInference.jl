@@ -491,7 +491,7 @@ function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
             end
             ws = Workspace(ws, adpt.ρs[adpt.N[1]])
 
-            solveBackRec!(NoBlocking(), ws.P, ST())
+            solve_back_rec!(NoBlocking(), ws, ws.P)
             #solveBackRec!(NoBlocking(), ws.Pᵒ, ST())
             y = ws.XX[1].yy[1]
             z = inv_start_pt(y, ws.x0_prior, ws.P[1])

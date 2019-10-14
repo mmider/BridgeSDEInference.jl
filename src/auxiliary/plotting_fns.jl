@@ -1,6 +1,7 @@
 using PyPlot
 
-function plot_chains(ws::Workspace,indices=nothing;truth=nothing,figsize=(15,10))
+function plot_chains(ws::Workspace,indices=nothing;truth=nothing,figsize=(15,10),
+                     ylims=nothing)
     θs = ws.θ_chain.θ_chain
     num_steps = length(θs)
     if indices === nothing
@@ -17,6 +18,13 @@ function plot_chains(ws::Workspace,indices=nothing;truth=nothing,figsize=(15,10)
         for (i,ind) in enumerate(indices)
             ax[i].plot([1,length(θs)],[truth[ind],truth[ind]],color="black",
                        linestyle="--")
+        end
+    end
+    if ylims !== nothing
+        for (i,axis) in enumerate(ax)
+            if ylims[i] !== nothing
+                axis.set_ylim(ylims[i])
+            end
         end
     end
     plt.tight_layout()
@@ -50,11 +58,13 @@ function plot_paths(ws::Workspace, coords=nothing; transf=nothing,
         end
     end
 
+    _i = 1
     if obs !== nothing
         for (i,ind) in enumerate(coords)
             if ind in obs.indices
-                ax[i].plot(obs.times, obs.vals, mfc="orange", mec="orange",
+                ax[i].plot(obs.times, obs.vals[_i], mfc="orange", mec="orange",
                            marker="o", linestyle="none", markersize=4)
+                _i += 1
             end
         end
     end

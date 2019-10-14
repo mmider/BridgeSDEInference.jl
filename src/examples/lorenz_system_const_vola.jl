@@ -31,6 +31,15 @@ constdiff(::LorenzCV) = true
 clone(P::LorenzCV, θ) = LorenzCV(θ...)
 params(P::LorenzCV) = [P.θ₁, P.θ₂, P.θ₃, P.σ]
 
+nonhypo(P::LorenzCV, x) = x
+@inline hypo_a_inv(P::LorenzCV, t, x) = SMatrix{3,3}(I)/P.σ^2
+num_non_hypo(P::Type{<:LorenzCV}) = 3
+
+phi(::Val{0}, t, x, P::LorenzCV) = (zero(x[1]), -x[2]-x[1]*x[3], x[1]*x[2])
+phi(::Val{1}, t, x, P::LorenzCV) = (x[2]-x[1], zero(x[1]), zero(x[1]))
+phi(::Val{2}, t, x, P::LorenzCV) = (zero(x[1]), x[1], zero(x[1]))
+phi(::Val{3}, t, x, P::LorenzCV) = (zero(x[1]), zero(x[1]), -x[3])
+phi(::Val{4}, t, x, P::LorenzCV) = (zero(x[1]), zero(x[1]), zero(x[1]))
 
 struct LorenzCVAux{O,R,S1,S2,TI} <: ContinuousTimeProcess{ℝ{3,R}}
     θ₁::R
@@ -81,9 +90,12 @@ function update_λ!(P::LorenzCVAux, λ)
     P.λ[1] = λ
 end
 
-B(t, P::LorenzCVAux) = P.λ[1] * B₀(t, P) + (1.0-P.λ[1]) * B_bar(t, P)
 
-β(t, P::LorenzCVAux) = P.λ[1] * β₀(t, P) + (1.0-P.λ[1]) * β_bar(t, P)
+B(t, P::LorenzCVAux) = B₀(t, P)
+β(t, P::LorenzCVAux) = β₀(t, P)
+# NOTE uncomment if adaptation is to be used, currently commented out, because it is slow
+#B(t, P::LorenzCVAux) = P.λ[1] * B₀(t, P) + (1.0-P.λ[1]) * B_bar(t, P)
+#β(t, P::LorenzCVAux) = P.λ[1] * β₀(t, P) + (1.0-P.λ[1]) * β_bar(t, P)
 
 
 function β_bar(t, P::LorenzCVAux)
@@ -123,7 +135,7 @@ constdiff(::LorenzCVAux) = true
 clone(P::LorenzCVAux, θ) = LorenzCVAux(θ..., P.t, P.u, P.T, P.v, observables(P), P.aux, P.λ, P.X̄)
 clone(P::LorenzCVAux, θ, v) = LorenzCVAux(θ..., P.t, zero(v), P.T, v, observables(P), P.aux, P.λ, P.X̄)
 params(P::LorenzCVAux) = [P.θ₁, P.θ₂, P.θ₃, P.σ]
-dependsOnParams(::LorenzCVAux) = (1,2,3,4,5,6)
+depends_on_params(::LorenzCVAux) = (1,2,3,4,5,6)
 
 
 # Auxiliary diffusion when coordinates [1,2,3] are observed
