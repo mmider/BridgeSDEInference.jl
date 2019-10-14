@@ -44,12 +44,91 @@ struct SimpleChangePt <: ODEChangePt
 end
 
 """
-    getChangePt(changePt::ODEChangePt)
+    get_change_pt(changePt::ODEChangePt)
 
 Return the length of terminal interval over which ODE solvers for L,M⁺,μ are
 used
 """
-getChangePt(changePt::ODEChangePt) = changePt.λ
+get_change_pt(changePt::ODEChangePt) = changePt.λ
+
+
+"""
+    AbstractObsScheme
+
+Types inheriting from abstract type `AbstractObsScheme` define the scheme
+according to which a stochastic process has been observed
+"""
+abstract type AbstractObsScheme end
+
+
+"""
+    PartObs <: AbstractObsScheme
+
+Type acting as a flag for partially observed diffusions
+"""
+struct PartObs <: AbstractObsScheme end
+
+
+"""
+    FPT <: AbstractObsScheme
+
+Observation scheme in which only first passage times are observed
+"""
+struct FPT <: AbstractObsScheme end
+
+
+"""
+    ParamUpdateType
+
+Types inheriting from abstract type `ParamUpdateType` define the way in which
+parameters are to be updated by the MCMC sampler
+"""
+abstract type ParamUpdateType end
+
+"""
+    ConjugateUpdt <: ParamUpdateType
+
+Type acting as a flag for update from full conditional (conjugate to a prior)
+"""
+struct ConjugateUpdt <: ParamUpdateType end
+
+"""
+    MetropolisHastingsUpdt <: ParamUpdateType
+
+Flag for performing update according to Metropolis Hastings step
+"""
+struct MetropolisHastingsUpdt <: ParamUpdateType end
+
+"""
+    LangevinUpdt <: ParamUpdateType
+Flag for performing Metropolis adjusted Langevin updates
+"""
+struct LangevinUpdt <: ParamUpdateType end
+
+"""
+    BlockingSchedule
+
+Types inheriting from abstract type `BlockingSchedule` define the schedule
+according to which blocking is done
+"""
+abstract type BlockingSchedule end
+
+"""
+    struct NoBlocking <: BlockingSchedule end
+
+Regular updates with no blocking
+"""
+struct NoBlocking <: BlockingSchedule end
+
+
+
+abstract type ActionType end
+
+struct Verbose <: ActionType end
+struct SavePath <: ActionType end
+struct Imputation <: ActionType end
+struct ParamUpdate <: ActionType end
+
 
 
 #TODO implement Jeffrey's priors
@@ -98,7 +177,7 @@ julia> moveToProperPlace([10,20,30], [1,2,3,4,5],
  30.0
 ```
 """
-function moveToProperPlace(ϑ, θ, ::Val{v}) where {v}
+function move_to_proper_place(ϑ, θ, ::Val{v}) where {v}
     θᵒ = copy(θ)
     idxNew = [i for i in 1:length(v) if v[i]]
     θᵒ[idxNew] = ϑ
