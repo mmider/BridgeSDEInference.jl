@@ -82,7 +82,7 @@ constdiff(::LorenzAux) = true
 clone(P::LorenzAux, θ) = LorenzAux(θ..., P.t, P.u, P.T, P.v, observables(P), P.aux)
 clone(P::LorenzAux, θ, v) = LorenzAux(θ..., P.t, zero(v), P.T, v, observables(P), P.aux)
 params(P::LorenzAux) = [P.θ₁, P.θ₂, P.θ₃, P.σ₁, P.σ₂, P.σ₃]
-dependsOnParams(::LorenzAux) = (1,2,3,4,5,6)
+depends_on_params(::LorenzAux) = (1,2,3,4,5,6)
 
 
 # Auxiliary diffusion when coordinates [1,2] are observed

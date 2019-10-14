@@ -202,7 +202,7 @@ Transform from a container of indices to update to a
 Val{tuple of true/false one-hot-encoding}()
 """
 function int_to_val(updt_coord::S, θ) where S<:IntContainer
-    @assert all([1<= uc <= length(θ) for uc in updt_coord])
+    @assert all([1 <= uc <= length(θ) for uc in updt_coord])
     Val{Tuple([i in updt_coord for i in 1:length(θ)])}()
 end
 
