@@ -85,7 +85,7 @@ function test_measchange()
     fpt = fill(NaN, 1)
     v = 𝕏(0.0)
     P̃ = LinearSDE(Bridge.σ(T, v, P)) # use a law with large variance
-    Pᵒ = BridgeSDEInference.GuidPropBridge(eltype(x0), t, P, P̃, L, v, Σ)
+    Pᵒ = BSI.GuidPropBridge(eltype(x0), t, P, P̃, L, v, Σ)
 
     # Guided proposals
 
@@ -96,11 +96,11 @@ function test_measchange()
         end
         # other possibility: change proposal each step
     #    P̃ = LinearSDE(Bridge.σ(T, v, P))
-        Pᵒ = BridgeSDEInference.GuidPropBridge(eltype(x0), t, P, P̃, L, v, Σ)
+        Pᵒ = BSI.GuidPropBridge(eltype(x0), t, P, P̃, L, v, Σ)
 
         sample!(W, Wnr)
         solve!(Euler(), X, x0, W, Pᵒ)
-        ll = BSI.pathLogLikhd(BridgeSDEInference.PartObs(), [X], [Pᵒ], 1:1, fpt, skipFPT=true)
+        ll = BSI.path_log_likhd(BSI.PartObs(), [X], [Pᵒ], 1:1, fpt, skipFPT=true)
         ll += BSI.lobslikelihood(Pᵒ, x0)
         ll -= logpdf(VProp, v[1])
         wcounts[binind(vrange, v[1])] += exp(ll)/N

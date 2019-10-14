@@ -1,8 +1,3 @@
-
-
-POSSIBLE_PARAMS = [:regular, :simpleAlter, :complexAlter, :simpleConjug,
-                   :complexConjug]
-
 function change_point_test_prep(N=10000, λ=N/10)
     L = @SMatrix [1. 0.;
                   0. 1.]
@@ -27,18 +22,14 @@ function change_point_test_prep(N=10000, λ=N/10)
     tt = τ(t₀,T).(t₀:dt:T)
 
     P₁ = BSI.GuidPropBridge(eltype(x0), tt, P˟, P̃, L, L*x0, Σ;
-                        changePt=BSI.NoChangePt(), solver=BSI.Vern7())
+                        change_pt=BSI.NoChangePt(), solver=BSI.Vern7())
 
     P₂ = BSI.GuidPropBridge(eltype(x0), tt, P˟, P̃, L, L*x0, Σ;
-                        changePt=BSI.SimpleChangePt(λ), solver=BSI.Vern7())
+                        change_pt=BSI.SimpleChangePt(λ), solver=BSI.Vern7())
     P₁, P₂
 end
 
 @testset "change point between ODE solvers" begin
-    include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
-    include(joinpath(SRC_DIR, "types.jl"))
-    include(joinpath(SRC_DIR, "vern7.jl"))
-    include(joinpath(SRC_DIR, "guid_prop_bridge.jl"))
     N = 10000
     P₁, P₂ = change_point_test_prep(N)
     @testset "comparing H[$i]" for i in 1:div(N,20):N
