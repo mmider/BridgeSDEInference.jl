@@ -183,3 +183,10 @@ function move_to_proper_place(ϑ, θ, ::Val{v}) where {v}
     θᵒ[idxNew] = ϑ
     θᵒ
 end
+
+
+get_aux_flag(::Any) = nothing
+
+# NOTE quick, but potentially dangerous way to generically handle the new
+# cloning functionality, change later!
+clone(A, B, C, D) = clone(A, B, C)

@@ -330,7 +330,7 @@ next_set_of_blocks(ws::Workspace{O,NoBlocking}) where O = ws
 Switch the set of blocks that are being updated. `XX` is the most recently
 sampled (accepted) path. `θ` can be used to change parametrisation.
 """
-function next_set_of_blocks(ws::Workspace{O,ChequeredBlocking}) where O
+function next_set_of_blocks(ws::Workspace{O,<:ChequeredBlocking}) where O
     XX, P, Pᵒ, 𝔅 = ws.XX, ws.P, ws.Pᵒ, ws.blocking
     idx = (ws.blidx % 2) + 1
     θ = params(P[1].Target)
@@ -339,10 +339,11 @@ function next_set_of_blocks(ws::Workspace{O,ChequeredBlocking}) where O
     Ls = 𝔅.Ls[idx]
     Σs = 𝔅.Σs[idx]
     ch_pts = 𝔅.change_pts[idx]
+    aux_flags = 𝔅.aux_flags[idx]
 
-    P_new = [GuidPropBridge(P[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ)
+    P_new = [GuidPropBridge(P[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ, aux_flags[i])
              for (i,_) in enumerate(P)]
-    Pᵒ_new = [GuidPropBridge(Pᵒ[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ)
+    Pᵒ_new = [GuidPropBridge(Pᵒ[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ, aux_flags[i])
               for (i,_) in enumerate(Pᵒ)]
     Workspace(ws, P_new, Pᵒ_new, idx)
 end

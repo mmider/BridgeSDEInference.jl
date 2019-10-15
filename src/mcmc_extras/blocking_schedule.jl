@@ -48,10 +48,11 @@ update can also be changed via `idx`.
 
 Empty constructor.
 """
-struct ChequeredBlocking <: BlockingSchedule
-    Ls         # observation operators for both sets of blocks
-    vs         # copied over observations of the process
-    Σs         # covariance matrix of the noise for both sets of blocks
+struct ChequeredBlocking{S1,S2,S3,S4} <: BlockingSchedule
+    Ls::S1         # observation operators for both sets of blocks
+    vs::S2         # copied over observations of the process
+    Σs::S3         # covariance matrix of the noise for both sets of blocks
+    aux_flags::S4
     # two sets of knots
     knots::Tuple{Vector{Int64}, Vector{Int64}}
     # two sets of blocks, where each block are indicies of intervals that make up a block
@@ -62,6 +63,7 @@ struct ChequeredBlocking <: BlockingSchedule
     # info about the points at which to switch between the systems of ODEs
     change_pts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
 
+
     function ChequeredBlocking(knots::Vector{Int64}, ϵ::Float64,
                                change_pt::ODEChangePt, P)
         find_knots(mod, rem) = [k for (i,k) in enumerate(knots) if i % mod == rem]
@@ -70,20 +72,27 @@ struct ChequeredBlocking <: BlockingSchedule
 
         m, d = size(P[end].L)
 
-        find_L(knots) = [( k in knots ? SMatrix{d,d}(1.0*I) : p.L) for (k,p) in enumerate(P)]
+        find_L(knots) = [( k in knots ? SMatrix{d,d}(1.0*I) : p.L)
+                         for (k,p) in enumerate(P)]
         LsA = find_L(knotsA)
         LsB = find_L(knotsB)
 
         vs = [p.v for p in P]
 
-        find_Σ(knots) = [(k in knots ? SMatrix{d,d}(ϵ*I) : p.Σ) for (k,p) in enumerate(P)]
+        find_Σ(knots) = [(k in knots ? SMatrix{d,d}(ϵ*I) : p.Σ)
+                         for (k,p) in enumerate(P)]
         ΣsA = find_Σ(knotsA)
         ΣsB = find_Σ(knotsB)
 
         find_ch_pt(knots) = [(k in knots ? deepcopy(change_pt) : p.change_pt)
-                                                    for (k,p) in enumerate(P)]
+                             for (k,p) in enumerate(P)]
         chpA = find_ch_pt(knotsA)
         chpB = find_ch_pt(knotsB)
+
+        find_aux_flag(knots) = [( k in knots ? Nothing : get_aux_flag(p.Pt))
+                                for (k,p) in enumerate(P)]
+        auxA = find_aux_flag(knotsA)
+        auxB = find_aux_flag(knotsB)
 
         """
             knots_to_blocks(knots, idxLast, i)
@@ -109,13 +118,19 @@ struct ChequeredBlocking <: BlockingSchedule
                  zeros(Int64, length(blocks[2])))
         props = (zeros(Int64, length(blocks[1])),
                  zeros(Int64, length(blocks[2])))
-        new( (LsA, LsB), vs, (ΣsA, ΣsB), (knotsA, knotsB), blocks, 1, accpt,
-             props, (chpA, chpB) )
+
+        S1, S2, S3 = typeof((LsA, LsB)), typeof(vs), typeof((ΣsA, ΣsB))
+        S4 = typeof((auxA, auxB))
+        new{S1,S2,S3,S4}( (LsA, LsB), vs, (ΣsA, ΣsB), (auxA, auxB),
+                          (knotsA, knotsB), blocks, 1, accpt, props,
+                          (chpA, chpB) )
     end
 
     function ChequeredBlocking()
-        new( nothing, nothing, nothing, ([0],[0]), ([[0]],[[0]]), 1, ([0],[0]),
-             ([0],[0]), ([NoChangePt()],[NoChangePt()]) )
+        S = Nothing
+        new{S,S,S,S}( nothing, nothing, nothing, nothing, ([0],[0]),
+                      ([[0]],[[0]]), 1, ([0],[0]), ([0],[0]),
+                      ([NoChangePt()],[NoChangePt()]) )
     end
 end
 

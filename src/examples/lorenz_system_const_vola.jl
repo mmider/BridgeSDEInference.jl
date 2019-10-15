@@ -63,12 +63,19 @@ struct LorenzCVAux{O,R,S1,S2,TI} <: ContinuousTimeProcess{ℝ{3,R}}
     end
 
     function LorenzCVAux(θ₁::R, θ₂::R, θ₃::R, σ::R, t, u::S1, T,
-                         v::S2, ::O, aux, λ::Vector{Float64}, X̄::TI) where {O,R,S1,S2,TI}
+                         v::S2, ::Type{O}, aux, λ::Vector{Float64}, X̄::TI) where {O,R,S1,S2,TI}
         new{O,R,S1,S2,TI}(θ₁, θ₂, θ₃, σ, t, u, T, v, aux, λ, X̄)
     end
 
+    function LorenzCVAux(θ₁::R, θ₂::R, θ₃::R, σ::R, t, u::S1, T,
+                         v::S2, ::Type{Nothing}, aux, λ::Vector{Float64}, X̄::TI) where {R,S1,S2,TI}
+        new{Val{(true,true,true)},R,S1,S2,TI}(θ₁, θ₂, θ₃, σ, t, u, T, v, aux, λ,
+                                              X̄)
+    end
+
     function LorenzCVAux(P::LorenzCVAux{O,R,S1,S2}, X̄::TI) where {O,R,S1,S2,TI}
-        new{O,R,S1,S2,TI}(P.θ₁, P.θ₂, P.θ₃, P.σ, P.t, P.u, P.T, P.v, P.aux, P.λ, X̄)
+        new{O,R,S1,S2,TI}(P.θ₁, P.θ₂, P.θ₃, P.σ, P.t, P.u, P.T, P.v, P.aux, P.λ,
+                          X̄)
     end
 
     function LorenzCVAux(P::LorenzCVAux{Val{(false,true,true)},R,S1,S2}, X̄::TI
@@ -83,7 +90,7 @@ function recentre(P::LorenzCVAux, tt, X̄)
     LorenzCVAux(P, itp)
 end
 
-observables(::LorenzCVAux{O}) where O = O()
+get_aux_flag(::LorenzCVAux{O}) where O = O
 
 function update_λ!(P::LorenzCVAux, λ)
     @assert 0.0 ≤ λ ≤ 1.0
@@ -132,8 +139,15 @@ a(t, P::LorenzCVAux) = σ(t,P) * σ(t, P)'
 b(t, x, P::LorenzCVAux) = B(t, P)*x + β(t, P)
 
 constdiff(::LorenzCVAux) = true
-clone(P::LorenzCVAux, θ) = LorenzCVAux(θ..., P.t, P.u, P.T, P.v, observables(P), P.aux, P.λ, P.X̄)
-clone(P::LorenzCVAux, θ, v) = LorenzCVAux(θ..., P.t, zero(v), P.T, v, observables(P), P.aux, P.λ, P.X̄)
+
+function clone(P::LorenzCVAux, θ)
+    LorenzCVAux(θ..., P.t, P.u, P.T, P.v, get_aux_flag(P), P.aux, P.λ, P.X̄)
+end
+
+function clone(P::LorenzCVAux, θ, v, aux_flag)
+    LorenzCVAux(θ..., P.t, zero(v), P.T, v, aux_flag, P.aux, P.λ, P.X̄)
+end
+
 params(P::LorenzCVAux) = [P.θ₁, P.θ₂, P.θ₃, P.σ]
 depends_on_params(::LorenzCVAux) = (1,2,3,4,5,6)
 

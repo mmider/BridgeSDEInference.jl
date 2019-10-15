@@ -271,7 +271,7 @@ Imputation step of the MCMC scheme (without blocking).
 - `headstart`: flag for whether to 'ease into' fpt conditions
 ...
 """
-function impute!(ws::Workspace{OS,ChequeredBlocking}, ll, verbose=false,
+function impute!(ws::Workspace{OS,<:ChequeredBlocking}, ll, verbose=false,
                  it=NaN, headstart=false) where OS
     P, XXᵒ, XX = ws.P, ws.XXᵒ, ws.XX
 

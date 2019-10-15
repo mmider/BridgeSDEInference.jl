@@ -49,7 +49,7 @@ set_imputation_grid!(setup, 1/2000)
 set_transition_kernels!(setup,
                         [RandomWalk([], []),
                          RandomWalk([2.0, 1.0, 0.64, 0.3], 4)],
-                        0.995, true, [[1,2,3],[4]],
+                        0.96, true, [[1,2,3],[4]],
                         (ConjugateUpdt(),
                          MetropolisHastingsUpdt()
                         ),                           # update types
@@ -74,7 +74,8 @@ set_mcmc_params!(setup,
                  10^0,              # thin the path imputatation points for save
                  100                # number of first iterations without param update
                  )
-set_blocking!(setup)    # use default no blocking setting
+set_blocking!(setup, ChequeredBlocking(),
+              (collect(1:length(obs_vals)-2)[1:2:end], 10^(-10), SimpleChangePt(100)))
 set_solver!(setup, Vern7(), NoChangePt())
 initialise!(eltype(x0), setup)
 
@@ -85,7 +86,7 @@ display(out.accpt_tracker)
 
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
 plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
-            ylims=[nothing, nothing, nothing, nothing])
+            ylims=[nothing, (25,30), (2,5), (0,10)])
 plot_paths(out; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
