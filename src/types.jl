@@ -128,7 +128,7 @@ struct Verbose <: ActionType end
 struct SavePath <: ActionType end
 struct Imputation <: ActionType end
 struct ParamUpdate <: ActionType end
-
+struct Readjust <: ActionType end
 
 
 #TODO implement Jeffrey's priors

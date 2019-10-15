@@ -24,6 +24,7 @@ the Markov Chain
 function mcmc(setup::MCMCSetup)
     adaptive_prop, num_mcmc_steps = setup.adaptive_prop, setup.num_mcmc_steps
     ws, ll, θ = Workspace(setup)
+    print("ws.pCN_readjust_param: ", ws.pCN_readjust_param, "\n")
     gibbs = GibbsDefn(setup)
     init_adaptation!(adaptive_prop, ws)
 
@@ -33,6 +34,7 @@ function mcmc(setup::MCMCSetup)
         ws = next_set_of_blocks(ws)
         ll, acc = impute!(ws, ll, verbose, i)
         update!(ws.accpt_tracker, Imputation(), acc)
+        act(Readjust(), ws, i) && readjust_pCN!(ws, i)
 
         if act(ParamUpdate(), ws, i)
             for j in 1:length(gibbs)

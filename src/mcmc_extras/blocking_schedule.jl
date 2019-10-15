@@ -1,6 +1,20 @@
 import Base: display
 
 
+#NOTE merge AccptTracker from `workspace.jl` and this one
+struct AccptTrackerPath
+    accpt::Vector{Vector{Int64}}
+    prop::Vector{Vector{Int64}}
+
+    function AccptTrackerPath(lengths)
+        accpt = [[0 for _ in 1:l] for l in lengths]
+        prop = deepcopy(accpt)
+        new(accpt, prop)
+    end
+end
+
+
+
 """
     ChequeredBlocking
 
@@ -58,8 +72,8 @@ struct ChequeredBlocking{S1,S2,S3,S4} <: BlockingSchedule
     # two sets of blocks, where each block are indicies of intervals that make up a block
     blocks::Tuple{Vector{Vector{Int64}}, Vector{Vector{Int64}}}
     idx::Int64 # index of set of blocks that are being updated ∈{1,2}
-    accpt::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of accepted samples
-    props::Tuple{Vector{Int64}, Vector{Int64}} # tracker for the number of proposed samples
+    accpt_tracker::AccptTrackerPath
+    short_term_accpt_tracker::AccptTrackerPath
     # info about the points at which to switch between the systems of ODEs
     change_pts::Tuple{Vector{ODEChangePt}, Vector{ODEChangePt}}
 
@@ -113,27 +127,40 @@ struct ChequeredBlocking{S1,S2,S3,S4} <: BlockingSchedule
         end
         blocks = ([collect(knots_to_blocks(knotsA, length(P), i)) for i in 1:length(knotsA)+1],
                   [collect(knots_to_blocks(knotsB, length(P), i)) for i in 1:length(knotsB)+1])
-
-        accpt = (zeros(Int64, length(blocks[1])),
-                 zeros(Int64, length(blocks[2])))
-        props = (zeros(Int64, length(blocks[1])),
-                 zeros(Int64, length(blocks[2])))
+        accpt_tracker = AccptTrackerPath((length(blocks[1]), length(blocks[2])))
+        short_term_accpt_tracker = deepcopy(accpt_tracker)
 
         S1, S2, S3 = typeof((LsA, LsB)), typeof(vs), typeof((ΣsA, ΣsB))
         S4 = typeof((auxA, auxB))
         new{S1,S2,S3,S4}( (LsA, LsB), vs, (ΣsA, ΣsB), (auxA, auxB),
-                          (knotsA, knotsB), blocks, 1, accpt, props,
-                          (chpA, chpB) )
+                          (knotsA, knotsB), blocks, 1, accpt_tracker,
+                          short_term_accpt_tracker, (chpA, chpB) )
     end
 
     function ChequeredBlocking()
         S = Nothing
         new{S,S,S,S}( nothing, nothing, nothing, nothing, ([0],[0]),
-                      ([[0]],[[0]]), 1, ([0],[0]), ([0],[0]),
-                      ([NoChangePt()],[NoChangePt()]) )
+                      ([[0]],[[0]]), 1, AccptTrackerPath((1,1)),
+                      AccptTrackerPath((1,1)), ([NoChangePt()],[NoChangePt()]) )
     end
 end
 
+
+function reset!(at::AccptTrackerPath)
+    for i in 1:length(at.accpt)
+        for j in 1:length(at.accpt[i])
+            at.accpt[i][j] = 0
+            at.prop[i][j] = 0
+        end
+    end
+end
+
+acceptance(at::AccptTrackerPath) = [ac./prop for (ac, prop) in zip(at.accpt, at.prop)]
+
+function register_accpt!(at::AccptTrackerPath, i, j, accepted)
+    at.prop[i][j] += 1
+    at.accpt[i][j] += 1*accepted
+end
 
 """
     find_end_pts(𝔅::ChequeredBlocking, XX, idx)
@@ -201,8 +228,8 @@ Register whether the block has been accepted
 """
 function register_accpt!(ws, i, accepted)
     𝔅 = ws.blocking
-    𝔅.props[ws.blidx][i] += 1
-    𝔅.accpt[ws.blidx][i] += 1*accepted
+    register_accpt!(𝔅.accpt_tracker, ws.blidx, i, accepted)
+    register_accpt!(𝔅.short_term_accpt_tracker, ws.blidx, i, accepted)
 end
 
 
@@ -219,7 +246,7 @@ function display_acceptance_rate(𝔅::NoBlocking) end
 
 Display acceptance rates
 """
-function display_acceptance_rate(𝔅::BlockingSchedule)
+function display_acceptance_rate(blocking::BlockingSchedule, short_term=false)
     print("\nAcceptance rates:\n----------------------\n")
     function print_accpt_rate(accpt, prop)
         m = length(accpt)
@@ -228,8 +255,9 @@ function display_acceptance_rate(𝔅::BlockingSchedule)
         end
         print("\n- - - - - - - - - - - - - -\n")
     end
-    print_accpt_rate(𝔅.accpt[1], 𝔅.props[1])
-    print_accpt_rate(𝔅.accpt[2], 𝔅.props[2])
+    at = short_term ? blocking.short_term_accpt_tracker : blocking.accpt_tracker
+    print_accpt_rate(at.accpt[1], at.prop[1])
+    print_accpt_rate(at.accpt[2], at.prop[2])
 end
 
 

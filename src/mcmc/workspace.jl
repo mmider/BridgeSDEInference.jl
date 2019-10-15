@@ -141,10 +141,11 @@ last(ph::ParamHistory) = copy(ph.θ_chain[ph.counter])
 
 Keeps track of what to do on a given iteration
 """
-struct ActionTracker{T,S,R}
+struct ActionTracker{T,S,R,U}
     save_iter::T    # Save the path every ... iteration
     verb_iter::S   # Print progress message to console every ... iteration
     warm_up::R      # Number of steps of the chain in which no param update is made
+    readjust::U
     param_updt::Bool    # Flag for whether to update parameters at all
 
     """
@@ -155,9 +156,10 @@ struct ActionTracker{T,S,R}
     """
     function ActionTracker(setup::MCMCSetup)
         i1, i2, i3 = setup.save_iter, setup.verb_iter, setup.warm_up
-        s1, s2, s3 = typeof(i1), typeof(i2), typeof(i3)
-        @assert (s1 <: Number) && (s2 <: Number) && (s3 <: Number)
-        new{s1,s2,s3}(i1, i2, i3, setup.param_updt)
+        i4 = setup.pCN_readjust_param.step
+        s1, s2, s3, s4 = typeof(i1), typeof(i2), typeof(i3), typeof(i4)
+        @assert (s1 <: Number) && (s2 <: Number) && (s3 <: Number) && (s4 <: Number)
+        new{s1,s2,s3,s4}(i1, i2, i3, i4, setup.param_updt)
     end
 end
 
@@ -184,6 +186,8 @@ act(::Verbose, at::ActionTracker, i) = (i % at.verb_iter == 0)
 Determine whether to update parameters on a given iteration, indexed `i`
 """
 act(::ParamUpdate, at::ActionTracker, i) = at.param_updt && (i > at.warm_up)
+
+act(::Readjust, at::ActionTracker, i) = (i % at.readjust == 0) && (i > at.warm_up)
 
 
 mutable struct SingleElem{T} val::T end
@@ -217,6 +221,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     blidx::Int64
     x0_prior::TP
     z::SingleElem{TZ}
+    pCN_readjust_param::NamedTuple{(:step, :scale, :minδ, :maxρ, :trgt), Tuple{Int64, Float64, Float64, Float64, Float64}}
     #result::Vector{Q} #TODO come back to later
     #resultᵒ::Vector{Q} #TODO come back to later
 
@@ -232,6 +237,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
         XX, WW = deepcopy(setup.XX), deepcopy(setup.WW)
         P, fpt = deepcopy(setup.P), deepcopy(setup.fpt)
         updt_coord = deepcopy(setup.updt_coord)
+        pCN_readjust = deepcopy(setup.pCN_readjust_param)
 
         # forcedSolve defines type by the starting point, make sure it matches
         x0_guess = eltype(eltype(XX))(setup.x0_guess)
@@ -285,7 +291,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
                                                          ActionTracker(setup),
                                                          skip, [], _time,
                                                          blocking, 1, x0_prior,
-                                                         z),
+                                                         z, pCN_readjust),
          ll = ll, θ = last(θ_history))
     end
 
@@ -353,7 +359,7 @@ end
 prepare_mem_param(ρ::Number, ::NoBlocking) = [[ρ]]
 
 function prepare_mem_param(ρ::Number, blocking::ChequeredBlocking)
-    [[ρ for _ in block_seq] for block_seq in blocking.accpt]
+    [[ρ for _ in block_seq] for block_seq in blocking.accpt_tracker.accpt]
 end
 
 
@@ -364,6 +370,9 @@ end
 Determine whether to perform `action` on a given iteration, indexed `i`
 """
 act(action, ws::Workspace, i) = act(action, ws.action_tracker, i)
+
+#NOTE temporary
+act(action::Readjust, ws::Workspace, i) = (typeof(ws.blocking) <:ChequeredBlocking) && act(action, ws.action_tracker, i)
 
 
 """
@@ -377,6 +386,26 @@ function save_path!(ws)
     skip = ws.skip_for_save
     push!(ws.paths, collect(Iterators.flatten(ws.XX[i].yy[1:skip:end-1]
                                                for i in 1:length(ws.XX))))
+end
+
+sigmoid(x, a=1.0) = 1.0 / (1.0 + exp(-a*x))
+logit(x, a=1.0) = (log(x) - log(1-x))/a
+
+function readjust_pCN!(ws, mcmc_iter)
+    at = ws.blocking.short_term_accpt_tracker
+    p = ws.pCN_readjust_param
+    δ = max(p.minδ, p.scale/sqrt(mcmc_iter/p.step))
+    print("p.minδ: ", p.minδ, ", p.scale: ", p.scale, ", ", p.step, "\n")
+    accpt_rates = acceptance(at)
+    print("δ: ", δ, ", logit(ws.ρ[i][j]): ", logit(ws.ρ[1][1]), ", transf(ws.ρ[i][j]): ", sigmoid(logit(ws.ρ[1][1]) - δ),  "\n")
+    for (i, a_i) in enumerate(accpt_rates)
+        for (j, a_ij) in enumerate(a_i)
+            ws.ρ[i][j] = min(sigmoid(logit(ws.ρ[i][j]) - (2*(a_ij > p.trgt)-1)*δ), p.maxρ)
+        end
+    end
+    display_acceptance_rate(ws.blocking, true)
+    print("new ρ: ", ws.ρ, "\n")
+    reset!(at)
 end
 
 
