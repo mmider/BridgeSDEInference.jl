@@ -14,9 +14,10 @@ computed, as well as the scheme according to which the adaptation is supposed
 to be performed. `TV` indicates whether any adaptation should be done at all.
 `TV` set to `Val{False}` acts as an indicator that no adaptation is to be done.
 """
-struct Adaptation{TV,T}
+struct Adaptation{TV,T,S}
     X::Vector{Vector{Vector{T}}} # history of paths
-    ρs::Vector{Float64}          # ladder of memory param for precond. Crank-Nic
+    # NOTE `ρs` will be removed anyway after introducing adaptive proposals
+    ρs::Vector{S}          # ladder of memory param for precond. Crank-Nicolson
     λs::Vector{Float64}          # ladder of weights that balance initial
                                  # auxiliary law and the adaptive law based on
                                  # the mean trajectory
@@ -42,12 +43,12 @@ struct Adaptation{TV,T}
     - `skip`: save 1 in every ... many sampled paths
     ...
     """
-    function Adaptation(::T, ρs, λs, sizes_of_path_coll, skip=1) where T
+    function Adaptation(::T, ρs::Vector{S}, λs, sizes_of_path_coll, skip=1) where {T,S}
         TV = Val{true}
         M = maximum(sizes_of_path_coll)
         X = [[zeros(T,0)] for i in 1:M]
         N = [1,1]
-        new{TV,T}(X, ρs, λs, sizes_of_path_coll, skip, N)
+        new{TV,T,S}(X, ρs, λs, sizes_of_path_coll, skip, N)
     end
 
     """
@@ -55,7 +56,7 @@ struct Adaptation{TV,T}
 
     Empty constructor.
     """
-    Adaptation{TV,T}() where {TV,T} = new{TV,T}()
+    Adaptation{TV,T,S}() where {TV,T,S} = new{TV,T,S}()
 end
 
 """
@@ -63,7 +64,7 @@ end
 
 Helper function for constructing a flag saying that no adaptation is to be done
 """
-NoAdaptation() = Adaptation{Val{false},Nothing}()
+NoAdaptation() = Adaptation{Val{false},Nothing,Nothing}()
 
 """
     check_if_adapt(::Adaptation{Val{T}})

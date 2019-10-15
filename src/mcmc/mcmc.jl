@@ -73,12 +73,13 @@ Imputation step of the MCMC scheme (without blocking).
 """
 function impute!(ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN,
                  headstart=false) where OS
+    ρ = ws.ρ[1][1]
     # sample proposal starting point
-    zᵒ, yᵒ = proposal_start_pt(ws, ws.P[1])
+    zᵒ, yᵒ = proposal_start_pt(ws, ws.P[1], ρ)
 
     # sample proposal path
     m = length(ws.WWᵒ)
-    sample_segments!(1:m, ws, yᵒ, Val{headstart}())
+    sample_segments!(1:m, ws, yᵒ, ρ, Val{headstart}())
 
     llᵒ = logpdf(ws.x0_prior, yᵒ)
     llᵒ += path_log_likhd(OS(), ws.XXᵒ, ws.P, 1:m, ws.fpt)
@@ -96,25 +97,26 @@ function impute!(ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN,
 end
 
 """
-    proposal_start_pt(ws::Workspace, P)
+    proposal_start_pt(ws::Workspace, P, ρ)
 
 Sample a new proposal starting point using a random walk with pCN step
 ...
 # Arguments
 - `ws`: Workspace, contains previously accepted `z` and the definition of a prior
 - `P`: diffusion law according to which auxiliary posterior is to be computed
+- `ρ`: memory parameter of the preconditioned Crank Nicolson scheme
 ...
 """
-function proposal_start_pt(ws::Workspace, P)
+function proposal_start_pt(ws::Workspace, P, ρ)
     x0_prior, z = ws.x0_prior, ws.z.val
-    zᵒ = rand(x0_prior, z, ws.ρ)
+    zᵒ = rand(x0_prior, z, ρ)
     yᵒ = start_pt(zᵒ, x0_prior, P)
     zᵒ, yᵒ
 end
 
 
 """
-    sample_segments!(iRange, ws::Workspace{OS}, y,
+    sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
                      headstart::Val{false}=Val{false}()
                      ) where OS
 
@@ -125,22 +127,23 @@ Crank-Nicolson scheme
 - `iRange`: range of indices of the segments that need to be sampled
 - `ws`: Workspace, containing all relevant containers of the Markov chain
 - `y`: starting point
+- `ρ`: memory parameter of the preconditioned Crank-Nicolson scheme
 - `headstart`: whether to ease into first-passage time sampling
 ...
 """
-function sample_segments!(iRange, ws::Workspace{OS}, y,
+function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
                           headstart::Val{false}=Val{false}()) where OS
     for i in iRange
-        y = sample_segment!(i, ws, y)
+        y = sample_segment!(i, ws, y, ρ)
     end
 end
 
-function sample_segments!(iRange, ws::Workspace{OS}, y,
+function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
                           headstart::Val{true}=Val{false}()) where OS
     for i in iRange
-        sample_segment!(i, ws, y)
+        sample_segment!(i, ws, y, ρ)
         while !checkFpt(OS(), ws.XXᵒ[i], ws.fpt[i])
-            sample_segment!(i, ws, y)
+            sample_segment!(i, ws, y, ρ)
         end
         y = ws.XXᵒ[i].yy[end]
     end
@@ -148,7 +151,7 @@ end
 
 
 """
-    sample_segment!(i, ws, y)
+    sample_segment!(i, ws, y, ρ)
 
 Sample the `i`th path segment using preconditioned Crank-Nicolson scheme
 ...
@@ -156,11 +159,12 @@ Sample the `i`th path segment using preconditioned Crank-Nicolson scheme
 - `i`: index of the segment to be sampled
 - `ws`: Workspace, containing all relevant containers of the Markov chain
 - `y`: starting point
+- `ρ`: memory parameter of the preconditioned Crank-Nicolson scheme
 ...
 """
-function sample_segment!(i, ws, y)
+function sample_segment!(i, ws, y, ρ)
     sample!(ws.WWᵒ[i], ws.Wnr)
-    crank_nicolson!(ws.WWᵒ[i].yy, ws.WW[i].yy, ws.ρ)
+    crank_nicolson!(ws.WWᵒ[i].yy, ws.WW[i].yy, ρ)
     solve!(Euler(), ws.XXᵒ[i], y, ws.WWᵒ[i], ws.P[i]) # always according to trgt law
     ws.XXᵒ[i].yy[end]
 end
@@ -277,7 +281,7 @@ function impute!(ws::Workspace{OS,<:ChequeredBlocking}, ll, verbose=false,
 
     recompute_accepted_law!(ws)
     # proposal starting point:
-    z_prop, y_prop = proposal_start_pt(ws, P[1])
+    z_prop, y_prop = proposal_start_pt(ws, P[1], ws.ρ[ws.blidx][1])
 
     ll_total = 0.0
     for (block_idx, block) in enumerate(ws.blocking.blocks[ws.blidx])
@@ -288,7 +292,7 @@ function impute!(ws::Workspace{OS,<:ChequeredBlocking}, ll, verbose=false,
         yᵒ = choose_start_pt(block_flag, y, y_prop)
 
         # sample path in block
-        sample_segments!(block, ws, yᵒ)
+        sample_segments!(block, ws, yᵒ, ws.ρ[ws.blidx][block_idx])
         set_end_pt_manually!(block_idx, block, ws)
 
         # starting point, path and observations contribution

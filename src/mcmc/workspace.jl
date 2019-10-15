@@ -205,8 +205,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     Pᵒ::Vector{R}          # Guided proposals parameterised by proposal param
     P::Vector{R}           # Guided proposals parameterised by accepted param
     fpt::Vector            # Additional information about first passage times
-    #TODO use vector instead for blocking
-    ρ::Float64             # Memory parameter of the precond Crank-Nicolson scheme
+    ρ::Vector{Vector{Float64}}      # Memory parameter of the precond Crank-Nicolson scheme
     recompute_ODEs::Vector{Bool}    # Info on whether to recompute H,Hν,c after resp. param updt
     accpt_tracker::AccptTracker     # Object for tracking acceptance rate
     θ_chain::ParamHistory           # Object for tracking parameter history
@@ -232,7 +231,8 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
         x0_prior, Wnr = deepcopy(setup.x0_prior), deepcopy(setup.Wnr)
         XX, WW = deepcopy(setup.XX), deepcopy(setup.WW)
         P, fpt = deepcopy(setup.P), deepcopy(setup.fpt)
-        ρ, updt_coord = deepcopy(setup.ρ), deepcopy(setup.updt_coord)
+        updt_coord = deepcopy(setup.updt_coord)
+
         # forcedSolve defines type by the starting point, make sure it matches
         x0_guess = eltype(eltype(XX))(setup.x0_guess)
         TW, TX, S, R = eltype(WW), eltype(XX), valtype(Wnr), eltype(P)
@@ -272,6 +272,8 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
         θ_history = ParamHistory(setup)
 
         blocking = set_blocking(setup.blocking, setup.blocking_params, P)
+        ρ = prepare_mem_param(setup.ρ, blocking)
+        print(ρ, "\n")
         display(blocking)
         B = typeof(blocking)
 
@@ -294,7 +296,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     with the exception of new memory parameter for the preconditioned
     Crank-Nicolson scheme, which is changed to `new_ρ`.
     """
-    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}, new_ρ::Float64
+    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}, new_ρ::Vector{Vector{Float64}}
                        ) where {ObsScheme,B,ST,S,TX,TW,R,TP,TZ}
         new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
                                             ws.WW, ws.Pᵒ, ws.P, ws.fpt, new_ρ,
@@ -347,6 +349,13 @@ function next_set_of_blocks(ws::Workspace{O,<:ChequeredBlocking}) where O
               for (i,_) in enumerate(Pᵒ)]
     Workspace(ws, P_new, Pᵒ_new, idx)
 end
+
+prepare_mem_param(ρ::Number, ::NoBlocking) = [[ρ]]
+
+function prepare_mem_param(ρ::Number, blocking::ChequeredBlocking)
+    [[ρ for _ in block_seq] for block_seq in blocking.accpt]
+end
+
 
 
 """
