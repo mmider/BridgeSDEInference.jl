@@ -54,11 +54,6 @@ set_transition_kernels!(setup,
                          MetropolisHastingsUpdt()
                         ),                           # update types
                         Adaptation(x0,
-                                   [[[0.92 for _ in 1:6] for _ in 1:2],
-                                    [[0.9 for _ in 1:6] for _ in 1:2],
-                                    [[0.88 for _ in 1:6] for _ in 1:2],
-                                    [[0.83 for _ in 1:6] for _ in 1:2],
-                                    [[0.8 for _ in 1:6] for _ in 1:2]],
                                    [0.7, 0.4, 0.2, 0.2, 0.2],
                                    [500, 500, 500, 500, 500],
                                    1)

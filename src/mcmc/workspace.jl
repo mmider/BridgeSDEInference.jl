@@ -194,6 +194,9 @@ mutable struct SingleElem{T} val::T end
 
 set!(x::SingleElem{T}, y::T) where T = (x.val = y)
 
+const RhoInfoType = NamedTuple{(:step, :scale, :minδ, :maxρ, :trgt, :offset),
+                               Tuple{Int64, Float64, Float64, Float64, Float64, Int64}}
+
 """
     Workspace{ObsScheme,S,TX,TW,R,ST}
 
@@ -221,7 +224,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     blidx::Int64
     x0_prior::TP
     z::SingleElem{TZ}
-    pCN_readjust_param::NamedTuple{(:step, :scale, :minδ, :maxρ, :trgt), Tuple{Int64, Float64, Float64, Float64, Float64}}
+    pCN_readjust_param::RhoInfoType
     #result::Vector{Q} #TODO come back to later
     #resultᵒ::Vector{Q} #TODO come back to later
 
@@ -295,6 +298,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
          ll = ll, θ = last(θ_history))
     end
 
+    # NOTE this constructor is no longer in use, can be removed
     """
         Workspace(ws::Workspace{ObsScheme,S,TX,TW,R}, new_ρ::Float64)
 
@@ -310,7 +314,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
                                             ws.θ_chain, ws.action_tracker,
                                             ws.skip_for_save, ws.paths, ws.time,
                                             ws.blocking, ws.blidx, ws.x0_prior,
-                                            ws.z)
+                                            ws.z, ws.pCN_readjust_param)
     end
 
     function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R̃,TP,TZ},
@@ -321,7 +325,8 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
                                             ws.recompute_ODEs, ws.accpt_tracker,
                                             ws.θ_chain, ws.action_tracker,
                                             ws.skip_for_save, ws.paths, ws.time,
-                                            ws.blocking, idx, ws.x0_prior, ws.z)
+                                            ws.blocking, idx, ws.x0_prior, ws.z,
+                                            ws.pCN_readjust_param)
     end
 end
 
@@ -394,18 +399,23 @@ logit(x, a=1.0) = (log(x) - log(1-x))/a
 function readjust_pCN!(ws, mcmc_iter)
     at = ws.blocking.short_term_accpt_tracker
     p = ws.pCN_readjust_param
-    δ = max(p.minδ, p.scale/sqrt(mcmc_iter/p.step))
-    print("p.minδ: ", p.minδ, ", p.scale: ", p.scale, ", ", p.step, "\n")
+    δ = max(p.minδ, p.scale/sqrt(max(1.0, mcmc_iter/p.step-p.offset)))
     accpt_rates = acceptance(at)
-    print("δ: ", δ, ", logit(ws.ρ[i][j]): ", logit(ws.ρ[1][1]), ", transf(ws.ρ[i][j]): ", sigmoid(logit(ws.ρ[1][1]) - δ),  "\n")
     for (i, a_i) in enumerate(accpt_rates)
         for (j, a_ij) in enumerate(a_i)
             ws.ρ[i][j] = min(sigmoid(logit(ws.ρ[i][j]) - (2*(a_ij > p.trgt)-1)*δ), p.maxρ)
         end
     end
     display_acceptance_rate(ws.blocking, true)
-    print("new ρ: ", ws.ρ, "\n")
+    print_pCN(ws)
     reset!(at)
+end
+
+#NOTE _print_info defined in `blocking_schedule`
+function print_pCN(ws)
+    print("\nρ parameter:\n----------------------\n")
+    _print_info(ws.ρ[1])
+    _print_info(ws.ρ[2])
 end
 
 
@@ -528,7 +538,6 @@ function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
                 update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
                 ws.Pᵒ[j] = GuidPropBridge(ws.Pᵒ[j], Ptᵒ)
             end
-            ws = Workspace(ws, adpt.ρs[adpt.N[1]])
 
             solve_back_rec!(NoBlocking(), ws, ws.P)
             #solveBackRec!(NoBlocking(), ws.Pᵒ, ST())
@@ -548,5 +557,5 @@ function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
             adpt.N[2] += 1
         end
     end
-    adpt, ws, ll
+    adpt, ll
 end

@@ -247,23 +247,21 @@ function display_acceptance_rate(𝔅::NoBlocking) end
 Display acceptance rates
 """
 function display_acceptance_rate(blocking::BlockingSchedule, short_term=false)
-    print("\nAcceptance rates:\n----------------------\n")
-    function print_accpt_rate(accpt, prop)
-        m = length(accpt)
-        for i in 1:m
-            print("b", i, ": ", accpt[i]/prop[i], " | ")
-        end
-        print("\n- - - - - - - - - - - - - -\n")
-    end
     at = short_term ? blocking.short_term_accpt_tracker : blocking.accpt_tracker
-    print_accpt_rate(at.accpt[1], at.prop[1])
-    print_accpt_rate(at.accpt[2], at.prop[2])
+    print("\nAcceptance rates:\n----------------------\n")
+    acceptance_rate = acceptance(at)
+    _print_info(acceptance_rate[1])
+    _print_info(acceptance_rate[2])
 end
 
 
-
-
-
+function _print_info(info)
+    m = length(info)
+    for i in 1:m
+        print("b", i, ": ", round(info[i], digits=3), " | ")
+    end
+    print("\n- - - - - - - - - - - - - -\n")
+end
 
 
 

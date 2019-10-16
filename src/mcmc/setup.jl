@@ -272,7 +272,7 @@ Define the parametrisation of the mcmc sampler.
 """
 function set_mcmc_params!(setup::MCMCSetup, num_mcmc_steps, save_iter=NaN,
                           verb_iter=NaN, skip_for_save=1, warm_up=0,
-                          pCN_readjust_param=(100, 0.1, 0.00001, 0.99999, 0.234))
+                          pCN_readjust_param=(100, 0.1, 0.00001, 0.99999, 0.234, 50))
     setup.num_mcmc_steps = num_mcmc_steps
     setup.save_iter = save_iter
     setup.verb_iter = verb_iter
@@ -283,8 +283,8 @@ function set_mcmc_params!(setup::MCMCSetup, num_mcmc_steps, save_iter=NaN,
 end
 
 function named_pCN(pCN)
-    @assert length(pCN) == 5
-    (step=pCN[1], scale=pCN[2], minδ=pCN[3], maxρ=pCN[4], trgt=pCN[5])
+    @assert length(pCN) == 6
+    (step=pCN[1], scale=pCN[2], minδ=pCN[3], maxρ=pCN[4], trgt=pCN[5], offset=pCN[6])
 end
 
 """
