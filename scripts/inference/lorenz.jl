@@ -48,7 +48,7 @@ set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs_vals, obs_time
 set_imputation_grid!(setup, 1/2000)
 set_transition_kernels!(setup,
                         [RandomWalk([], []),
-                         RandomWalk([2.0, 1.0, 0.64, 0.3], 4)],
+                         RandomWalk([2.0, 1.0, 0.64, 0.5], 4)],
                         0.96, true, [[1,2,3],[4]],
                         (ConjugateUpdt(),
                          MetropolisHastingsUpdt()
@@ -89,3 +89,4 @@ plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
 plot_paths(out; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
+ws.accpt_tracker

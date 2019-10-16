@@ -282,7 +282,6 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
 
         blocking = set_blocking(setup.blocking, setup.blocking_params, P)
         ρ = prepare_mem_param(setup.ρ, blocking)
-        print(ρ, "\n")
         display(blocking)
         B = typeof(blocking)
 
