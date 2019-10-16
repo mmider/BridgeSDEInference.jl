@@ -73,8 +73,8 @@ set_mcmc_params!(setup,
                  10^0,              # thin the path imputatation points for save
                  100                # number of first iterations without param update
                  )
-set_blocking!(setup, ChequeredBlocking(),
-              (collect(1:length(obs_vals)-2)[1:2:end], 10^(-10), SimpleChangePt(100)))
+#set_blocking!(setup, ChequeredBlocking(),
+#              (collect(1:length(obs_vals)-2)[1:2:end], 10^(-10), SimpleChangePt(100)))
 set_solver!(setup, Vern7(), NoChangePt())
 initialise!(eltype(x0), setup)
 

@@ -512,7 +512,7 @@ Nothing to be done for no adaptation
 """
 function update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, i,
                  ll) where ObsScheme
-    adpt, ws, ll
+    adpt, ll
 end
 
 
