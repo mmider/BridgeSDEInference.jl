@@ -65,6 +65,52 @@ end
 
 
 #==============================================================================
+                        Auxiliary routines for saving
+==============================================================================#
+
+function save_paths(tt, paths, filename)
+    d = length(paths[1][1])
+    xx = copy(tt)
+    N = length(paths)
+    stride = div(N, 100)
+    for i in 1:length(paths)
+        if i % stride == 0
+            print(div(i, 100), "% done...\n")
+        end
+        for j in 1:d
+            xx = hcat(xx, [p[j] for p in paths[i]])
+        end
+    end
+    CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx))
+end
+
+function save_marginals(tt, paths, filename, indices)
+    d = length(paths[1][1])
+    xx = copy(tt[indices])
+    N = length(paths)
+    stride = div(N, 100)
+    for i in 1:length(paths)
+        if i % stride == 0
+            print(div(i, 100), "% done...\n")
+        end
+        for j in 1:d
+            xx = hcat(xx, [p[j] for p in paths[i][indices]])
+        end
+    end
+    CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx'))
+end
+
+function save_param_chain(chain, filename)
+    d = length(chain[1])
+    xx = [c[1] for c in chain]
+    for i in 2:d
+        xx = hcat(xx, [c[i] for c in chain])
+    end
+    CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx))
+end
+
+
+#==============================================================================
                         Generate densely observed process
 ==============================================================================#
 
@@ -94,7 +140,7 @@ Pˣ = LorenzCV(θ_init...)
 #==============================================================================
                     Run the expriment: very large number of blocks
 ==============================================================================#
-setup = _prepare_setup(0.1, 0.3, 4*10^3, true, 2, 10)
+setup = _prepare_setup(0.1, 0.3, 1*10^4, true, 2, 15, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
@@ -104,17 +150,24 @@ plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
 plot_paths(out; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
+
+save_paths(out.time, out.paths, "many_obs_many_blocks_paths.csv")
+save_param_chain(out.θ_chain.θ_chain, "many_obs_many_blocks_chain.csv")
+
+# repeat, this time save marginals
+setup = _prepare_setup(0.1, 0.3, 1*10^4, true, 2, 15, 1000, 1)
+Random.seed!(4)
+out, elapsed = @timeit mcmc(setup)
+display(out.accpt_tracker)
+save_marginals(out.time, out.paths, "many_obs_many_blocks_marginals.csv", [1,50,100,150,200])
 
 #==============================================================================
                     Run the expriment: longer blocks (less of them)
 ==============================================================================#
-setup = _prepare_setup(0.5, 0.8, 4*10^3, true, 10, 15, 100, 1)
-# NOTE to plot sampled paths run:
-#setup = _prepare_setup(0.5, 0.8, 4*10^3, true, 10, 10)
+setup = _prepare_setup(0.5, 0.8, 1*10^4, true, 10, 15, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
-
 
 plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
             ylims=[nothing, (25,30), (2,5), (0,10)])
@@ -122,25 +175,11 @@ plot_paths(out; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
 
-function save_paths(tt, paths, filename)
-    d = length(paths[1][1])
-    xx = copy(tt)
-    for i in 1:length(paths)
-        for j in 1:d
-            xx = hcat(xx, [p[j] for p in paths[i]])
-        end
-    end
-    CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx))
-end
-function save_param_chain(chain, filename)
-    d = length(chain[1])
-    xx = [c[1] for c in chain]
-    for i in 2:d
-        xx = hcat(xx, [c[i] for c in chain])
-    end
-    CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx))
-end
-
-#save_paths(out.time, out.paths, "many_obs_medium_blocks.csv")
 save_paths(out.time, out.paths, "many_obs_medium_blocks_paths.csv")
 save_param_chain(out.θ_chain.θ_chain, "many_obs_medium_blocks_chain.csv")
+
+setup = _prepare_setup(0.5, 0.8, 1*10^4, true, 10, 15, 1000, 1)
+Random.seed!(4)
+out, elapsed = @timeit mcmc(setup)
+display(out.accpt_tracker)
+save_marginals(out.time, out.paths, "many_obs_medium_blocks_marginals.csv", [1,50,100,150,200])
