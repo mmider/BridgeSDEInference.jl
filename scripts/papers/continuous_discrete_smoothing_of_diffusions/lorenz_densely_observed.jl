@@ -135,7 +135,8 @@ aux_flag = Val{(false,true,true)}()
 P̃ = [LorenzCVAux(θ_init..., t₀, u, T, v, aux_flag, x0[3]) for (t₀, T, u, v)
      in zip(obs_time[1:end-1], obs_time[2:end], obs_vals[1:end-1], obs_vals[2:end])]
 Pˣ = LorenzCV(θ_init...)
-
+print("mid-point time: ", XX.tt[div(length(XX.yy),2)+1], ", mid-point value: ",
+      XX.yy[div(length(XX.yy),2)+1], "\n")
 
 #==============================================================================
                     Run the expriment: very large number of blocks
