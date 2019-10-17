@@ -28,10 +28,11 @@ function _prepare_setup(ρ=0.96, σ_RW_step=0.5, num_mcmc_steps=4*10^3,
     set_imputation_grid!(setup, 1/2000)
     set_transition_kernels!(setup,
                             [RandomWalk([], []),
-                             RandomWalk([2.0, 1.0, 0.64, σ_RW_step], 4)],
-                            ρ, true, [[1,2,3],[4]],
+                             #RandomWalk([2.0, 1.0, 0.64, σ_RW_step], 4)
+                             ],
+                            ρ, true, [[1,2,3]],#[4]],
                             (ConjugateUpdt(),
-                             MetropolisHastingsUpdt()
+                             #MetropolisHastingsUpdt()
                             ),                           # update types
                             Adaptation(x0,
                                        [0.7, 0.4, 0.2, 0.2, 0.2],
@@ -40,7 +41,8 @@ function _prepare_setup(ρ=0.96, σ_RW_step=0.5, num_mcmc_steps=4*10^3,
                             )
     set_priors!(setup,
                 Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
-                        ImproperPrior())),               # priors over parameters
+                        #ImproperPrior()
+                        )),               # priors over parameters
                 GsnStartingPt(x0, @SMatrix [400.0 0.0 0.0;
                                             0.0 20.0 0.0;
                                             0.0 0.0 20.0]), # prior over starting point
@@ -125,13 +127,15 @@ L = @SMatrix[0.0 1.0 0.0;
 skip = 50
 obs_time, obs_vals = XX.tt[1:skip:end], [rand(Gaussian(L*x, Σ)) for x in XX.yy[1:skip:end]]
 
-θ_init = [5.0, 15.0, 6.0, 8.0]
+θ_init = [5.0, 15.0, 6.0, 3.0]
 aux_flag = Val{(false,true,true)}()
 P̃ = [LorenzCVAux(θ_init..., t₀, u, T, v, aux_flag, x0[3]) for (t₀, T, u, v)
      in zip(obs_time[1:end-1], obs_time[2:end], obs_vals[1:end-1], obs_vals[2:end])]
 Pˣ = LorenzCV(θ_init...)
 print("mid-point time: ", XX.tt[div(length(XX.yy),2)+1], ", mid-point value: ",
       XX.yy[div(length(XX.yy),2)+1], "\n")
+print("three-quarters time: ", XX.tt[3*div(length(XX.yy),4)+1], ", three-quarters value: ",
+      XX.yy[3*div(length(XX.yy),4)+1], "\n")
 
 #==============================================================================
                     Run the expriment: very large number of blocks
@@ -174,8 +178,31 @@ plot_paths(out; obs=(times=obs_time[2:end],
 save_paths(out.time, out.paths, "many_obs_medium_blocks_paths.csv")
 save_param_chain(out.θ_chain.θ_chain, "many_obs_medium_blocks_chain.csv")
 
-setup = _prepare_setup(0.5, 0.8, 1*10^4, true, 10, 15, 1000, 1)
+setup = _prepare_setup(0.5, 0.8, 1*10^4, true, 4, 15, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
 save_marginals(out.time, out.paths, "many_obs_medium_blocks_marginals.csv", [1,50,100,150,200])
+
+#==============================================================================
+                    Run the expriment: very long blocks
+==============================================================================#
+setup = _prepare_setup(0.2, 0.8, 1*10^4, false, 40, 15, 1, 10^2)
+Random.seed!(4)
+out, elapsed = @timeit mcmc(setup)
+display(out.accpt_tracker)
+
+plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
+            ylims=[nothing, (25,30), (2,5), (0,10)])
+plot_paths(out; obs=(times=obs_time[2:end],
+                     vals=[[v[1] for v in obs_vals[2:end]],
+                           [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
+
+save_paths(out.time, out.paths, "many_obs_long_blocks_paths.csv")
+save_param_chain(out.θ_chain.θ_chain, "many_obs_long_blocks_chain.csv")
+
+setup = _prepare_setup(0.2, 0.8, 1*10^4, false, 4, 15, 1000, 1)
+Random.seed!(4)
+out, elapsed = @timeit mcmc(setup)
+display(out.accpt_tracker)
+save_marginals(out.time, out.paths, "many_obs_long_blocks_marginals.csv", [1,50,100,150,200])
