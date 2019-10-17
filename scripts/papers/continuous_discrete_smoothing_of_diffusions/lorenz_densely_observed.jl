@@ -71,12 +71,7 @@ end
 function save_paths(tt, paths, filename)
     d = length(paths[1][1])
     xx = copy(tt)
-    N = length(paths)
-    stride = div(N, 100)
     for i in 1:length(paths)
-        if i % stride == 0
-            print(div(i, 100), "% done...\n")
-        end
         for j in 1:d
             xx = hcat(xx, [p[j] for p in paths[i]])
         end
