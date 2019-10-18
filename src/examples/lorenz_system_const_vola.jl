@@ -98,11 +98,11 @@ function update_λ!(P::LorenzCVAux, λ)
 end
 
 
-B(t, P::LorenzCVAux) = B₀(t, P)
-β(t, P::LorenzCVAux) = β₀(t, P)
+#B(t, P::LorenzCVAux) = B₀(t, P)
+#β(t, P::LorenzCVAux) = β₀(t, P)
 # NOTE uncomment if adaptation is to be used, currently commented out, because it is slow
-#B(t, P::LorenzCVAux) = P.λ[1] * B₀(t, P) + (1.0-P.λ[1]) * B_bar(t, P)
-#β(t, P::LorenzCVAux) = P.λ[1] * β₀(t, P) + (1.0-P.λ[1]) * β_bar(t, P)
+B(t, P::LorenzCVAux) = P.λ[1] * B₀(t, P) + (1.0-P.λ[1]) * B_bar(t, P)
+β(t, P::LorenzCVAux) = P.λ[1] * β₀(t, P) + (1.0-P.λ[1]) * β_bar(t, P)
 
 
 function β_bar(t, P::LorenzCVAux)

@@ -1,3 +1,5 @@
 chain.csv
 sampled_paths.csv
 many_obs*
+few_obs*
+*.png
