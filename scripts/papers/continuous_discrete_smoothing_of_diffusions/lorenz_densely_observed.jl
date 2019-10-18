@@ -110,6 +110,18 @@ function save_param_chain(chain, filename)
 end
 
 
+function save_obs(tt, paths, filename)
+    d = length(paths[1][1])
+    xx = copy(tt)
+    for i in 1:length(paths)
+        for j in 1:d
+            xx = hcat(xx, [p[j] for p in paths[i]])
+        end
+    end
+    CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx))
+end
+
+
 #==============================================================================
                         Generate densely observed process
 ==============================================================================#
@@ -139,6 +151,8 @@ print("mid-point time: ", XX.tt[div(length(XX.yy),2)+1], ", mid-point value: ",
       XX.yy[div(length(XX.yy),2)+1], "\n")
 print("three-quarters time: ", XX.tt[3*div(length(XX.yy),4)+1], ", three-quarters value: ",
       XX.yy[3*div(length(XX.yy),4)+1], "\n")
+
+save_paths(obs_time, [obs_vals], "many_obs_data.csv")
 
 #==============================================================================
                     Run the expriment: very large number of blocks
@@ -247,6 +261,7 @@ print("mid-point time: ", XX.tt[div(length(XX.yy),2)+1], ", mid-point value: ",
       XX.yy[div(length(XX.yy),2)+1], "\n")
 print("three-quarters time: ", XX.tt[3*div(length(XX.yy),4)+1], ", three-quarters value: ",
       XX.yy[3*div(length(XX.yy),4)+1], "\n")
+save_paths(obs_time, [obs_vals], "few_obs_data.csv")
 
 #==============================================================================
                     Run the expriment: very long blocks
