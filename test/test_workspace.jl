@@ -175,18 +175,19 @@ end
         @test typeof(ws.P[1].Pt) <: BSI.FitzhughDiffusionAux
         @test all([ws.P[i].tt == ws.WW[i].tt == ws.XX[i].tt for i in 1:2])
         @test ws.recompute_ODEs == [true, true]
-        @test ws.ρ == 0.5
+        @test ws.ρ == [[0.5]]
     end
 
-    ws2 = Workspace(ws, 0.25)
-    @testset "copy constructor" begin
-        @test ws2.ρ == 0.25
-        @test ws.ρ == 0.5
-        @test ws.Wnr == ws2.Wnr
-        @test ws.XX == ws2.XX
-        @test ws.WW == ws2.WW
-        @test ws.P == ws.P
-    end
+    # NOTE this constructor has been deprecated
+    #ws2 = Workspace(ws, 0.25)
+    #@testset "copy constructor" begin
+    #    @test ws2.ρ == 0.25
+    #    @test ws.ρ == 0.5
+    #    @test ws.Wnr == ws2.Wnr
+    #    @test ws.XX == ws2.XX
+    #    @test ws.WW == ws2.WW
+    #    @test ws.P == ws.P
+    #end
 
     @testset "action determination" begin
         @test !BSI.act(BSI.SavePath(), ws, 1)
