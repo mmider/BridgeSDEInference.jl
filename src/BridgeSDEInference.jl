@@ -18,6 +18,9 @@ export mcmc, PartObs, FPT, FPTInfo, ConjugateUpdt, MetropolisHastingsUpdt
 # ODE solvers:
 export Ralston3, RK4, Tsit5, Vern7
 
+# euler_maruyama_dom_restr.jl
+export forcedSolve!, forcedSolve
+
 # random_walk.jl
 export RandomWalk
 

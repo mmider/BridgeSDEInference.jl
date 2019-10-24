@@ -43,6 +43,7 @@ mutable struct MCMCSetup{ObsScheme}
     verb_iter           # Print progress message to console every ... iteration
     skip_for_save       # When saving path, thin the grid by a factor of ...
     warm_up             # Number of steps of the chain in which no param update is made
+    pCN_readjust_param  # Parameters for readjustment of the pCN memory parameter
     solver              # Type of ODE solver
     change_pt           # Change point between ODEs for M,L,μ and H,Hν,c
     Wnr                 # Definition of the driving Wiener law
@@ -270,13 +271,20 @@ Define the parametrisation of the mcmc sampler.
 ...
 """
 function set_mcmc_params!(setup::MCMCSetup, num_mcmc_steps, save_iter=NaN,
-                          verb_iter=NaN, skip_for_save=1, warm_up=0)
+                          verb_iter=NaN, skip_for_save=1, warm_up=0,
+                          pCN_readjust_param=(100, 0.1, 0.00001, 0.99999, 0.234, 50))
     setup.num_mcmc_steps = num_mcmc_steps
     setup.save_iter = save_iter
     setup.verb_iter = verb_iter
     setup.skip_for_save = skip_for_save
     setup.warm_up = warm_up
+    setup.pCN_readjust_param = named_pCN(pCN_readjust_param)
     setup.setup_completion[:mcmc] = true
+end
+
+function named_pCN(pCN)
+    @assert length(pCN) == 6
+    (step=pCN[1], scale=pCN[2], minδ=pCN[3], maxρ=pCN[4], trgt=pCN[5], offset=pCN[6])
 end
 
 """
