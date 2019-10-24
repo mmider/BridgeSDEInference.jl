@@ -12,7 +12,7 @@ mcmc(setup)
 ```
 It finds the posterior distribution of the unknown parameters given discrete
 time observations of the underlying process. Please see the
-[documentation (in development)](https://mmider.github.io/BridgeSDEInference.jl/stable).
+[documentation (in development)](https://mmider.github.io/BridgeSDEInference.jl/dev).
 
 ## Installation
 Use the built-in package manager
