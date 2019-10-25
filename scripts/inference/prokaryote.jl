@@ -8,24 +8,24 @@ include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
 
 
 using StaticArrays
-using Distributions # to define priors
-using Random        # to seed the random number generator
+using Distributions
+using Random
 
-# Let's generate the data
+DIR = "auxiliary"
+include(joinpath(SRC_DIR, DIR, "utility_functions.jl"))
+
+# Let's load-in the data
 # -----------------------
-using Bridge
-include(joinpath(SRC_DIR, "auxiliary", "data_simulation_fns.jl"))
-Random.seed!(4)
-# values taken from table 1 of Golightly and Wilkinson
+obs = open(joinpath(OUT_DIR, "autoreg50fo.dat")) do f
+    [map(x->parse(Float64, x), split(l, ' '))[[2,3,4,1]] for l in eachline(f)]
+end
+obs_time = collect(range(0.0, length(obs)-1, step=1))
+
+# let's start from the true values that generated the data
 θ_init = [0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1]
 K = 10.0
-Pˣ = Prokaryote(θ_init..., K)
-
-x0, dt, T = ℝ{4}(7.0, 10.0, 4.0, 6.0), 1/5000, 20.0
-tt = 0.0:dt:T
-XX, _ = simulateSegment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, Pˣ, tt)
-skip = 2500
-obs_time, obs_vals = XX.tt[1:skip:end], XX.yy[1:skip:end]
+P˟ = Prokaryote(θ_init..., K)
+x0 = ℝ{4}(obs[1])
 
 auxFlag = Val{(true, true, true, true)}()
 P̃ = [ProkaryoteAux(θ_init..., K, t₀, u, T, v, auxFlag) for (t₀, T, u, v)

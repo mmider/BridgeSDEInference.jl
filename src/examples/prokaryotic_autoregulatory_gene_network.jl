@@ -22,13 +22,35 @@ struct Prokaryote{T} <: ContinuousTimeProcess{ℝ{4,T}}
     end
 end
 
+struct ProkaryoteAux{O,R,S1,S2} <: ContinuousTimeProcess{ℝ{4,R}}
+    c₁::R
+    c₂::R
+    c₃::R
+    c₄::R
+    c₅::R
+    c₆::R
+    c₇::R
+    c₈::R
+    K::Float64
+    t::Float64
+    u::S1
+    T::Float64
+    v::S2
+
+    function ProkaryoteAux(c₁::R, c₂::R, c₃::R, c₄::R, c₅::R, c₆::R, c₇::R,
+                           c₈::R, K, t, u::S1, T, v::S2, ::O) where {O,R,S1,S2}
+        new{O,R,S1,S2}(c₁, c₂, c₃, c₄, c₅, c₆, c₇, c₈, K, t, u, T, v)
+    end
+end
+
+const ProkaryoteTypes = Union{Prokaryote, ProkaryoteAux}
 # x <-> (RNA, P, P₂, DNA)
-@inline _aux₁(x, P::Prokaryote) = P.c₅*x[2]*(x[2]-1)
-@inline _aux₂(x, P::Prokaryote) = P.c₆*x[3]
-@inline _aux₃(x, P::Prokaryote) = P.c₂*(P.K - x[4])
-@inline _aux₄(x, P::Prokaryote) = P.c₁*x[3]*x[4]
-@inline _aux₁₂(x, P::Prokaryote) = 2.0*_aux₂(x, P) - _aux₁(x, P)
-@inline _aux₃₄(x, P::Prokaryote) = _aux₃(x, P) - _aux₄(x, P)
+@inline _aux₁(x, P::ProkaryoteTypes) = P.c₅*x[2]*(x[2]-1)
+@inline _aux₂(x, P::ProkaryoteTypes) = P.c₆*x[3]
+@inline _aux₃(x, P::ProkaryoteTypes) = P.c₂*(P.K - x[4])
+@inline _aux₄(x, P::ProkaryoteTypes) = P.c₁*x[3]*x[4]
+@inline _aux₁₂(x, P::ProkaryoteTypes) = 2.0*_aux₂(x, P) - _aux₁(x, P)
+@inline _aux₃₄(x, P::ProkaryoteTypes) = _aux₃(x, P) - _aux₄(x, P)
 
 function b(t, x, P::Prokaryote{T}) where T
     k₁ = _aux₁₂(x, P)
@@ -71,27 +93,6 @@ constdiff(::Prokaryote) = false
 clone(P::Prokaryote, θ) = Prokaryote(θ..., P.K)
 params(P::Prokaryote) = [P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇, P.c₈]
 
-struct ProkaryoteAux{O,R,S1,S2} <: ContinuousTimeProcess{ℝ{4,R}}
-    c₁::R
-    c₂::R
-    c₃::R
-    c₄::R
-    c₅::R
-    c₆::R
-    c₇::R
-    c₈::R
-    K::Float64
-    t::Float64
-    u::S1
-    T::Float64
-    v::S2
-
-    function ProkaryoteAux(c₁::R, c₂::R, c₃::R, c₄::R, c₅::R, c₆::R, c₇::R,
-                           c₈::R, K, t, u::S1, T, v::S2, ::O) where {O,R,S1,S2}
-        new{O,R,S1,S2}(c₁, c₂, c₃, c₄, c₅, c₆, c₇, c₈, K, t, u, T, v)
-    end
-end
-
 observables(::ProkaryoteAux{O}) where O = O()
 
 function B(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
@@ -109,7 +110,7 @@ function β(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
 end
 
 σ(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _σ_prokaryote(P.v, P)
-a(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _a_prokaryote(P.V, P)
+a(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _a_prokaryote(P.v, P)
 a(t, x, P::ProkaryoteAux) = a(t, P)
 σ(t, x, P::ProkaryoteAux) = σ(t, P)
 b(t, x, P::ProkaryoteAux) = B(t, P)*x + β(t, P)

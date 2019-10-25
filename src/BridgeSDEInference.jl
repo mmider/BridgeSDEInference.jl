@@ -42,6 +42,9 @@ export Lorenz, LorenzAux
 # lorenz_system_const_vola.jl
 export LorenzCV, LorenzCVAux
 
+# prokaryotic_autoregulatory_gene_network.jl
+export Prokaryote, ProkaryoteAux
+
 # adaptation.jl
 export Adaptation, NoAdaptation
 
@@ -79,6 +82,7 @@ include(joinpath(_DIR, "fitzhugh_nagumo.jl"))
 include(joinpath(_DIR, "radial_ornstein_uhlenbeck.jl"))
 include(joinpath(_DIR, "lorenz_system.jl"))
 include(joinpath(_DIR, "lorenz_system_const_vola.jl"))
+include(joinpath(_DIR, "prokaryotic_autoregulatory_gene_network.jl"))
 
 _DIR = "mcmc"
 include(joinpath(_DIR, "priors.jl"))
