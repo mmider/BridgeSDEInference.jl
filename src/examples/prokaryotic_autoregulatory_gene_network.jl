@@ -22,42 +22,50 @@ struct Prokaryote{T} <: ContinuousTimeProcess{ℝ{4,T}}
     end
 end
 
-function b(t, x, P::Prokaryote{T}) where T # x <-> (RNA, P, P₂, DNA)
-    ℝ{4}(P.c₃*x[4] - P.c₇*x[1],
-         P.c₄*x[1] + 2.0*P.c₆*x[3] - P.c₅*x[2]*(x[2]-1)-P.c₈*x[2],
-         P.c₂*(P.K - x[4]) + 0.5*P.c₅*x[2]*(x[2]-1) - P.c₁*x[3]*x[4] - P.c₆*x[3],
-         P.c₂*(P.K - x[4]) - P.c₁*x[3]*x[4])
-end
-
-function σ(t, x, P::Prokaryote{T}) where T
-    σσᵀ = a(t, x, P)
-    cholesky(σσᵀ).U'
-end
-
-#=
- c₃DNA+c₇RNA |         0          |           0          |          0
---------------------------------------------------------------------------------
-     0       |  c₄RNA+2c₅P(P-1)   |  -c₅P(P-1)-2c₆P₂     |          0
-             |      +4c₆P₂+c₈P    |                      |
---------------------------------------------------------------------------------
-     0       | -c₅P(P-1)-2c₆P₂    |  c₁P₂DNA+c₂(K-DNA)   |   c₁P₂DNA
-             |                    |    +0.5c₅P(P-1)+c₆P₂ |    +c₂(K-DNA)
---------------------------------------------------------------------------------
-     0       |         0          |   c₁P₂DNA+c₂(K-DNA)  |    c₁P₂DNA
-                                                                +c₂(K-DNA)
-=#
 # x <-> (RNA, P, P₂, DNA)
-function a(t, x, P::Prokaryote{T}) where T
-    _a₃₂ = P.c₅*x[2]*(x[2]-1.0)+2.0*P.c₆*x[3]
-    a₄₄ = P.c₁*x[3]*x[4]+P.c₂*(P.K-x[4])
+@inline _aux₁(x, P::Prokaryote) = P.c₅*x[2]*(x[2]-1)
+@inline _aux₂(x, P::Prokaryote) = P.c₆*x[3]
+@inline _aux₃(x, P::Prokaryote) = P.c₂*(P.K - x[4])
+@inline _aux₄(x, P::Prokaryote) = P.c₁*x[3]*x[4]
+@inline _aux₁₂(x, P::Prokaryote) = 2.0*_aux₂(x, P) - _aux₁(x, P)
+@inline _aux₃₄(x, P::Prokaryote) = _aux₃(x, P) - _aux₄(x, P)
 
-    @SMatrix [P.c₃*x[4]+P.c₇*x[1]  0.0  0.0  0.0;
-              0.0  P.c₄*x[1]+2.0*_a₃₂+P.c₈*x[2]  -_a₃₂  0.0;
-              0.0  -_a₃₂  a₄₄+0.5*_a₃₂  a₄₄;
-              0.0  0.0  a₄₄  a₄₄]
+function b(t, x, P::Prokaryote{T}) where T
+    k₁ = _aux₁₂(x, P)
+    k₂ = _aux₃₄(x, P)
+    ℝ{4}(P.c₃*x[4] - P.c₇*x[1], P.c₄*x[1] + k₁ - P.c₈*x[2], k₂ - 0.5 * k₁, k₂)
 end
 
-domain(P::Prokaryote) = BoundedDomain( LowerBoundedDomain((0.0, 1.0, 0.0, 0.0), (1,2,3,4)),
+function _σ_prokaryote(x, P)
+    k₁ = sqrt(0.5*_aux₁(x, P))
+    k₂ = sqrt(_aux₂(x, P))
+    k₃ = sqrt(_aux₃(x, P))
+    k₄ = sqrt(_aux₄(x, P))
+    _O = zero(x[1])
+
+    @SMatrix [_O  _O  sqrt(P.c₃*x[4]) _O _O _O -sqrt(P.c₇*x[1]) _O;
+              _O _O _O sqrt(P.c₄*x[1]) -2.0*k₁ 2.0*k₂ _O -sqrt(P.c₈*x[3]);
+              -k₄ k₃ _O _O k₁ -k₂ _O _O;
+              -k₄ k₃ _O _O _O _O _O _O]
+end
+
+function _a_prokaryote(x, P)
+    k₁ = _aux₁(x, P) + 2.0*_aux₂(x, P)
+    k₂ = _aux₃(x, P) + _aux₄(x, P)
+    s₁ = P.c₃*x[4]+P.c₇*x[1]
+    s₂ = P.c₄*x[1]+P.c₈*x[3]
+    _O = zero(x[1])
+
+    @SMatrix [ s₁ _O _O _O;
+              _O s₂+2*k₁ -k₁ _O;
+              _O -k₁ k₁+k₂ k₂;
+              _O _O k₂ k₂]
+end
+
+σ(t, x, P::Prokaryote) = _σ_prokaryote(x, P)
+a(t, x, P::Prokaryote) = _a_prokaryote(x, P)
+domain(P::Prokaryote) = BoundedDomain( LowerBoundedDomain((0.0, 1.0, 0.0, 0.0),
+                                                          (1,2,3,4)),
                                        UpperBoundedDomain((P.K,), (4,)) )
 constdiff(::Prokaryote) = false
 clone(P::Prokaryote, θ) = Prokaryote(θ..., P.K)
@@ -100,22 +108,8 @@ function β(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
               P.c₂*P.K + P.c₁*P.v[3]*P.v[4]]
 end
 
-function σ(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
-    σσᵀ = a(t, P)
-    cholesky(σσᵀ).U'
-end
-
-
-function a(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
-    _a₃₂ = P.c₅*P.v[2]*(P.v[2]-1.0)+2.0*P.c₆*P.v[3]
-    a₄₄ = P.c₁*P.v[3]*P.v[4]+P.c₂*(P.K-P.v[4])
-
-    @SMatrix [P.c₃*P.v[4]+P.c₇*P.v[1]  0.0  0.0  0.0;
-              0.0  P.c₄*P.v[1]+2.0*_a₃₂+P.c₈*P.v[2]  -_a₃₂  0.0;
-              0.0  -_a₃₂  a₄₄+0.5*_a₃₂  a₄₄;
-              0.0  0.0  a₄₄  a₄₄]
-end
-
+σ(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _σ_prokaryote(P.v, P)
+a(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _a_prokaryote(P.V, P)
 a(t, x, P::ProkaryoteAux) = a(t, P)
 σ(t, x, P::ProkaryoteAux) = σ(t, P)
 b(t, x, P::ProkaryoteAux) = B(t, P)*x + β(t, P)
