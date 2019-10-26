@@ -41,7 +41,7 @@ set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
                         [RandomWalk([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
                                     collect(1:8))],
-                        0.7, false, 1,
+                        0.95, false, 1,
                         (MetropolisHastingsUpdt(),))
 set_priors!(setup,
             Priors((ImproperPrior(), ImproperPrior(), ImproperPrior(),
@@ -54,10 +54,39 @@ set_blocking!(setup)
 set_solver!(setup, Vern7(), NoChangePt())
 initialise!(eltype(x0), setup)
 
+import Bridge.solve!
+function solve!(::EulerMaruyama, Y, u::T, W::SamplePath, P::ProcessOrCoefficients) where {T}
+    N = length(W)
+    N != length(Y) && error("Y and W differ in length.")
+
+    ww = W.yy
+    tt = Y.tt
+    yy = Y.yy
+    tt[:] = W.tt
+
+    y::T = u
+
+    for i in 1:N-1
+        yy[.., i] = y
+        if (y[3] < 0 || y[4] < 0)
+            print("hello, ", y, "\n")
+        end
+        y = y + _b((i,tt[i]), y, P)*(tt[i+1]-tt[i]) + _scale((ww[.., i+1]-ww[..,i]), σ(tt[i], y, P))
+    end
+    yy[.., N] = endpoint(y, P)
+    Y
+end
+
+
+
 Random.seed!(4)
+out = mcmc(setup)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
 
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
 plot_chains(out; truth=[0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1])
 plot_paths(out; obs=(times=obs_time[2:end], vals=obs_vals[2:end], indices=1:4))
+setup
+
+obs

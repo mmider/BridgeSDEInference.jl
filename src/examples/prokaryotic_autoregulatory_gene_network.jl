@@ -66,7 +66,7 @@ function _σ_prokaryote(x, P)
     _O = zero(x[1])
 
     @SMatrix [_O  _O  sqrt(P.c₃*x[4]) _O _O _O -sqrt(P.c₇*x[1]) _O;
-              _O _O _O sqrt(P.c₄*x[1]) -2.0*k₁ 2.0*k₂ _O -sqrt(P.c₈*x[3]);
+              _O _O _O sqrt(P.c₄*x[1]) -2.0*k₁ 2.0*k₂ _O -sqrt(P.c₈*x[2]);
               -k₄ k₃ _O _O k₁ -k₂ _O _O;
               -k₄ k₃ _O _O _O _O _O _O]
 end
@@ -75,12 +75,12 @@ function _a_prokaryote(x, P)
     k₁ = _aux₁(x, P) + 2.0*_aux₂(x, P)
     k₂ = _aux₃(x, P) + _aux₄(x, P)
     s₁ = P.c₃*x[4]+P.c₇*x[1]
-    s₂ = P.c₄*x[1]+P.c₈*x[3]
+    s₂ = P.c₄*x[1]+P.c₈*x[2]
     _O = zero(x[1])
 
     @SMatrix [ s₁ _O _O _O;
               _O s₂+2*k₁ -k₁ _O;
-              _O -k₁ k₁+k₂ k₂;
+              _O -k₁ 0.5*k₁+k₂ k₂;
               _O _O k₂ k₂]
 end
 
@@ -96,17 +96,21 @@ params(P::Prokaryote) = [P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇,
 observables(::ProkaryoteAux{O}) where O = O()
 
 function B(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
+    k₁ = P.c₅ - 2*P.c₅*P.v[2]
+    k₂ = -P.c₁*P.v[4]
+    k₃ = -P.c₂-P.c₁*P.v[3]
     @SMatrix [-P.c₇  0.0  0.0  P.c₃;
-              P.c₄  P.c₅-P.c₈-2*P.c₅*P.v[2]  2.0*P.c₆  0.0;
-              0.0  P.c₅*P.v[2]-0.5*P.c₅  -P.c₁*P.v[4]-P.c₆  -P.c₂-P.c₁*P.v[3];
-              0.0  0.0  -P.c₁*P.v[4]  -P.c₂-P.c₁*P.v[3]]
+              P.c₄  k₁-P.c₈  2.0*P.c₆  0.0;
+              0.0  -0.5*k₁  k₂-P.c₆  k₃;
+              0.0  0.0  k₂ k₃]
 end
 
 function β(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
+    k₁ = P.c₂*P.K + P.c₁*P.v[3]*P.v[4]
     @SVector [0.0,
               P.c₅*P.v[2]^2,
-              P.c₂*P.K + P.c₁*P.v[3]*P.v[4] - 0.5*P.c₅*P.v[2]^2,
-              P.c₂*P.K + P.c₁*P.v[3]*P.v[4]]
+              k₁ - 0.5*P.c₅*P.v[2]^2,
+              k₁]
 end
 
 σ(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _σ_prokaryote(P.v, P)
@@ -119,4 +123,4 @@ constdiff(::ProkaryoteAux) = true
 clone(P::ProkaryoteAux, θ) = ProkaryoteAux(θ..., P.K, P.t, P.u, P.T, P.v, observables(P))
 clone(P::ProkaryoteAux, θ, v) = ProkaryoteAux(θ..., P.K, P.t, zero(v), P.T, v, observables(P))
 params(P::ProkaryoteAux) = [P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇, P.c₈]
-dependsOnParams(::ProkaryoteAux) = (1,2,3,4,5,6,7,8)
+depends_on_params(::ProkaryoteAux) = (1,2,3,4,5,6,7,8)
