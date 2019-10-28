@@ -41,7 +41,7 @@ set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
                         [RandomWalk([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
                                     collect(1:8))],
-                        0.9, true, 1,
+                        0.5, false, 1,
                         (MetropolisHastingsUpdt(),))
 set_priors!(setup,
             Priors((ImproperPrior(), ImproperPrior(), ImproperPrior(),
@@ -49,12 +49,21 @@ set_priors!(setup,
                     ImproperPrior(), ImproperPrior())),
             KnownStartingPt(x0)
             )
-set_mcmc_params!(setup, 1*10^3, 1*10^2, 10^1, 10^0, 0)
-set_blocking!(setup)
+set_mcmc_params!(setup, 1*10^2, 1*10^1, 10^1, 10^0, 0)
+#set_blocking!(setup)
+#set_blocking!(setup, ChequeredBlocking(),
+#              (collect(1:length(obs)-2)[1:4:end], 10^(-7), SimpleChangePt(100)))
 set_solver!(setup, Vern7(), NoChangePt())
 initialise!(eltype(x0), setup)
 
 
+Random.seed!(4)
+elapsed = mcmc(setup)
+using Profile
+Profile.clear()
+@profile mcmc(setup)
+using ProfileView
+ProfileView.view()
 
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup)

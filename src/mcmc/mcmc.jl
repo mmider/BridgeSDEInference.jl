@@ -181,6 +181,11 @@ Preconditioned Crank-Nicolson update with memory parameter `ρ`, previous vector
 """
 crank_nicolson!(yᵒ, y, ρ) = (yᵒ .= √(1-ρ)*yᵒ + √(ρ)*y)
 
+#function crank_nicolson!(yᵒ, y, ρ)
+#    for i in 1:length(y)
+#        yᵒ[i] = √(1-ρ)*yᵒ[i] + √(ρ)*y[i]
+#    end
+#end
 
 """
     path_log_likhd(::OS, XX, P, iRange, fpt; skipFPT=false
