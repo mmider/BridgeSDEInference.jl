@@ -34,7 +34,7 @@ L = @SMatrix [1. 0.]
 Σ = @SMatrix [10^(-10)]
 
 setup = MCMCSetup(P˟, P̃, fptOrPartObs)
-set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time, fpt)
+set_observations!(setup, [L for _true in P̃], [Σ for _ in P̃], obs, obs_time, fpt)
 set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
                         [RandomWalk([],[]),
