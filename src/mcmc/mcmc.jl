@@ -33,18 +33,21 @@ function mcmc(setup::MCMCSetup)
         ws = next_set_of_blocks(ws)
         ll, acc = impute!(ws, ll, verbose, i)
         update!(ws.accpt_tracker, Imputation(), acc)
-        act(Readjust(), ws, i) && readjust_pCN!(ws, i)
+        update!(ws.accpt_tracker_short, Imputation(), acc)
 
         if act(ParamUpdate(), ws, i)
             for j in 1:length(gibbs)
                 ll, acc, θ = update_param!(gibbs[j], θ, ws, ll, verbose, i)
                 update!(ws.accpt_tracker, ParamUpdate(), j, acc)
+                update!(ws.accpt_tracker_short, ParamUpdate(), j, acc)
                 update!(ws.θ_chain, θ)
                 verbose && print("\n")
             end
             verbose && print("------------------------------------------------",
                              "------\n")
         end
+        act(Readjust(), ws, i) && readjust_pCN!(ws, i)
+        act(Readjust(), ws, i) && (gibbs = readjust_tk(ws, i, gibbs))
         add_path!(adaptive_prop, ws.XX, i)
         #print_adaptation_info(adaptive_prop, accImpCounter, accUpdtCounter, i)
         adaptive_prop, ll = update!(adaptive_prop, ws, i, ll)

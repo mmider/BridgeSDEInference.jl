@@ -31,7 +31,7 @@ auxFlag = Val{(true, true, true, true)}()
 P̃ = [ProkaryoteAux(θ_init..., K, t₀, u, T, v, auxFlag) for (t₀, T, u, v)
      in zip(obs_time[1:end-1], obs_time[2:end], obs[1:end-1], obs[2:end])]
 
-Σdiagel = 10^-4
+Σdiagel = 10^-1
 Σ = SMatrix{4,4}(1.0I)*Σdiagel
 L = SMatrix{4,4}(1.0I)
 
@@ -39,36 +39,35 @@ setup = MCMCSetup(P˟, P̃, PartObs())
 set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time)
 set_imputation_grid!(setup, 1/1000)
 set_transition_kernels!(setup,
-                        [RandomWalk([0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2, 0.2],
-                                    collect(1:8))],
-                        0.5, false, 1,
-                        (MetropolisHastingsUpdt(),))
+                        [RandomWalk([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
+                                    collect(1:8)) for _ in 1:8],
+                        0.9, true, [[1], [2], [3], [4], [5], [6], [7], [8]],
+                        (MetropolisHastingsUpdt(),
+                        MetropolisHastingsUpdt(),
+                        MetropolisHastingsUpdt(),
+                        MetropolisHastingsUpdt(),
+                        MetropolisHastingsUpdt(),
+                        MetropolisHastingsUpdt(),
+                        MetropolisHastingsUpdt(),
+                        MetropolisHastingsUpdt()))
 set_priors!(setup,
             Priors((ImproperPrior(), ImproperPrior(), ImproperPrior(),
                     ImproperPrior(), ImproperPrior(), ImproperPrior(),
                     ImproperPrior(), ImproperPrior())),
             KnownStartingPt(x0)
             )
-set_mcmc_params!(setup, 1*10^2, 1*10^1, 10^1, 10^0, 0)
-#set_blocking!(setup)
-#set_blocking!(setup, ChequeredBlocking(),
-#              (collect(1:length(obs)-2)[1:4:end], 10^(-7), SimpleChangePt(100)))
-set_solver!(setup, Vern7(), NoChangePt())
+set_mcmc_params!(setup, 2*10^2, 1*10^1, 10^1, 10^0, 0,
+                 (20, 0.1, 0.00001, 0.99999, 0.234, 50),
+                 (20, 0.1, -999, 999, 0.234, 50, (1,2,3,4,5,6,7,8), (1,2,3,4,5,6,7,8)))
+set_blocking!(setup)
+set_solver!(setup, Ralston3(), NoChangePt())
 initialise!(eltype(x0), setup)
 
-
 Random.seed!(4)
-elapsed = mcmc(setup)
-using Profile
-Profile.clear()
-@profile mcmc(setup)
-using ProfileView
-ProfileView.view()
-
-Random.seed!(4)
+out = mcmc(setup)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
 
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
-plot_chains(out; truth=[0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1])
 plot_paths(out; obs=(times=obs_time[2:end], vals=obs[2:end], indices=1:4))
+plot_chains(out; truth=[0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1])

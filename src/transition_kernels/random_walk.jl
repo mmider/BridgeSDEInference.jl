@@ -53,6 +53,12 @@ multipStep = (x,pos)->pos ? exp(x) : 1.0
 eltype(::RandomWalk{T}) where T = T
 length(::RandomWalk{T,N}) where {T,N} = N
 
+function new_tkernel(rw::RandomWalk, f, idx)
+    ϵ = collect(rw.ϵ)
+    ϵ[idx] = rw.pos[idx] ? exp(f(log(rw.ϵ[idx]))) : f(rw.ϵ[idx])
+    RandomWalk(ϵ, rw.pos)
+end
+
 """
     rand!(rw::RandomWalk, θ)
 

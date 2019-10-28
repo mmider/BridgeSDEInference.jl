@@ -71,7 +71,9 @@ set_mcmc_params!(setup,
                  1*10^3,            # save path every ... iteration
                  10^2,              # print progress message every ... iteration
                  10^0,              # thin the path imputatation points for save
-                 100                # number of first iterations without param update
+                 100,                # number of first iterations without param update
+                 (100, 0.1, 0.00001, 0.99999, 0.234, 50),
+                 (100, 0.1, -999, 999, 0.234, 50, (2,))
                  )
 #set_blocking!(setup, ChequeredBlocking(),
 #              (collect(1:length(obs_vals)-2)[1:2:end], 10^(-10), SimpleChangePt(100)))
