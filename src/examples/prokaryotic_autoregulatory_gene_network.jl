@@ -93,6 +93,20 @@ constdiff(::Prokaryote) = false
 clone(P::Prokaryote, θ) = Prokaryote(θ..., P.K)
 params(P::Prokaryote) = [P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇, P.c₈]
 
+# x <-> (RNA, P, P₂, DNA)
+phi(::Val{0}, t, x, P::Prokaryote) = (zero(x[1]), zero(x[1]), zero(x[1]), zero(x[1]))
+phi(::Val{1}, t, x, P::Prokaryote) = (zero(x[1]), zero(x[1]), -x[3]*x[4], -x[3]*x[4])
+phi(::Val{2}, t, x, P::Prokaryote) = (zero(x[1]), zero(x[1]), P.K-x[4], P.K-x[4])
+phi(::Val{3}, t, x, P::Prokaryote) = (x[4], zero(x[1]), zero(x[1]), zero(x[1]))
+phi(::Val{4}, t, x, P::Prokaryote) = (zero(x[1]), x[1], zero(x[1]), zero(x[1]))
+phi(::Val{5}, t, x, P::Prokaryote) = (zero(x[1]), -x[2]*(x[2]-1), 0.5*x[2]*(x[2]-1), zero(x[1]))
+phi(::Val{6}, t, x, P::Prokaryote) = (zero(x[1]), 2.0*x[3], zero(x[1]), zero(x[1]))
+phi(::Val{7}, t, x, P::Prokaryote) = (-x[1], zero(x[1]), zero(x[1]), zero(x[1]))
+phi(::Val{8}, t, x, P::Prokaryote) = (zero(x[1]), -x[2], zero(x[1]), zero(x[1]))
+
+nonhypo(P::Prokaryote, x) = x
+num_non_hypo(P::Type{<:Prokaryote}) = 4
+
 observables(::ProkaryoteAux{O}) where O = O()
 
 function B(t, P::ProkaryoteAux{Val{(true,true,true,true)}})

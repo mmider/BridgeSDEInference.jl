@@ -10,7 +10,7 @@ include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
 using StaticArrays
 using Distributions
 using Random
-
+ImproperPrior()
 DIR = "auxiliary"
 include(joinpath(SRC_DIR, DIR, "utility_functions.jl"))
 
@@ -37,9 +37,9 @@ L = SMatrix{4,4}(1.0I)
 
 setup = MCMCSetup(P˟, P̃, PartObs())
 set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time)
-set_imputation_grid!(setup, 1/1000)
+set_imputation_grid!(setup, 1/400)
 set_transition_kernels!(setup,
-                        [RandomWalk([0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 0.4],
+                        [RandomWalk([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
                                     collect(1:8)) for _ in 1:8],
                         0.9, true, [[1], [2], [3], [4], [5], [6], [7], [8]],
                         (MetropolisHastingsUpdt(),
@@ -51,20 +51,20 @@ set_transition_kernels!(setup,
                         MetropolisHastingsUpdt(),
                         MetropolisHastingsUpdt()))
 set_priors!(setup,
-            Priors((ImproperPrior(), ImproperPrior(), ImproperPrior(),
-                    ImproperPrior(), ImproperPrior(), ImproperPrior(),
-                    ImproperPrior(), ImproperPrior())),
+            Priors((ImproperPosPrior{Val{1}}(), ImproperPosPrior{Val{2}}(),
+                    ImproperPosPrior{Val{3}}(), ImproperPosPrior{Val{4}}(),
+                    ImproperPosPrior{Val{5}}(), ImproperPosPrior{Val{6}}(),
+                    ImproperPosPrior{Val{7}}(), ImproperPosPrior{Val{8}}())),
             KnownStartingPt(x0)
             )
-set_mcmc_params!(setup, 2*10^2, 1*10^1, 10^1, 10^0, 0,
-                 (20, 0.1, 0.00001, 0.99999, 0.234, 50),
-                 (20, 0.1, -999, 999, 0.234, 50, (1,2,3,4,5,6,7,8), (1,2,3,4,5,6,7,8)))
+set_mcmc_params!(setup, 1*10^3, 1*10^2, 10^1, 10^0, 0,
+                 (50, 0.1, 0.00001, 0.99999, 0.234, 50),
+                 (50, 0.1, -999, 999, 0.234, 50, (1,2,3,4,5,6,7,8), (1,2,3,4,5,6,7,8)))
 set_blocking!(setup)
-set_solver!(setup, Ralston3(), NoChangePt())
+set_solver!(setup, Vern7(), NoChangePt())
 initialise!(eltype(x0), setup)
 
 Random.seed!(4)
-out = mcmc(setup)
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
 

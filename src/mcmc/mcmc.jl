@@ -584,7 +584,7 @@ Update parameters using conjugate draws
 function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
                        ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN
                        ) where {UpdtIdx,OS}
-    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
+    WW, P, XX, fpt = ws.WW, ws.P, ws.XX, ws.fpt
     m = length(WW)
     θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
 
@@ -608,6 +608,42 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
 end
 
 
+function update_param!(pu::ParamUpdtDefn{PseudoConjugateUpdt,UpdtIdx}, θ,
+                       ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN
+                       ) where {UpdtIdx,OS}
+    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
+    m = length(WW)
+    θᵒ, μ, Σ = pseudo_conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
+    update_laws!(Pᵒ, θᵒ)
+    pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, Pᵒ)
+
+    y = XX[1].yy[1]
+    zᵒ = inv_start_pt(y, ws.x0_prior, Pᵒ[1])
+
+    success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, 1:m)
+
+    llᵒ = success ? (logpdf(ws.x0_prior, y) +
+                     path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt) +
+                     lobslikelihood(Pᵒ[1], y)) : -Inf
+
+    print_info(verbose, it, ll, llᵒ)
+
+    _, μᵒ, Σᵒ = pseudo_conjugate_draw(θᵒ, XXᵒ, Pᵒ[1].Target, pu.priors[1], UpdtIdx())
+    llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ, μ, Σ,
+                                            μᵒ, Σᵒ))
+
+    if accept_sample(llr, verbose)
+        swap!(XX, XXᵒ, P, Pᵒ, 1:m)
+        set!(ws.z, zᵒ)
+        return llᵒ, true, θᵒ
+    else
+        return ll, false, θ
+    end
+end
+
+
+
+
 #NOTE blocking and no-blocking param conjugate update should be joined into one function
 """
     update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
@@ -620,7 +656,7 @@ explanation of the arguments.
 function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
                        ws::Workspace{OS,B}, ll, verbose=false, it=NaN
                        ) where {UpdtIdx,OS,B}
-    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
+    WW, P, XX, fpt = ws.WW, ws.P, ws.XX, ws.fpt
     m = length(WW)
     θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
 
