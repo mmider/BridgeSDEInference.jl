@@ -527,20 +527,12 @@ function prior_kernel_contrib(t_kern, priors, θ, θᵒ)
     llr
 end
 
-@generated function thetainc(::Val{T}, θ) where T
-    z = Expr(:tuple, (:(θ[$i]) for i in 1:length(T) if  T[i])...)
-    return z
-end
+
 
 
 function prior_kernel_contrib(t_kern, priors, θ, θᵒ, μ, Σ, μᵒ, Σᵒ, updt_idx)
     ϑᵒ = SVector(thetainc(updt_idx, θᵒ))
     ϑ = SVector(thetainc(updt_idx, θ))
-    print("\nμ: ", μ, "\nΣ: ")
-    display(Σ)
-    print("μᵒ: ", μᵒ, "\nΣᵒ: ")
-    display(Σᵒ)
-    print("\n\n")
 
     llr = logpdf(t_kern, ϑᵒ, ϑ, μᵒ, Σᵒ, updt_idx) - logpdf(t_kern, ϑ, ϑᵒ, μ, Σ, updt_idx)
     print(logpdf(t_kern, ϑᵒ, ϑ, μᵒ, Σᵒ, updt_idx), ", ")
@@ -655,7 +647,7 @@ function update_param!(pu::ParamUpdtDefn{PseudoConjugateUpdt,UpdtIdx}, θ,
                        ) where {UpdtIdx,OS}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(WW)
-    θᵒ, μ, Σ = pseudo_conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
+    θᵒ, Σ = pseudo_conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
     #print("old θ: ", θ, ", new θ: ", θᵒ, "\n\n")
 
     update_laws!(Pᵒ, θᵒ)
@@ -679,9 +671,9 @@ function update_param!(pu::ParamUpdtDefn{PseudoConjugateUpdt,UpdtIdx}, θ,
 
     print_info(verbose, it, ll, llᵒ)
 
-    _, μᵒ, Σᵒ = pseudo_conjugate_draw(θᵒ, XXᵒ, Pᵒ[1].Target, pu.priors[1], UpdtIdx())
-    llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ, μ, Σ,
-                                            μᵒ, Σᵒ, UpdtIdx()))
+    _, Σᵒ = pseudo_conjugate_draw(θᵒ, XXᵒ, Pᵒ[1].Target, pu.priors[1], UpdtIdx())
+    llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ, Σ,
+                                            Σᵒ, UpdtIdx()))
 
     if accept_sample(llr, verbose)
         swap!(XX, XXᵒ, P, Pᵒ, 1:m)
