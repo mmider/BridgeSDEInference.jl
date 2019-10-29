@@ -10,7 +10,7 @@ export FitzhughDiffusion, FitzhughDiffusionAux, ℝ
 export regularToAlter, alterToRegular, regularToConjug, conjugToRegular, display
 
 # types.jl
-export ImproperPrior, NoChangePt, SimpleChangePt
+export ImproperPrior, ImproperPosPrior, NoChangePt, SimpleChangePt
 
 # mcmc.jl
 export mcmc, PartObs, FPT, FPTInfo, ConjugateUpdt, MetropolisHastingsUpdt
@@ -70,6 +70,7 @@ include(joinpath(_DIR, "euler_maruyama_dom_restr.jl"))
 
 _DIR = "transition_kernels"
 include(joinpath(_DIR, "random_walk.jl"))
+include(joinpath(_DIR, "pseudo_conjugate.jl"))
 
 _DIR = "mcmc_extras"
 include(joinpath(_DIR, "adaptation.jl"))

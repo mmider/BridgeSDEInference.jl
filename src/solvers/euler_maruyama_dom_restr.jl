@@ -88,7 +88,7 @@ function solve!(::EulerMaruyama, Y, u::T, W::SamplePath, P::ProcessOrCoefficient
     tt[:] = W.tt
 
     y::T = u
-    dom = domain(P.Target)
+    dom = domain(P)
     for i in 1:N-1
         yy[.., i] = y
         y = y + _b((i,tt[i]), y, P)*(tt[i+1]-tt[i]) + _scale((ww[.., i+1]-ww[..,i]), σ(tt[i], y, P))

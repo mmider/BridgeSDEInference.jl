@@ -515,7 +515,7 @@ struct GibbsDefn{N}
 
     function GibbsDefn(gd::GibbsDefn, fns, idx_MH, idx_θ)
         t_kernels = [(i in idx_MH ?
-                      new_tkernel(gd.updates[i].t_kernel, fns[idx_θ[i]], idx_θ[i]) :
+                      new_tkernel(gd.updates[i].t_kernel, fns[i], idx_θ[i]) :
                       gd.updates[i].t_kernel)
                      for i in 1:length(gd.updates)]
         updates = [ParamUpdtDefn(u.updt_type, u.updt_coord, t_kernels[i],
