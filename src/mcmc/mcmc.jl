@@ -527,6 +527,32 @@ function prior_kernel_contrib(t_kern, priors, θ, θᵒ)
     llr
 end
 
+@generated function thetainc(::Val{T}, θ) where T
+    z = Expr(:tuple, (:(θ[$i]) for i in 1:length(T) if  T[i])...)
+    return z
+end
+
+
+function prior_kernel_contrib(t_kern, priors, θ, θᵒ, μ, Σ, μᵒ, Σᵒ, updt_idx)
+    ϑᵒ = SVector(thetainc(updt_idx, θᵒ))
+    ϑ = SVector(thetainc(updt_idx, θ))
+    print("\nμ: ", μ, "\nΣ: ")
+    display(Σ)
+    print("μᵒ: ", μᵒ, "\nΣᵒ: ")
+    display(Σᵒ)
+    print("\n\n")
+
+    llr = logpdf(t_kern, ϑᵒ, ϑ, μᵒ, Σᵒ, updt_idx) - logpdf(t_kern, ϑ, ϑᵒ, μ, Σ, updt_idx)
+    print(logpdf(t_kern, ϑᵒ, ϑ, μᵒ, Σᵒ, updt_idx), ", ")
+    print(logpdf(t_kern, ϑ, ϑᵒ, μ, Σ, updt_idx), "\n")
+    for prior in priors
+        llr += logpdf(prior, ϑᵒ) - logpdf(prior, ϑ)
+    end
+    llr
+end
+
+
+
 
 #NOTE blocking and no-blocking param update should be joined into one function
 """
@@ -608,13 +634,35 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
 end
 
 
+function aux_vola_well_defined(ws, P)
+    for (i,X) in enumerate(ws.XX)
+        try
+            σ(X.tt[1], X.yy[1], P[i].Pt)
+        catch e
+            if isa(e, DomainError)
+                return false
+            else
+                rethrow(e)
+            end
+        end
+    end
+    true
+end
+
+
 function update_param!(pu::ParamUpdtDefn{PseudoConjugateUpdt,UpdtIdx}, θ,
                        ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN
                        ) where {UpdtIdx,OS}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(WW)
     θᵒ, μ, Σ = pseudo_conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
+    #print("old θ: ", θ, ", new θ: ", θᵒ, "\n\n")
+
     update_laws!(Pᵒ, θᵒ)
+    preemptive_rejection = !aux_vola_well_defined(ws, Pᵒ)
+    preemptive_rejection && accept_sample(-Inf, verbose)
+    preemptive_rejection && return ll, false, θ
+
     pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, Pᵒ)
 
     y = XX[1].yy[1]
@@ -622,15 +670,18 @@ function update_param!(pu::ParamUpdtDefn{PseudoConjugateUpdt,UpdtIdx}, θ,
 
     success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, 1:m)
 
-    llᵒ = success ? (logpdf(ws.x0_prior, y) +
-                     path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt) +
-                     lobslikelihood(Pᵒ[1], y)) : -Inf
+    !success && accept_sample(-Inf, verbose)
+    !success && return ll, false, θ
+
+    llᵒ = ( logpdf(ws.x0_prior, y) +
+            path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt) +
+            lobslikelihood(Pᵒ[1], y) )
 
     print_info(verbose, it, ll, llᵒ)
 
     _, μᵒ, Σᵒ = pseudo_conjugate_draw(θᵒ, XXᵒ, Pᵒ[1].Target, pu.priors[1], UpdtIdx())
     llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ, μ, Σ,
-                                            μᵒ, Σᵒ))
+                                            μᵒ, Σᵒ, UpdtIdx()))
 
     if accept_sample(llr, verbose)
         swap!(XX, XXᵒ, P, Pᵒ, 1:m)

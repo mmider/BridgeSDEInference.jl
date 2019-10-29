@@ -96,7 +96,7 @@ end
 Base definition, assumes no hypoellipticity and no closed form expression for
 the inverse of `a`
 """
-hypo_a_inv(P, t, x) = inv(a(P, t, x))
+hypo_a_inv(P, t, x) = inv(a(t, x, P))
 nonhypo(::Any, x) = x
 
 function _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)

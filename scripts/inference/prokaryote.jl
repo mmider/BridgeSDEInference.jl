@@ -39,32 +39,33 @@ setup = MCMCSetup(P˟, P̃, PartObs())
 set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time)
 set_imputation_grid!(setup, 1/400)
 set_transition_kernels!(setup,
-                        [RandomWalk([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
-                                    collect(1:8)) for _ in 1:8],
-                        0.9, true, [[1], [2], [3], [4], [5], [6], [7], [8]],
-                        (MetropolisHastingsUpdt(),
-                        MetropolisHastingsUpdt(),
-                        MetropolisHastingsUpdt(),
-                        MetropolisHastingsUpdt(),
-                        MetropolisHastingsUpdt(),
-                        MetropolisHastingsUpdt(),
-                        MetropolisHastingsUpdt(),
-                        MetropolisHastingsUpdt()))
+                        [ ( i != 1 ? RandomWalk(fill(1.0, 8), collect(1:8))
+                                  : RandomWalk([], []) ) for i in 1:5],
+                        0.9, true, [[1,2,5,6], [3], [4], [7], [8]],
+                        (PseudoConjugateUpdt(),
+                         MetropolisHastingsUpdt(),
+                         MetropolisHastingsUpdt(),
+                         MetropolisHastingsUpdt(),
+                         MetropolisHastingsUpdt()))
 set_priors!(setup,
-            Priors((ImproperPosPrior{Val{1}}(), ImproperPosPrior{Val{2}}(),
+            Priors((MvNormal(fill(0.0, 4), diagm(0=>fill(1000.0, 4))),
                     ImproperPosPrior{Val{3}}(), ImproperPosPrior{Val{4}}(),
-                    ImproperPosPrior{Val{5}}(), ImproperPosPrior{Val{6}}(),
                     ImproperPosPrior{Val{7}}(), ImproperPosPrior{Val{8}}())),
             KnownStartingPt(x0)
             )
-set_mcmc_params!(setup, 1*10^3, 1*10^2, 10^1, 10^0, 0,
+set_mcmc_params!(setup, 1*10^1, 1*10^2, 10^1, 10^0, 0,
                  (50, 0.1, 0.00001, 0.99999, 0.234, 50),
-                 (50, 0.1, -999, 999, 0.234, 50, (1,2,3,4,5,6,7,8), (1,2,3,4,5,6,7,8)))
+                 (50, 0.1, -999, 999, 0.234, 50, (2,3,4,5), (-1,3,4,7,8)))
 set_blocking!(setup)
 set_solver!(setup, Vern7(), NoChangePt())
 initialise!(eltype(x0), setup)
 
 Random.seed!(4)
+out = mcmc(setup)
+
+
+
+
 out, elapsed = @timeit mcmc(setup)
 display(out.accpt_tracker)
 

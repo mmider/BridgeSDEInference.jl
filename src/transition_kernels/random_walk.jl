@@ -114,3 +114,12 @@ Log-transition density of a random walker `rw` for going from `θ` to `θᵒ`.
 """
 logpdf(rw::RandomWalk, θ, θᵒ) = sum( map((x,ϵ,pos)->pos ? -log(2.0*ϵ)-log(x) :
                                                         0.0, θᵒ, rw.ϵ, rw.pos) )
+
+
+"""
+
+This is just a convention
+"""
+function logpdf(rw::RandomWalk, θ, θᵒ, μ, Σ, updt_idx)
+    logpdf(MvNormal(Vector(μ), Matrix(Σ)), θᵒ)
+end
