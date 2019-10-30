@@ -33,7 +33,7 @@ end
 
 function plot_paths(ws::Workspace, coords=nothing; transf=nothing,
                     figsize=(12,8), alpha=0.5, obs=nothing,
-                    path_indices=1:length(out.paths))
+                    path_indices=1:length(out.paths), ylims=nothing)
     yy, tt = out.paths, out.time
     if coords === nothing
         coords = 1:length(yy[1][1])
@@ -66,6 +66,13 @@ function plot_paths(ws::Workspace, coords=nothing; transf=nothing,
                            mec="orange", marker="o", linestyle="none",
                            markersize=4)
                 _i += 1
+            end
+        end
+    end
+    if ylims !== nothing
+        for (i,axis) in enumerate(ax)
+            if ylims[i] !== nothing
+                axis.set_ylim(ylims[i])
             end
         end
     end

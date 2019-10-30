@@ -430,6 +430,7 @@ operators based on the passed data-type
 function prepare_obs_containers!(::Type{T}, setup::MCMCSetup) where T <:SArray
     f(x) = SMatrix{_dim(x)...}(x)
 
+    g(x, ::Val{0}=Val{ndims(x)}()) = SVector{1}(x)
     g(x, ::Val{1}=Val{ndims(x)}()) = SVector{size(x)...}(x)
     g(x, ::Val{2}=Val{ndims(x)}()) = SMatrix{size(x)...}(x)
 
