@@ -53,6 +53,12 @@ multipStep = (x,pos)->pos ? exp(x) : 1.0
 eltype(::RandomWalk{T}) where T = T
 length(::RandomWalk{T,N}) where {T,N} = N
 
+function new_tkernel(rw::RandomWalk, f, idx)
+    ϵ = collect(rw.ϵ)
+    ϵ[idx] = rw.pos[idx] ? exp(f(log(rw.ϵ[idx]))) : f(rw.ϵ[idx])
+    RandomWalk(ϵ, rw.pos)
+end
+
 """
     rand!(rw::RandomWalk, θ)
 
@@ -108,3 +114,12 @@ Log-transition density of a random walker `rw` for going from `θ` to `θᵒ`.
 """
 logpdf(rw::RandomWalk, θ, θᵒ) = sum( map((x,ϵ,pos)->pos ? -log(2.0*ϵ)-log(x) :
                                                         0.0, θᵒ, rw.ϵ, rw.pos) )
+
+
+"""
+
+This is just a convention
+"""
+function logpdf(rw::RandomWalk, θ, θᵒ, μ, Σ, updt_idx)
+    logpdf(MvNormal(Vector(μ), Matrix(Σ)), θᵒ)
+end

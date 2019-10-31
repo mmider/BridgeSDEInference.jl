@@ -44,6 +44,7 @@ mutable struct MCMCSetup{ObsScheme}
     skip_for_save       # When saving path, thin the grid by a factor of ...
     warm_up             # Number of steps of the chain in which no param update is made
     pCN_readjust_param  # Parameters for readjustment of the pCN memory parameter
+    θ_readjust_param    # Parameters for readjustment of the transition kernels for θ updt
     solver              # Type of ODE solver
     change_pt           # Change point between ODEs for M,L,μ and H,Hν,c
     Wnr                 # Definition of the driving Wiener law
@@ -272,19 +273,27 @@ Define the parametrisation of the mcmc sampler.
 """
 function set_mcmc_params!(setup::MCMCSetup, num_mcmc_steps, save_iter=NaN,
                           verb_iter=NaN, skip_for_save=1, warm_up=0,
-                          pCN_readjust_param=(100, 0.1, 0.00001, 0.99999, 0.234, 50))
+                          pCN_readjust_param=(100, 0.1, 0.00001, 0.99999, 0.234, 50),
+                          θ_readjust_param=(100, 0.1, -999, 999, 0.234, 50, (-1,), (-1,)))
     setup.num_mcmc_steps = num_mcmc_steps
     setup.save_iter = save_iter
     setup.verb_iter = verb_iter
     setup.skip_for_save = skip_for_save
     setup.warm_up = warm_up
     setup.pCN_readjust_param = named_pCN(pCN_readjust_param)
+    setup.θ_readjust_param = named_θparam(θ_readjust_param)
     setup.setup_completion[:mcmc] = true
 end
 
 function named_pCN(pCN)
     @assert length(pCN) == 6
     (step=pCN[1], scale=pCN[2], minδ=pCN[3], maxρ=pCN[4], trgt=pCN[5], offset=pCN[6])
+end
+
+function named_θparam(θ_rp)
+    @assert length(θ_rp) == 8
+    (step=θ_rp[1], scale=θ_rp[2], minδ=θ_rp[3], maxδ=θ_rp[4], trgt=θ_rp[5],
+     offset=θ_rp[6], idx_MH=θ_rp[7], idx_θ=θ_rp[8])
 end
 
 """
@@ -421,6 +430,7 @@ operators based on the passed data-type
 function prepare_obs_containers!(::Type{T}, setup::MCMCSetup) where T <:SArray
     f(x) = SMatrix{_dim(x)...}(x)
 
+    g(x, ::Val{0}=Val{ndims(x)}()) = SVector{1}(x)
     g(x, ::Val{1}=Val{ndims(x)}()) = SVector{size(x)...}(x)
     g(x, ::Val{2}=Val{ndims(x)}()) = SMatrix{size(x)...}(x)
 

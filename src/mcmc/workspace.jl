@@ -42,7 +42,7 @@ mutable struct AccptTracker
     end
 end
 
-"""
+"""const
     update!(at::AccptTracker, ::ParamUpdate, i, accepted::Bool)
 
 Update acceptance tracker: increment parameter update info on the `i`th
@@ -66,7 +66,7 @@ function update!(at::AccptTracker, ::Imputation, accepted::Bool)
 end
 
 """
-    accpt_rate(at::AccptTracker, ::ParamUpdate)
+    accpt_rate(at::AccptTracker, ::ParamUpdate)const
 
 Return current acceptance rate for parameter updates
 """
@@ -90,6 +90,17 @@ function display(at::AccptTracker)
           accpt_rate(at, ParamUpdate()), ".\n")
 end
 
+function reset!(at::AccptTracker, ::ParamUpdate)
+    for i in length(at.accpt_updt)
+        at.accpt_updt[i] = 0
+        at.prop_updt[i] = 0
+    end
+end
+
+function reset!(at::AccptTracker, ::Imputation)
+    at.accpt_imp = 0
+    at.prop_imp = 0
+end
 
 """
     ParamHistory{T}
@@ -98,7 +109,7 @@ Stores information about parameter history
 """
 mutable struct ParamHistory{T}
     θ_chain::Vector{T}  # parameter history
-    counter::Int64      # index of the most recently accepted parameter vector
+    counter::Int64      # index of the most recentlyconst  accepted parameter vector
 
     """
         ParamHistory(setup::MCMCSetup)
@@ -196,14 +207,13 @@ set!(x::SingleElem{T}, y::T) where T = (x.val = y)
 
 const RhoInfoType = NamedTuple{(:step, :scale, :minδ, :maxρ, :trgt, :offset),
                                Tuple{Int64, Float64, Float64, Float64, Float64, Int64}}
-
 """
     Workspace{ObsScheme,S,TX,TW,R,ST}
 
 The main container of the `mcmc` function from `mcmc.jl` in which most data
 pertinent to sampling is stored
 """
-struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
+struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}# ,Q, where Q = eltype(result)
     Wnr::Wiener{S}         # Wiener, driving law
     XXᵒ::Vector{TX}        # Diffusion proposal paths
     XX::Vector{TX}         # Accepted diffusion paths
@@ -215,6 +225,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     ρ::Vector{Vector{Float64}}      # Memory parameter of the precond Crank-Nicolson scheme
     recompute_ODEs::Vector{Bool}    # Info on whether to recompute H,Hν,c after resp. param updt
     accpt_tracker::AccptTracker     # Object for tracking acceptance rate
+    accpt_tracker_short::AccptTracker
     θ_chain::ParamHistory           # Object for tracking parameter history
     action_tracker::ActionTracker   # Object for tracking steps to perform on a given iteration
     skip_for_save::Int64            # Thining parameter for saving path
@@ -225,6 +236,7 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     x0_prior::TP
     z::SingleElem{TZ}
     pCN_readjust_param::RhoInfoType
+    θ_readjust_param::Tθ
     #result::Vector{Q} #TODO come back to later
     #resultᵒ::Vector{Q} #TODO come back to later
 
@@ -241,11 +253,13 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
         P, fpt = deepcopy(setup.P), deepcopy(setup.fpt)
         updt_coord = deepcopy(setup.updt_coord)
         pCN_readjust = deepcopy(setup.pCN_readjust_param)
+        θ_readjust = deepcopy(setup.θ_readjust_param)
 
         # forcedSolve defines type by the starting point, make sure it matches
         x0_guess = eltype(eltype(XX))(setup.x0_guess)
         TW, TX, S, R = eltype(WW), eltype(XX), valtype(Wnr), eltype(P)
-        ST, TP = typeof(setup.solver), typeof(x0_prior)
+        ST, TP, Tθ = typeof(setup.solver), typeof(x0_prior), typeof(θ_readjust)
+
 
         m = length(P)
 
@@ -285,15 +299,17 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
         display(blocking)
         B = typeof(blocking)
 
-        (workspace = new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}(Wnr, XXᵒ, XX, WWᵒ, WW,
+        (workspace = new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}(Wnr, XXᵒ, XX, WWᵒ, WW,
                                                          Pᵒ, P, fpt, ρ,
                                                          check_if_recompute_ODEs(setup),
+                                                         AccptTracker(setup),
                                                          AccptTracker(setup),
                                                          θ_history,
                                                          ActionTracker(setup),
                                                          skip, [], _time,
                                                          blocking, 1, x0_prior,
-                                                         z, pCN_readjust),
+                                                         z, pCN_readjust,
+                                                         θ_readjust),
          ll = ll, θ = last(θ_history))
     end
 
@@ -305,27 +321,31 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     with the exception of new memory parameter for the preconditioned
     Crank-Nicolson scheme, which is changed to `new_ρ`.
     """
-    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}, new_ρ::Vector{Vector{Float64}}
-                       ) where {ObsScheme,B,ST,S,TX,TW,R,TP,TZ}
-        new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
+    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}, new_ρ::Vector{Vector{Float64}}
+                       ) where {ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}
+        new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
                                             ws.WW, ws.Pᵒ, ws.P, ws.fpt, new_ρ,
                                             ws.recompute_ODEs, ws.accpt_tracker,
+                                            ws.accpt_tracker_short,
                                             ws.θ_chain, ws.action_tracker,
                                             ws.skip_for_save, ws.paths, ws.time,
                                             ws.blocking, ws.blidx, ws.x0_prior,
-                                            ws.z, ws.pCN_readjust_param)
+                                            ws.z, ws.pCN_readjust_param,
+                                            ws.θ_readjust_param)
     end
 
-    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R̃,TP,TZ},
+    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R̃,TP,TZ,Tθ},
                        P::Vector{R}, Pᵒ::Vector{R}, idx
-                       ) where {ObsScheme,B,ST,S,TX,TW,R̃,R,TP,TZ}
-        new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
+                       ) where {ObsScheme,B,ST,S,TX,TW,R̃,R,TP,TZ,Tθ}
+        new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
                                             ws.WW, Pᵒ, P, ws.fpt, ws.ρ,
                                             ws.recompute_ODEs, ws.accpt_tracker,
+                                            ws.accpt_tracker_short,
                                             ws.θ_chain, ws.action_tracker,
                                             ws.skip_for_save, ws.paths, ws.time,
                                             ws.blocking, idx, ws.x0_prior, ws.z,
-                                            ws.pCN_readjust_param)
+                                            ws.pCN_readjust_param,
+                                            ws.θ_readjust_param)
     end
 end
 
@@ -375,8 +395,8 @@ Determine whether to perform `action` on a given iteration, indexed `i`
 """
 act(action, ws::Workspace, i) = act(action, ws.action_tracker, i)
 
-#NOTE temporary
-act(action::Readjust, ws::Workspace, i) = (typeof(ws.blocking) <:ChequeredBlocking) && act(action, ws.action_tracker, i)
+#NOTE deprecated
+#act(action::Readjust, ws::Workspace, i) = (typeof(ws.blocking) <:ChequeredBlocking) && act(action, ws.action_tracker, i)
 
 
 """
@@ -409,6 +429,33 @@ function readjust_pCN!(ws, mcmc_iter)
     print_pCN(ws)
     reset!(at)
 end
+
+function readjust_pCN!(ws::Workspace{OS,NoBlocking}, mcmc_iter) where OS
+    at = ws.accpt_tracker_short
+    p = ws.pCN_readjust_param
+    δ = max(p.minδ, p.scale/sqrt(max(1.0, mcmc_iter/p.step-p.offset)))
+    a_r = accpt_rate(at, Imputation())
+    ws.ρ[1][1] = min(sigmoid(logit(ws.ρ[1][1]) - (2*(a_r > p.trgt)-1)*δ), p.maxρ)
+    print("imputation acceptance rate: ", a_r, "\n")
+    print("new ρ: ", ws.ρ[[1]], "\n")
+    reset!(at, Imputation())
+end
+
+function readjust_tk(ws, mcmc_iter, param_updt_defn)
+    at = ws.accpt_tracker_short
+    p = ws.θ_readjust_param
+    δ = max(p.minδ, p.scale/sqrt(max(1.0, mcmc_iter/p.step-p.offset)))
+    a_r = accpt_rate(at, ParamUpdate())
+    fns = [λ->max(min(λ + (2*(a_r[i] > p.trgt)-1)*δ, p.maxδ), p.minδ) for i in 1:length(a_r)]
+    print("param updt acceptance rate: ", a_r, "\n")
+    gd = GibbsDefn(param_updt_defn, fns, p.idx_MH, p.idx_θ)
+    print("new transition kernels: \n")
+    for i in 1:length(gd)
+        print(i, ". ", gd.updates[i].t_kernel, "\n")
+    end
+    gd
+end
+
 
 #NOTE _print_info defined in `blocking_schedule`
 function print_pCN(ws)
@@ -463,6 +510,17 @@ struct GibbsDefn{N}
         updates = [ParamUpdtDefn(ut, uc, tk, pr, ro) for (ut, uc, tk, pr, ro)
                    in zip(setup.updt_type, setup.updt_coord, setup.t_kernel,
                           setup.priors, recompute_ODEs)]
+        new{length(updates)}(Tuple(updates))
+    end
+
+    function GibbsDefn(gd::GibbsDefn, fns, idx_MH, idx_θ)
+        t_kernels = [(i in idx_MH ?
+                      new_tkernel(gd.updates[i].t_kernel, fns[i], idx_θ[i]) :
+                      gd.updates[i].t_kernel)
+                     for i in 1:length(gd.updates)]
+        updates = [ParamUpdtDefn(u.updt_type, u.updt_coord, t_kernels[i],
+                                 u.priors, u.recompute_ODEs)
+                   for (i, u) in enumerate(gd.updates)]
         new{length(updates)}(Tuple(updates))
     end
 end

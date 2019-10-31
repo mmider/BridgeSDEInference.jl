@@ -483,6 +483,7 @@ a(t, x, P::GuidPropBridge) = a(t, x, P.Target)
 Γ(t, x, P::GuidPropBridge) = Γ(t, x, P.Target)
 constdiff(P::GuidPropBridge) = constdiff(P.Target) && constdiff(P.Pt)
 ã(t, x, P::GuidPropBridge) = a(t, P.Pt)
+domain(P::GuidPropBridge) = domain(P.Target)
 
 """
     llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)

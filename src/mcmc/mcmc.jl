@@ -33,18 +33,21 @@ function mcmc(setup::MCMCSetup)
         ws = next_set_of_blocks(ws)
         ll, acc = impute!(ws, ll, verbose, i)
         update!(ws.accpt_tracker, Imputation(), acc)
-        act(Readjust(), ws, i) && readjust_pCN!(ws, i)
+        update!(ws.accpt_tracker_short, Imputation(), acc)
 
         if act(ParamUpdate(), ws, i)
             for j in 1:length(gibbs)
                 ll, acc, θ = update_param!(gibbs[j], θ, ws, ll, verbose, i)
                 update!(ws.accpt_tracker, ParamUpdate(), j, acc)
+                update!(ws.accpt_tracker_short, ParamUpdate(), j, acc)
                 update!(ws.θ_chain, θ)
                 verbose && print("\n")
             end
             verbose && print("------------------------------------------------",
                              "------\n")
         end
+        act(Readjust(), ws, i) && readjust_pCN!(ws, i)
+        act(Readjust(), ws, i) && (gibbs = readjust_tk(ws, i, gibbs))
         add_path!(adaptive_prop, ws.XX, i)
         #print_adaptation_info(adaptive_prop, accImpCounter, accUpdtCounter, i)
         adaptive_prop, ll = update!(adaptive_prop, ws, i, ll)
@@ -80,11 +83,10 @@ function impute!(ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN,
 
     # sample proposal path
     m = length(ws.WWᵒ)
-    sample_segments!(1:m, ws, yᵒ, ρ, Val{headstart}())
-
-    llᵒ = logpdf(ws.x0_prior, yᵒ)
-    llᵒ += path_log_likhd(OS(), ws.XXᵒ, ws.P, 1:m, ws.fpt)
-    llᵒ += lobslikelihood(ws.P[1], yᵒ)
+    success = sample_segments!(1:m, ws, yᵒ, ρ, Val{headstart}())
+    llᵒ = success ? (logpdf(ws.x0_prior, yᵒ) +
+                     path_log_likhd(OS(), ws.XXᵒ, ws.P, 1:m, ws.fpt) +
+                     lobslikelihood(ws.P[1], yᵒ)) : -Inf
 
     print_info(verbose, it, value(ll), value(llᵒ), "impute")
 
@@ -135,19 +137,22 @@ Crank-Nicolson scheme
 function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
                           headstart::Val{false}=Val{false}()) where OS
     for i in iRange
-        y = sample_segment!(i, ws, y, ρ)
+        success, y = sample_segment!(i, ws, y, ρ)
+        !success && return false
     end
+    true
 end
 
 function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
                           headstart::Val{true}=Val{false}()) where OS
     for i in iRange
-        sample_segment!(i, ws, y, ρ)
-        while !checkFpt(OS(), ws.XXᵒ[i], ws.fpt[i])
-            sample_segment!(i, ws, y, ρ)
+        success, _ = sample_segment!(i, ws, y, ρ)
+        while !success && !checkFpt(OS(), ws.XXᵒ[i], ws.fpt[i])
+            success, _ = sample_segment!(i, ws, y, ρ)
         end
         y = ws.XXᵒ[i].yy[end]
     end
+    true
 end
 
 
@@ -166,8 +171,8 @@ Sample the `i`th path segment using preconditioned Crank-Nicolson scheme
 function sample_segment!(i, ws, y, ρ)
     sample!(ws.WWᵒ[i], ws.Wnr)
     crank_nicolson!(ws.WWᵒ[i].yy, ws.WW[i].yy, ρ)
-    solve!(Euler(), ws.XXᵒ[i], y, ws.WWᵒ[i], ws.P[i]) # always according to trgt law
-    ws.XXᵒ[i].yy[end]
+    success, _ = solve!(Euler(), ws.XXᵒ[i], y, ws.WWᵒ[i], ws.P[i]) # always according to trgt law
+    success, ws.XXᵒ[i].yy[end]
 end
 
 
@@ -179,6 +184,11 @@ Preconditioned Crank-Nicolson update with memory parameter `ρ`, previous vector
 """
 crank_nicolson!(yᵒ, y, ρ) = (yᵒ .= √(1-ρ)*yᵒ + √(ρ)*y)
 
+#function crank_nicolson!(yᵒ, y, ρ)
+#    for i in 1:length(y)
+#        yᵒ[i] = √(1-ρ)*yᵒ[i] + √(ρ)*y[i]
+#    end
+#end
 
 """
     path_log_likhd(::OS, XX, P, iRange, fpt; skipFPT=false
@@ -293,27 +303,27 @@ function impute!(ws::Workspace{OS,<:ChequeredBlocking}, ll, verbose=false,
         yᵒ = choose_start_pt(block_flag, y, y_prop)
 
         # sample path in block
-        sample_segments!(block, ws, yᵒ, ws.ρ[ws.blidx][block_idx])
+        success = sample_segments!(block, ws, yᵒ, ws.ρ[ws.blidx][block_idx])
         set_end_pt_manually!(block_idx, block, ws)
 
         # starting point, path and observations contribution
-        llᵒ = start_pt_log_pdf(block_flag, ws.x0_prior, yᵒ)
-        llᵒ += path_log_likhd(OS(), XXᵒ, P, block, ws.fpt)
-        llᵒ += lobslikelihood(P[block[1]], yᵒ)
+        llᵒ = success ? (start_pt_log_pdf(block_flag, ws.x0_prior, yᵒ) +
+                         path_log_likhd(OS(), XXᵒ, P, block, ws.fpt) +
+                         lobslikelihood(P[block[1]], yᵒ)) : -Inf
 
-        llPrev = start_pt_log_pdf(block_flag, ws.x0_prior, y)
-        llPrev += path_log_likhd(OS(), XX, P, block, ws.fpt; skipFPT=true)
-        llPrev += lobslikelihood(P[block[1]], y)
+        ll_prev = start_pt_log_pdf(block_flag, ws.x0_prior, y)
+        ll_prev += path_log_likhd(OS(), XX, P, block, ws.fpt; skipFPT=true)
+        ll_prev += lobslikelihood(P[block[1]], y)
 
-        print_info(verbose, it, value(llPrev), value(llᵒ), "impute")
-        if accept_sample(llᵒ-llPrev, verbose)
+        print_info(verbose, it, value(ll_prev), value(llᵒ), "impute")
+        if accept_sample(llᵒ-ll_prev, verbose)
             swap!(XX, XXᵒ, block)
             register_accpt!(ws, block_idx, true)
             set_z!(block_flag, ws, z_prop)
             ll_total += llᵒ
         else
             register_accpt!(ws, block_idx, false)
-            ll_total += llPrev
+            ll_total += ll_prev
         end
     end
     # acceptance indicator does not matter for sampling with blocking
@@ -453,11 +463,11 @@ function update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx}, θ,
     y = XX[1].yy[1]
     zᵒ = inv_start_pt(y, ws.x0_prior, Pᵒ[1])
 
-    find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, 1:m)
+    success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, 1:m)
 
-    llᵒ = logpdf(ws.x0_prior, y)
-    llᵒ += path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt)
-    llᵒ += lobslikelihood(Pᵒ[1], y)
+    llᵒ = success ? (logpdf(ws.x0_prior, y) +
+                     path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt) +
+                     lobslikelihood(Pᵒ[1], y)) : -Inf
 
     print_info(verbose, it, ll, llᵒ)
 
@@ -495,9 +505,11 @@ Wiener process `WW`. Only segments with indices in range `iRange` are considered
 """
 function find_path_from_wiener!(XX, y, WW, P, iRange)
     for i in iRange
-        solve!(Euler(), XX[i], y, WW[i], P[i])
+        success, _ = solve!(Euler(), XX[i], y, WW[i], P[i])
+        !success && return false
         y = XX[i].yy[end]
     end
+    true
 end
 
 
@@ -514,6 +526,24 @@ function prior_kernel_contrib(t_kern, priors, θ, θᵒ)
     end
     llr
 end
+
+
+
+
+function prior_kernel_contrib(t_kern, priors, θ, θᵒ, μ, Σ, μᵒ, Σᵒ, updt_idx)
+    ϑᵒ = SVector(thetainc(updt_idx, θᵒ))
+    ϑ = SVector(thetainc(updt_idx, θ))
+
+    llr = logpdf(t_kern, ϑᵒ, ϑ, μᵒ, Σᵒ, updt_idx) - logpdf(t_kern, ϑ, ϑᵒ, μ, Σ, updt_idx)
+    print(logpdf(t_kern, ϑᵒ, ϑ, μᵒ, Σᵒ, updt_idx), ", ")
+    print(logpdf(t_kern, ϑ, ϑᵒ, μ, Σ, updt_idx), "\n")
+    for prior in priors
+        llr += logpdf(prior, ϑᵒ) - logpdf(prior, ϑ)
+    end
+    llr
+end
+
+
 
 
 #NOTE blocking and no-blocking param update should be joined into one function
@@ -538,7 +568,10 @@ function update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx},
     llᵒ = logpdf(ws.x0_prior, y)
     for (block_idx, block) in enumerate(ws.blocking.blocks[ws.blidx])
         y = XX[block[1]].yy[1]
-        find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, block)
+        success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, block)
+        !success && accept_sample(-Inf, verbose)
+        !success && return ll, false, θ
+
         set_end_pt_manually!(block_idx, block, ws)
 
         # Compute log-likelihood ratio
@@ -569,7 +602,7 @@ Update parameters using conjugate draws
 function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
                        ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN
                        ) where {UpdtIdx,OS}
-    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
+    WW, P, XX, fpt = ws.WW, ws.P, ws.XX, ws.fpt
     m = length(WW)
     θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
 
@@ -593,6 +626,67 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
 end
 
 
+function aux_vola_well_defined(ws, P)
+    for (i,X) in enumerate(ws.XX)
+        try
+            σ(X.tt[1], X.yy[1], P[i].Pt)
+        catch e
+            if isa(e, DomainError)
+                return false
+            else
+                rethrow(e)
+            end
+        end
+    end
+    true
+end
+
+
+function update_param!(pu::ParamUpdtDefn{PseudoConjugateUpdt,UpdtIdx}, θ,
+                       ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN
+                       ) where {UpdtIdx,OS}
+    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
+    m = length(WW)
+    θᵒ, Σ = pseudo_conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
+    #print("old θ: ", θ, ", new θ: ", θᵒ, "\n\n")
+
+    update_laws!(Pᵒ, θᵒ)
+    preemptive_rejection = !aux_vola_well_defined(ws, Pᵒ)
+    preemptive_rejection && accept_sample(-Inf, verbose)
+    preemptive_rejection && return ll, false, θ
+
+    pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, Pᵒ)
+
+    y = XX[1].yy[1]
+    zᵒ = inv_start_pt(y, ws.x0_prior, Pᵒ[1])
+
+    success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, 1:m)
+
+    !success && accept_sample(-Inf, verbose)
+    !success && return ll, false, θ
+
+    llᵒ = ( logpdf(ws.x0_prior, y) +
+            path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt) +
+            lobslikelihood(Pᵒ[1], y) )
+
+    print_info(verbose, it, ll, llᵒ)
+
+    _, Σᵒ = pseudo_conjugate_draw(θᵒ, XXᵒ, Pᵒ[1].Target, pu.priors[1], UpdtIdx())
+    llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ, Σ,
+                                            Σᵒ, UpdtIdx()))
+
+    if accept_sample(llr, verbose)
+        swap!(XX, XXᵒ, P, Pᵒ, 1:m)
+        set!(ws.z, zᵒ)
+        return llᵒ, true, θᵒ
+    else
+        return ll, false, θ
+    end
+end
+
+
+
+
 #NOTE blocking and no-blocking param conjugate update should be joined into one function
 """
     update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
@@ -605,7 +699,7 @@ explanation of the arguments.
 function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
                        ws::Workspace{OS,B}, ll, verbose=false, it=NaN
                        ) where {UpdtIdx,OS,B}
-    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
+    WW, P, XX, fpt = ws.WW, ws.P, ws.XX, ws.fpt
     m = length(WW)
     θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
 

@@ -22,7 +22,7 @@ struct Prokaryote{T} <: ContinuousTimeProcess{ℝ{4,T}}
     end
 end
 
-struct ProkaryoteAux{O,R,S1,S2} <: ContinuousTimeProcess{ℝ{4,R}}
+struct ProkaryoteAux{O,R,S1,S2,S3} <: ContinuousTimeProcess{ℝ{4,R}}
     c₁::R
     c₂::R
     c₃::R
@@ -36,10 +36,19 @@ struct ProkaryoteAux{O,R,S1,S2} <: ContinuousTimeProcess{ℝ{4,R}}
     u::S1
     T::Float64
     v::S2
+    aux::SArray{Tuple{4},S3,1,4}
 
     function ProkaryoteAux(c₁::R, c₂::R, c₃::R, c₄::R, c₅::R, c₆::R, c₇::R,
-                           c₈::R, K, t, u::S1, T, v::S2, ::O) where {O,R,S1,S2}
-        new{O,R,S1,S2}(c₁, c₂, c₃, c₄, c₅, c₆, c₇, c₈, K, t, u, T, v)
+                           c₈::R, K, t, u::S1, T, v::S2, ::O,
+                           aux::SArray{Tuple{4},S3,1,4}=@SVector[1.0,2.0,3.0,4.0]
+                           ) where {O,R,S1,S2,S3}
+        new{O,R,S1,S2,S3}(c₁, c₂, c₃, c₄, c₅, c₆, c₇, c₈, K, t, u, T, v, aux)
+    end
+
+    function ProkaryoteAux(P::ProkaryoteAux{O,R,S1,S2,S3},
+                           aux::SArray{Tuple{4},S3,1,4}) where {O,R,S1,S2,S3}
+        new{O,R,S1,S2,S3}(P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇, P.c₈, P.K,
+                          P.t, P.u, P.T, P.v, aux)
     end
 end
 
@@ -93,6 +102,20 @@ constdiff(::Prokaryote) = false
 clone(P::Prokaryote, θ) = Prokaryote(θ..., P.K)
 params(P::Prokaryote) = [P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇, P.c₈]
 
+# x <-> (RNA, P, P₂, DNA)
+phi(::Val{0}, t, x, P::Prokaryote) = (zero(x[1]), zero(x[1]), zero(x[1]), zero(x[1]))
+phi(::Val{1}, t, x, P::Prokaryote) = (zero(x[1]), zero(x[1]), -x[3]*x[4], -x[3]*x[4])
+phi(::Val{2}, t, x, P::Prokaryote) = (zero(x[1]), zero(x[1]), P.K-x[4], P.K-x[4])
+phi(::Val{3}, t, x, P::Prokaryote) = (x[4], zero(x[1]), zero(x[1]), zero(x[1]))
+phi(::Val{4}, t, x, P::Prokaryote) = (zero(x[1]), x[1], zero(x[1]), zero(x[1]))
+phi(::Val{5}, t, x, P::Prokaryote) = (zero(x[1]), -x[2]*(x[2]-1), 0.5*x[2]*(x[2]-1), zero(x[1]))
+phi(::Val{6}, t, x, P::Prokaryote) = (zero(x[1]), 2.0*x[3], zero(x[1]), zero(x[1]))
+phi(::Val{7}, t, x, P::Prokaryote) = (-x[1], zero(x[1]), zero(x[1]), zero(x[1]))
+phi(::Val{8}, t, x, P::Prokaryote) = (zero(x[1]), -x[2], zero(x[1]), zero(x[1]))
+
+nonhypo(P::Prokaryote, x) = x
+num_non_hypo(P::Type{<:Prokaryote}) = 4
+
 observables(::ProkaryoteAux{O}) where O = O()
 
 function B(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
@@ -113,14 +136,53 @@ function β(t, P::ProkaryoteAux{Val{(true,true,true,true)}})
               k₁]
 end
 
+function B(t, P::ProkaryoteAux{Val{:custom}})
+    k₁ = P.c₅ - 2*P.c₅*P.aux[2]
+    k₂ = -P.c₁*P.aux[4]
+    k₃ = -P.c₂-P.c₁*P.aux[3]
+    @SMatrix [-P.c₇  0.0  0.0  P.c₃;
+              P.c₄  k₁-P.c₈  2.0*P.c₆  0.0;
+              0.0  -0.5*k₁  k₂-P.c₆  k₃;
+              0.0  0.0  k₂ k₃]
+end
+
+function β(t, P::ProkaryoteAux{Val{:custom}})
+    k₁ = P.c₂*P.K + P.c₁*P.aux[3]*P.aux[4]
+    @SVector [0.0,
+              P.c₅*P.aux[2]^2,
+              k₁ - 0.5*P.c₅*P.aux[2]^2,
+              k₁]
+end
+
+
+#function B(t, P::ProkaryoteAux{Val{:custom}})
+#    @SMatrix [0.0  0.0  0.0  0.0;
+#              0.0  0.0  0.0  0.0;
+#              0.0  0.0  0.0  0.0;
+#              0.0  0.0  0.0 0.0]
+#end
+
+#function β(t, P::ProkaryoteAux{Val{:custom}})
+#    @SVector [0.0,
+#              0.0,
+#              0.0,
+#              0.0]
+#end
+
+
 σ(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _σ_prokaryote(P.v, P)
 a(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _a_prokaryote(P.v, P)
+σ(t, P::ProkaryoteAux{Val{:custom}}) = _σ_prokaryote(P.aux, P)
+a(t, P::ProkaryoteAux{Val{:custom}}) = _a_prokaryote(P.aux, P)
 a(t, x, P::ProkaryoteAux) = a(t, P)
 σ(t, x, P::ProkaryoteAux) = σ(t, P)
 b(t, x, P::ProkaryoteAux) = B(t, P)*x + β(t, P)
 
 constdiff(::ProkaryoteAux) = true
-clone(P::ProkaryoteAux, θ) = ProkaryoteAux(θ..., P.K, P.t, P.u, P.T, P.v, observables(P))
-clone(P::ProkaryoteAux, θ, v) = ProkaryoteAux(θ..., P.K, P.t, zero(v), P.T, v, observables(P))
+clone(P::ProkaryoteAux, θ) = ProkaryoteAux(θ..., P.K, P.t, P.u, P.T, P.v, observables(P), P.aux)
+clone(P::ProkaryoteAux, θ, v) = ProkaryoteAux(θ..., P.K, P.t, zero(v), P.T, v, observables(P), P.aux)
 params(P::ProkaryoteAux) = [P.c₁, P.c₂, P.c₃, P.c₄, P.c₅, P.c₆, P.c₇, P.c₈]
 depends_on_params(::ProkaryoteAux) = (1,2,3,4,5,6,7,8)
+
+recentre(P::ProkaryoteAux{Val{:custom}}, tt, X̄) = ProkaryoteAux(P, X̄[end])
+update_λ!(P::ProkaryoteAux{Val{:custom}}, λ) = nothing

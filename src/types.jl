@@ -92,6 +92,8 @@ Type acting as a flag for update from full conditional (conjugate to a prior)
 """
 struct ConjugateUpdt <: ParamUpdateType end
 
+struct PseudoConjugateUpdt <: ParamUpdateType end
+
 """
     MetropolisHastingsUpdt <: ParamUpdateType
 
@@ -140,6 +142,8 @@ Flat prior
 struct ImproperPrior end
 logpdf(::ImproperPrior, θ) = 0.0
 
+struct ImproperPosPrior{T} end
+logpdf(::ImproperPosPrior{Val{T}}, θ) where T = -log(θ[T])
 
 valtype(::Val{T}) where T = T
 
