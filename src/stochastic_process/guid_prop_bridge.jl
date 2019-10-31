@@ -5,7 +5,6 @@ import Base: valtype
 
 """
     ODEElement
-
 Types inheriting from abstract type `ODEElement` are used to differentiate
 at-compilation-time between the appropriate sets of ODEs to be used
 """
@@ -13,14 +12,12 @@ abstract type ODEElement end
 
 """
     HMatrix
-
 Identifier of the function Hₜ:=-∇ₓ∇ₓlog h̃(t,x)
 """
 struct HMatrix <: ODEElement end
 
 """
     HνVector
-
 Identifier of the function Hνₜ, which satisfies:
     r(t,x)=Hνₜ - Hₜx,
 where r(t,x):=∇ₓlog h̃(t,x).
@@ -29,14 +26,12 @@ struct HνVector <: ODEElement end
 
 """
     cScalar
-
 Identifier for the function cₜ, which is defined in (...)
 """
 struct cScalar <: ODEElement end
 
 """
     LMatrix
-
 Identifier for the function L̃ₜ, defined in eq. (2.4) of 'Continuous-discrete
 smoothing of diffusions'.
 """
@@ -44,7 +39,6 @@ struct LMatrix <: ODEElement end
 
 """
     M⁺Matrix
-
 Identifier for the function M̃ₜ⁺:=(M̃ₜ)⁻¹ with M̃ₜ defined in Assumption 2.2 of
 'Continuous-discrete smoothing of diffusions'
 """
@@ -52,7 +46,6 @@ struct M⁺Matrix <: ODEElement end
 
 """
     μVector
-
 Identifier for the function μₜ defined in eq. (2.4) of 'Continuous-discrete
 smoothing of diffusions'.
 """
@@ -60,63 +53,48 @@ struct μVector <: ODEElement end
 
 """
     update(::HMatrix, t, H, Hν, c, P)
-
 ODE satisfied by `H`, i.e. d`H` = `update`(...)dt
 """
 update(::HMatrix, t, H, Hν, c, P) = ( - Bridge.B(t, P)'*H - H*Bridge.B(t, P)
                                          + outer(H * Bridge.σ(t, P)) )
 """
     update(::HνVector, t, H, Hν, c, P)
-
 ODE satisfied by `Hν`, i.e. d`Hν` = `update`(...)dt
 """
 update(::HνVector, t, H, Hν, c, P) = ( - Bridge.B(t, P)'*Hν + H*a(t,P)*Hν
                                        + H*Bridge.β(t, P) )
 """
     update(::cScalar, t, H, Hν, c, P)
-
 ODE satisfied by `c`, i.e. d`c` = `update`(...)dt
 """
 update(::cScalar, t, H, Hν, c, P) = ( dot(Bridge.β(t, P), Hν)
                                       + 0.5*outer(Hν' * Bridge.σ(t, P))
                                       - 0.5*sum(H .* a(t, P)) )
-
 """
     update(::LMatrix, t, L, M⁺, μ, P)
-
 ODE satisfied by `L`, i.e. d`L` = `update`(...)dt
 """
 update(::LMatrix, t, L, M⁺, μ, P) = - L*Bridge.B(t, P)
-
 """
     update(::M⁺Matrix, t, L, M⁺, μ, P)
-
 ODE satisfied by `M⁺`, i.e. d`M⁺` = `update`(...)dt
 """
 update(::M⁺Matrix, t, L, M⁺, μ, P) = - outer(L * Bridge.σ(t, P))
-
 """
     update(::μVector, t, L, M⁺, μ, P)
-
 ODE satisfied by `μ`, i.e. d`μ` = `update`(...)dt
 """
 update(::μVector, t, L, M⁺, μ, P) = - L * Bridge.β(t, P)
-
 """
     createTableau(::T) where T
-
 Default tableau of coefficient for ODE schemes is no tableau at all
 """
 createTableau(::T) where T = nothing
-
-
 """
     reserveMemLM⁺μ(changePt::ODEChangePt, ::TH, ::THν)
-
 Allocate memory for L̃, M̃⁺, μ elements, which can be utilised by the ODE solver
 in the terminal section of the block to solve ODEs for L̃, M̃⁺, μ instead of H,
 Hν and c. The latter triplet can be computed as a by-prodcut from the former.
-
 IMPORTANT NOTE: the sizes of L̃, M̃⁺, μ are implicitly assumed to be consistent
 with the exact observation scheme. In particular, ODE solver for L̃, M̃⁺, μ
 cannot be used to solve for L̃, M̃⁺, μ when the terminal point in a given interval
@@ -129,20 +107,15 @@ function reserveMemLM⁺μ(change_pt::ODEChangePt, ::TH, ::THν) where {TH,THν}
     μ = zeros(THν, N) # NOTE: not Tv
     L̃, M̃⁺, μ
 end
-
 """
     initLM⁺μ!(::NoChangePt, ::Any, ::Any, ::Any, ::Any, ::Any)
-
 `NoChangePt` means only solver for H, Hν, c is used. Nothing to initialise
 for L̃, M̃⁺, μ.
 """
 function initLM⁺μ!(::NoChangePt, ::Any, ::Any, ::Any, ::Any, ::Any) end
-
-
 """
     initLM⁺μ!(::ODEChangePt, L̃::Vector{TL}, M̃⁺::Vector{TΣ}, μ::Vector{Tμ},
               L::TL, Σ::TΣ)
-
 Initiliase the triplet L̃, M̃⁺, μ at the terminal observation point. Assumes that
 at this point an exact observation of the process has been made.
 """
@@ -152,7 +125,6 @@ function initLM⁺μ!(::ODEChangePt, L̃::Vector{TL}, M̃⁺::Vector{TΣ}, μ::V
     M̃⁺[end] = Σ
     μ[end] = zero(Tμ)
 end
-
 """
     initLM⁺μ!(::ODEChangePt, L̃::Vector{TL̃}, M̃⁺::Vector{TM̃}, μ::Vector{Tμ},
                    L::TL, Σ::TΣ)
@@ -164,10 +136,8 @@ function initLM⁺μ!(::ODEChangePt, L̃::Vector{TL̃}, M̃⁺::Vector{TM̃}, μ
           "interval, which does not finish with an exact observation of the ",
           "process.")
 end
-
 """
     HHνcFromLM⁺μ!(H, Hν, c, L̃, M̃⁺, μ, v, λ)
-
 Compute elements `H`, `Hν`, `c` from elemenets `L̃`, `M̃⁺`, `μ` and `v`. Only the
 terminal `λ`-many elements `H`, `Hν`, `c` are computed.
 """
@@ -185,7 +155,6 @@ end
 
 """
     initHHνc!(changePt::NoChangePt, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, m)
-
 Initilisation of elements `H`, `Hν` and `c` at the point of the terminal
 observation when ODE solver for `H`, `Hν` and `c` is used exclusively on a
 given interval. In particular, elements `H⁽ᵀ⁺⁾`, `Hν⁽ᵀ⁺⁾` and `c⁽ᵀ⁺⁾` come from
@@ -212,7 +181,6 @@ end
 """
     gpupdate!(t, L, Σ, v, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾, H, Hν, c, L̃, M̃⁺, μ, P,
               changePt::ODEChangePt, solver::ST = Ralston3())
-
 Compute elements `H`, `Hν`, `c`, on a grid of time-points.
 ...
 # Arguments
@@ -260,11 +228,9 @@ end
 """
     _gpupdate!(change_pt::ODEChangePt, t, L, Σ, v, H, Hν, c, L̃, M̃⁺, μ, P,
                solver::ST = Ralston3())
-
 Compute the elements `L̃`, `M̃⁺`, `μ` on a grid of time-points on the terminal
 section of the interval. Derive `H`, `Hν`, `c` on the same section from the
 computed values of `L̃`, `M̃⁺`, `μ`.
-
 # Arguments
 - `changePt`: information about a point at which to switch between ODE solvers
 - `t`: vector of time-points
@@ -302,7 +268,6 @@ end
 """
     _gpupdate!(::NoChangePt, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any, ::Any,
                ::Any, ::Any, ::Any, ::Any, ::Any)
-
 `NoChangePt` means that only a solver for `H`, `Hν` and `c` is to be used on a
 given interval. Nothing to be done here, return λ=1.
 """
@@ -313,7 +278,6 @@ end
 
 """
      gpupdate!(P, H⁽ᵀ⁺⁾, Hν⁽ᵀ⁺⁾, c⁽ᵀ⁺⁾ solver::ST = Ralston3())
-
 Re-compute the values of `H`, `Hν`, `c` on a grid of time-points. This
 function is used by the mcmc sampler.
 """
@@ -325,28 +289,8 @@ function gpupdate!(P, H⁽ᵀ⁺⁾ = zero(typeof(P.H[1])),
 end
 
 
-struct GuidPropContainers{K,Tν,TH,TH⁻¹,S1,S2,S3}
-    H::Vector{TH}       # Matrix H evaluated at time-points `tt`
-    H⁻¹::Vector{TH⁻¹}   # currently not used
-    Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
-    c::Vector{K}        # scalar c evaluated at time-points `tt`
-    L̃::Vector{TH}       # (optional) matrix L evaluated at time-points `tt` NOTE not S1
-    M̃⁺::Vector{TH}      # (optional) matrix M⁺ evaluated at time-points `tt` NOTE not S3
-    μ::Vector{Tν}       # (optional) vector μ evaluated at time-points `tt` NOTE not S2
-    L::S1               # observation operator (for observation at the end-pt)
-    v::S2               # observation at the end-point
-    Σ::S3               # covariance matrix of the noise at observation
-    function GuidPropContainers(H::Vector{TH}, H⁻¹::Vector{TH⁻¹},
-                                Hν::Vector{Tν}, c::Vector{K}, L̃::Vector{TH},
-                                M̃⁺::Vector{TH}, μ::Vector{Tν}, L::S1, v::S2,
-                                Σ::S3)
-        new{K,Tν,TH,TH⁻¹,S1,S2,S3}(H, H⁻¹, Hν, c, L̃, M̃⁺, μ, L, v, Σ)
-    end
-end
-
 """
     GuidPropBridge
-
 Struct
 ```
 struct GuidPropBridge{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T}
@@ -367,7 +311,6 @@ struct GuidPropBridge{T,R,R2,Tν,TH,TH⁻¹,S1,S2,S3} <: ContinuousTimeProcess{T
 end
 ```
 stores all information that is necessary for drawing guided proposals.
-
     GuidPropBridge(::Type{K}, tt_, P, Pt, L::S1, v::S2,
                    Σ::S3 = Bridge.outer(zero(K)*zero(v)),
                    H⁽ᵀ⁺⁾::TH = zero(typeof(zero(K)*L'*L)),
@@ -377,23 +320,18 @@ stores all information that is necessary for drawing guided proposals.
                    H⁻¹prot::TH⁻¹ = SVector{prod(size(TH))}(rand(prod(size(TH)))),
                    changePt::TC = NoChangePt(),
                    solver::ST = Ralston3())
-
 Base constructor that takes values of `H`, `Hν`, `c` and `Q` evaluated at the
 left limit of the subsequent interval (given respectively by elements: `H⁽ᵀ⁺⁾`,
 `Hν⁽ᵀ⁺⁾` and `c⁽ᵀ⁺⁾`) and automatically computes the elements `H`,
 `Hν` and `c` for a given interval.
-
     GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}, θ)
-
 Clone constructor. It creates a new object `GuidPropBridge` from the old one `P`
 by using all internal containers of `P` and only defining new pointers that
 point to the old memory locations. Additionally, `P.Target` and `P.Pt` are
 deleted and substituted with their clones that use different value of parameter
 `θ`.
-
     GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,TC̃}, L::S1,
                    v::S2, Σ::S3, changePt::TC, θ)
-
 Clone constructor. It creates a new object `GuidPropBridge` from the old one `P`
 by using all internal containers of `P` and only defining new pointers that
 point to the old memory locations. `P.Target` is deleted and substituted with
@@ -403,11 +341,20 @@ substituted with its clone taht uses different `θ` and also different end-point
 noise at the observation time `Σ`, as well as the observation `v` are all
 changed.
 """
-struct GuidPropBridge{T,S,R,R2,TC} <: ContinuousTimeProcess{T}
+struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProcess{T}
     Target::R           # Law of the target diffusion
     Pt::R2              # Law of the proposal diffusion
     tt::Vector{Float64} # grid of time points
-    containers::S
+    H::Vector{TH}       # Matrix H evaluated at time-points `tt`
+    H⁻¹::Vector{TH⁻¹}   # currently not used
+    Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
+    c::Vector{K}        # scalar c evaluated at time-points `tt`
+    L̃::Vector{TH}       # (optional) matrix L evaluated at time-points `tt` NOTE not S1
+    M̃⁺::Vector{TH}      # (optional) matrix M⁺ evaluated at time-points `tt` NOTE not S3
+    μ::Vector{Tν}       # (optional) vector μ evaluated at time-points `tt` NOTE not S2
+    L::S1               # observation operator (for observation at the end-pt)
+    v::S2               # observation at the end-point
+    Σ::S3               # covariance matrix of the noise at observation
     change_pt::TC        # Info about the change point between ODE solvers
 
     function GuidPropBridge(::Type{K}, tt_, P, Pt, L::S1, v::S2,
@@ -487,7 +434,6 @@ domain(P::GuidPropBridge) = domain(P.Target)
 
 """
     llikelihood(::LeftRule, X::SamplePath, P::GuidPropBridge; skip = 0)
-
 Log-likelihood for the imputed path `X` under the target law `P.Target` with
 respect to the proposal law `P.Pt`. Use Riemann sum approximation to an
 integral, evaluating f(xᵢ), i=1,… at the left limit of intervals and skipping
@@ -525,7 +471,6 @@ end
 
 """
     lobslikelihood(P::GuidPropBridge, x₀)
-
 Log-likelihood for the observations under the auxiliary law, for a diffusion
 started from x₀.
 """
