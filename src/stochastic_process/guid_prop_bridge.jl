@@ -325,6 +325,25 @@ function gpupdate!(P, H⁽ᵀ⁺⁾ = zero(typeof(P.H[1])),
 end
 
 
+struct GuidPropContainers{K,Tν,TH,TH⁻¹,S1,S2,S3}
+    H::Vector{TH}       # Matrix H evaluated at time-points `tt`
+    H⁻¹::Vector{TH⁻¹}   # currently not used
+    Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
+    c::Vector{K}        # scalar c evaluated at time-points `tt`
+    L̃::Vector{TH}       # (optional) matrix L evaluated at time-points `tt` NOTE not S1
+    M̃⁺::Vector{TH}      # (optional) matrix M⁺ evaluated at time-points `tt` NOTE not S3
+    μ::Vector{Tν}       # (optional) vector μ evaluated at time-points `tt` NOTE not S2
+    L::S1               # observation operator (for observation at the end-pt)
+    v::S2               # observation at the end-point
+    Σ::S3               # covariance matrix of the noise at observation
+    function GuidPropContainers(H::Vector{TH}, H⁻¹::Vector{TH⁻¹},
+                                Hν::Vector{Tν}, c::Vector{K}, L̃::Vector{TH},
+                                M̃⁺::Vector{TH}, μ::Vector{Tν}, L::S1, v::S2,
+                                Σ::S3)
+        new{K,Tν,TH,TH⁻¹,S1,S2,S3}(H, H⁻¹, Hν, c, L̃, M̃⁺, μ, L, v, Σ)
+    end
+end
+
 """
     GuidPropBridge
 
@@ -384,20 +403,11 @@ substituted with its clone taht uses different `θ` and also different end-point
 noise at the observation time `Σ`, as well as the observation `v` are all
 changed.
 """
-struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProcess{T}
+struct GuidPropBridge{T,S,R,R2,TC} <: ContinuousTimeProcess{T}
     Target::R           # Law of the target diffusion
     Pt::R2              # Law of the proposal diffusion
     tt::Vector{Float64} # grid of time points
-    H::Vector{TH}       # Matrix H evaluated at time-points `tt`
-    H⁻¹::Vector{TH⁻¹}   # currently not used
-    Hν::Vector{Tν}      # Vector Hν evaluated at time-points `tt`
-    c::Vector{K}        # scalar c evaluated at time-points `tt`
-    L̃::Vector{TH}       # (optional) matrix L evaluated at time-points `tt` NOTE not S1
-    M̃⁺::Vector{TH}      # (optional) matrix M⁺ evaluated at time-points `tt` NOTE not S3
-    μ::Vector{Tν}       # (optional) vector μ evaluated at time-points `tt` NOTE not S2
-    L::S1               # observation operator (for observation at the end-pt)
-    v::S2               # observation at the end-point
-    Σ::S3               # covariance matrix of the noise at observation
+    containers::S
     change_pt::TC        # Info about the change point between ODE solvers
 
     function GuidPropBridge(::Type{K}, tt_, P, Pt, L::S1, v::S2,
