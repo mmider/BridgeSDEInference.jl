@@ -23,3 +23,12 @@ test = ["Test", "Statistics", "Random", "LinearAlgebra"]
 
 [compat]
 julia = "1"
+Bridge = "0.9"
+DataFrames = "0.19"
+Distributions = "0.21"
+ForwardDiff = "0.10"
+GaussianDistributions = "0.3.2"
+Interpolations = "0.12"
+Parameters = "0.11"
+StaticArrays = "0.11"
+Suppressor = "0.1.1"
