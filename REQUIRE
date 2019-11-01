@@ -1,0 +1,13 @@
+julia 1.0
+Bridge
+Distributions
+ForwardDiff
+GaussianDistributions
+Interpolations
+Parameters
+StaticArrays
+Suppressor
+LinearAlgebra
+Random
+Statistics
+Test

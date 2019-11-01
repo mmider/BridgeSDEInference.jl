@@ -1,4 +1,4 @@
-push!(LOAD_PATH,"../src/")
+#push!(LOAD_PATH,"../src/")
 using Documenter, BridgeSDEInference
 
 makedocs(
@@ -27,4 +27,8 @@ makedocs(
         ],
         "Visualisation tools" => joinpath("vis", "visualisation.md")
     ],
+)
+
+deploydocs(
+    repo = "github.com/mmider/BridgeSDEInference.jl.git",
 )

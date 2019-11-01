@@ -16,7 +16,6 @@ to be performed. `TV` indicates whether any adaptation should be done at all.
 """
 struct Adaptation{TV,T}
     X::Vector{Vector{Vector{T}}} # history of paths
-    ρs::Vector{Float64}          # ladder of memory param for precond. Crank-Nic
     λs::Vector{Float64}          # ladder of weights that balance initial
                                  # auxiliary law and the adaptive law based on
                                  # the mean trajectory
@@ -27,14 +26,13 @@ struct Adaptation{TV,T}
                                  # #2-current index of the last saved path
 
     """
-        Adaptation(::T, ρs, λs, sizes_of_path_coll, skip=1)
+        Adaptation(::T, λs, sizes_of_path_coll, skip=1)
 
-    Initialise adaptation. `ρs`, `λs` and `sizes_of_path_coll` are ladders that
+    Initialise adaptation. `λs` and `sizes_of_path_coll` are ladders that
     are traversed during sampling.
     ...
     # Arguments
     - `::T`: Data type of a diffusion
-    - `ρs`: ladder of memory parameters for the preconditioned Crank-Nicolson
     - `λs`: ladder of weights that balance between initial choice of auxiliary
             law and the adaptive law based on the mean trajectory
     - `sizes_of_path_coll`: ladder giving the number of paths that are to be
@@ -42,12 +40,12 @@ struct Adaptation{TV,T}
     - `skip`: save 1 in every ... many sampled paths
     ...
     """
-    function Adaptation(::T, ρs, λs, sizes_of_path_coll, skip=1) where T
+    function Adaptation(::T, λs, sizes_of_path_coll, skip=1) where T
         TV = Val{true}
         M = maximum(sizes_of_path_coll)
         X = [[zeros(T,0)] for i in 1:M]
         N = [1,1]
-        new{TV,T}(X, ρs, λs, sizes_of_path_coll, skip, N)
+        new{TV,T}(X, λs, sizes_of_path_coll, skip, N)
     end
 
     """
