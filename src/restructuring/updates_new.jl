@@ -25,7 +25,7 @@ function update!(updt::MCMCImputation{NoBlocking}, ws::Workspace{OS}, θ, ll,
                      path_log_likhd(OS(), ws.XXᵒ, ws.P, 1:m, ws.fpt) +
                      lobslikelihood(ws.P[1], yᵒ)) : -Inf
 
-    print_info(verbose, it, value(ll), value(llᵒ), "impute")
+    print_info(step.verbose, step.iter, value(ll), value(llᵒ), "impute")
 
     if accept_sample(llᵒ-ll, verbose)
         swap!(ws.XX, ws.XXᵒ, ws.WW, ws.WWᵒ, 1:m)
@@ -241,11 +241,11 @@ function update!(updt::MCMCImputation{<:ChequeredBlocking}, ws::Workspace{OS},
         ll_prev += path_log_likhd(OS(), XX, P, block, ws.fpt; skipFPT=true)
         ll_prev += lobslikelihood(P[block[1]], y)
 
-        print_info(verbose, it, value(ll_prev), value(llᵒ), "impute")
+        print_info(step.verbose, step.iter, value(ll), value(llᵒ), "impute")
         if accept_sample(llᵒ-ll_prev, verbose)
             swap!(XX, XXᵒ, block)
-            register_accpt!(updt, block_idx, true)
             set_z!(block_flag, ws, z_prop)
+            register_accpt!(updt, block_idx, true)
             ll_total += llᵒ
         else
             register_accpt!(updt, block_idx, false)
@@ -278,7 +278,7 @@ end
 Solve backward recursion to find H, Hν and c, which together define r̃(t,x)
 and p̃(x, 𝓓) under the auxiliary law, when no blocking is done
 """
-function solve_back_rec!(::NoBlocking, ws::Workspace{OS,B,ST}, P) where {OS,B,ST}
+function solve_back_rec!(::NoBlocking, ws::Workspace{OS,ST}, P) where {OS,ST}
     m = length(P)
     gpupdate!(P[m]; solver=ST())
     for i in (m-1):-1:1
@@ -371,13 +371,13 @@ Update parameters
 - `it`: iteration index of the MCMC algorithm
 ...
 """
-function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt,UpdtIdx},
-                       ws::Workspace{OS,NoBlocking}, θ, ll, step) where {UpdtIdx,OS}
+function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt},
+                 ws::Workspace{OS,ST,NoBlocking}, θ, ll, step) where {OS,ST}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(WW)
-    θᵒ = rand(pu.t_kernel, θ, UpdtIdx())               # sample new parameter
+    θᵒ = rand(pu.t_kernel, θ, pu.updt_coord)               # sample new parameter
     update_laws!(Pᵒ, θᵒ)
-    pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, Pᵒ) # compute (H, Hν, c)
+    pu.aux.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, Pᵒ) # compute (H, Hν, c)
 
     # find white noise which for a given θᵒ gives a correct starting point
     y = XX[1].yy[1]
@@ -389,12 +389,104 @@ function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt,UpdtIdx},
                      path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt) +
                      lobslikelihood(Pᵒ[1], y)) : -Inf
 
-    print_info(verbose, it, ll, llᵒ)
+    print_info(step.verbose, step.iter, value(ll), value(llᵒ))
+
+    llr = ( llᵒ - ll + prior_kernel_contrib(pu, θ, θᵒ))
+
+    # Accept / reject
+    if accept_sample(llr, step.verbose)
+        swap!(XX, XXᵒ, P, Pᵒ, 1:m)
+        set!(ws.z, zᵒ)
+        register_accpt!(pu, 1, true)
+        return llᵒ, θᵒ
+    else
+        register_accpt!(pu, 1, false)
+        return ll, θ
+    end
+end
+
+"""
+    update_laws!(Ps, θᵒ)
+
+Set new parameter `θᵒ` for the laws in vector `Ps`
+"""
+function update_laws!(Ps, θᵒ)
+    m = length(Ps)
+    for i in 1:m
+        Ps[i] = GuidPropBridge(Ps[i], θᵒ)
+    end
+end
+
+
+"""
+    find_path_from_wiener!(XX, y, WW, P, iRange)
+
+Find path `XX` (that starts from `y`) that is generated under law `P` from the
+Wiener process `WW`. Only segments with indices in range `iRange` are considered
+"""
+function find_path_from_wiener!(XX, y, WW, P, iRange)
+    for i in iRange
+        success, _ = solve!(Euler(), XX[i], y, WW[i], P[i])
+        !success && return false
+        y = XX[i].yy[end]
+    end
+    true
+end
+
+"""
+    prior_kernel_contrib(t_kern, priors, θ, θᵒ)
+
+Contribution to the log-likelihood ratio from transition kernel `t_kern` and
+`priors`.
+"""
+function prior_kernel_contrib(pu::T, θ, θᵒ) where {T <: MCMCUpdate}
+    c = pu.updt_coord
+    llr = logpdf(pu.t_kernel, c, θᵒ, θ) - logpdf(pu.t_kernel, c, θ, θᵒ)
+    for prior in priors
+        llr += logpdf(prior, c, θᵒ) - logpdf(prior, c, θ)
+    end
+    llr
+end
+
+
+#NOTE blocking and no-blocking param update should be joined into one function
+"""
+    update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx}, θ,
+                  ws::Workspace{OS,B,ST}, ll, verbose=false, it=NaN
+                  ) where {UpdtIdx,OS,B,ST}
+Update parameters
+"""
+function update_param!(pu::MCMCParamUpdate{MetropolisHastingsUpdt},
+                       θ, ws::Workspace{OS,ST}, ll, step, blocking::ChequeredBlocking
+                       ) where {OS,ST}
+    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
+    m = length(P)
+    θᵒ = rand(pu.t_kernel, θ, pu.updt_coord)
+    update_laws!(Pᵒ, θᵒ)                   # update law `Pᵒ` accordingly
+    solve_back_rec!(ws, Pᵒ)                 # compute (H, Hν, c)
+
+    y = XX[1].yy[1]
+    zᵒ = inv_start_pt(y, ws.x0_prior, Pᵒ[1])
+
+    llᵒ = logpdf(ws.x0_prior, y)
+    for (block_idx, block) in enumerate(blocking.blocks)
+        y = XX[block[1]].yy[1]
+        success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, block)
+        !success && accept_sample(-Inf, verbose)
+        !success && return ll, false, θ
+
+        set_end_pt_manually!(block_idx, block, ws)
+
+        # Compute log-likelihood ratio
+        llᵒ += path_log_likhd(OS(), XXᵒ, Pᵒ, block, ws.fpt)
+        llᵒ += lobslikelihood(Pᵒ[block[1]], y)
+    end
+    print_info(step.verbose, step.iter, value(ll), value(llᵒ))
 
     llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ))
 
     # Accept / reject
-    if accept_sample(llr, verbose)
+    if accept_sample(llr, step.verbose)
         swap!(XX, XXᵒ, P, Pᵒ, 1:m)
         set!(ws.z, zᵒ)
         return llᵒ, true, θᵒ

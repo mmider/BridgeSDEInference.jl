@@ -356,6 +356,7 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
     v::S2               # observation at the end-point
     Σ::S3               # covariance matrix of the noise at observation
     change_pt::TC        # Info about the change point between ODE solvers
+    full_obs::Bool
 
     function GuidPropBridge(::Type{K}, tt_, P, Pt, L::S1, v::S2,
                             Σ::S3 = Bridge.outer(zero(K)*zero(v)),
@@ -365,7 +366,8 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
                             # H⁻¹prot is currently not used
                             H⁻¹prot::TH⁻¹ = SVector{prod(size(TH))}(rand(prod(size(TH)))),
                             change_pt::TC = NoChangePt(),
-                            solver::ST = Ralston3()
+                            solver::ST = Ralston3(),
+                            full_obs=false
                             ) where {K,Tν,TH,TH⁻¹,S1,S2,S3,ST,TC}
         tt = collect(tt_)
         N = length(tt)
@@ -385,7 +387,7 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
         R2 = typeof(Pt)
 
         new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(P, Pt, tt, H, H⁻¹, Hν, c, L̃, M̃⁺, μ,
-                                             L, v, Σ, change_pt)
+                                             L, v, Σ, change_pt, full_obs)
     end
 
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC},
@@ -393,17 +395,19 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
         new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(clone(P.Target,θ), clone(P.Pt,θ),
                                              P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
                                              P.M̃⁺, P.μ, P.L, P.v, P.Σ,
-                                             P.change_pt)
+                                             P.change_pt, P.full_obs)
     end
 
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,TC̃},
-                            L::S1, v::S2, Σ::S3, change_pt::TC, θ, aux_flag
+                            L::S1, v::S2, Σ::S3, change_pt::TC, θ, aux_flag,
+                            full_obs=P.full_obs
                             ) where {T,K,R,R2,Tν,TH,TH⁻¹,S̃1,S̃2,S̃3,S1,S2,S3,TC̃,TC}
         PtNew = clone(P.Pt, θ, v, aux_flag)
         R̃2 = typeof(PtNew)
         new{T,K,R,R̃2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(clone(P.Target,θ), PtNew,
                                              P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
-                                             P.M̃⁺, P.μ, L, v, Σ, change_pt)
+                                             P.M̃⁺, P.μ, L, v, Σ, change_pt,
+                                             full_obs)
     end
 
     function GuidPropBridge(P::GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC},
@@ -411,7 +415,8 @@ struct GuidPropBridge{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC} <: ContinuousTimeProc
         new{T,K,R,R2,Tν,TH,TH⁻¹,S1,S2,S3,TC}(P.Target, Pt,
                                              P.tt, P.H, P.H⁻¹, P.Hν, P.c, P.L̃,
                                              P.M̃⁺, P.μ, P.L, P.v, P.Σ,
-                                             P.change_pt)
+                                             P.change_pt,
+                                             P.full_obs)
     end
 end
 

@@ -164,11 +164,13 @@ function mcmc(kernels, schedule::MCMCSchedule, setup::T) where T <: ModelSetup
     ws, ll, θ = Workspace(setup, schedule)
     ws_mcmc = Workspace(schedule)
 
+    aux = nothing
     for step in schedule
         step.save && save_imputed!(ws)
         ws = next(ws)
         for i in step.idx
-            ll, θ = update!(ws_mcmc.updates[i], ws, θ, ll, step)
+            ll, acc, θ = update!(ws_mcmc.updates[i], ws, θ, ll, step, aux)
+            aux = aux_params(ws_mcmc.updates[i])
             update!(ws_mcmc, ws, acc, θ, i)
             step.verbose && print("\n")
         end
