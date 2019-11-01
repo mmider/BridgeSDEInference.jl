@@ -24,14 +24,15 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 [targets]
 test = ["Test", "Statistics", "Random", "LinearAlgebra"]
 
+
 [compat]
 julia = "1"
-Bridge = "0.9"
+Bridge = "0.9, 0.10"
 DataFrames = "0.19"
 Distributions = "0.21"
 ForwardDiff = "0.10"
 GaussianDistributions = "0.3.2"
 Interpolations = "0.12"
-Parameters = "0.11"
-StaticArrays = "0.11"
+Parameters = "0"
+StaticArrays = "0"
 Suppressor = "0.1.1"
