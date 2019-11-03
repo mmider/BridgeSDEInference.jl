@@ -2,124 +2,122 @@ using Distributions
 import Random: rand!, rand
 import Distributions: logpdf
 import Base: eltype, length
+using GaussianDistributions
 
-"""
-    RandomWalk(ϵ::T, pos::S)
 
-Defines a random walk on `|ϵ|`-dimensional space. ``ϵ` defines the maximal
-one-sided range of a single step and `pos` is a vector of indicators for whether
-a respective index is restricted to take only positive values. For elements
-restricted to take positive values, the update is done via: x⁽ⁿᵉʷ⁾ <- x⁽ᵒˡᵈ⁾eᵁ,
-where U ∼ Unif(-ϵ,ϵ). For unrestricted: x⁽ⁿᵉʷ⁾ <- x⁽ᵒˡᵈ⁾ + U,
-where U ∼ Unif(-ϵ,ϵ).
-"""
-struct RandomWalk{T,N}
-    ϵ::NTuple{N,T}
-    pos::NTuple{N,Bool}
+#===============================================================================
+                        One dimensional random walk
+===============================================================================#
+abstract type RandomWalk end
 
-    function RandomWalk(ϵ::S, pos=nothing
-                        ) where S<:Union{T,Vector{T},NTuple{N,T}} where {N,T}
-        _RandomWalk(T, ϵ, pos)
+mutable struct UniformRandomWalk{T} <: RandomWalk
+    ϵ::T
+    pos::Bool
+
+    UniformRandomWalk(ϵ::T, pos=false) where T <: Number = new{T}(ϵ, pos)
+end
+
+eltype(::UniformRandomWalk{T}) where T = T
+length(::UniformRandomWalk) = 1
+
+function _rand(rw::UniformRandomWalk, θ, coord_idx)
+    @assert truelength(coord_idx) == 1
+    ϑ = thetainc(coord_idx, θ)[1]
+    δ = rand(Uniform(-rw.ϵ, rw.ϵ))
+    ϑ += rw.pos ? 0.0 : δ
+    ϑ *= rw.pos ? δ : 1.0
+    ϑ
+end
+
+function rand(rw::UniformRandomWalk, θ, coord_idx)
+    ϑ = _rand(rw, θ, coord_idx)
+    move_to_proper_place(ϑ, θ, coord_idx)
+end
+
+function rand!(rw::UniformRandomWalk, θ, coord_idx)
+    ϑ = _rand(rw, θ, coord_idx)
+    move_to_proper_place!(ϑ, θ, coord_idx)
+end
+
+
+function logpdf(rw::UniformRandomWalk, coord_idx, θ, θᵒ)
+    @assert truelength(coord_idx) == 1
+    !rw.pos && return 0.0
+    ϑᵒ = thetainc(coord_idx, θᵒ)[1]
+    -log(2.0*rw.ϵ)-log(ϑᵒ)
+end
+
+function readjust!(rw::UniformRandomWalk, accpt_track, param, ::Any, mcmc_iter, ::Any)
+    δ = compute_δ(param, mcmc_iter)
+    a_r = acceptance_rate(accpt_track)
+    ϵ = compute_ϵ(rw.ϵ, param, a_r, δ)
+    print("Updating random walker...\n")
+    print("acceptance rate: ", round(a_r, digits=2),
+          ", previous ϵ: ", round(rw.ϵ, digits=3),
+          ", new ϵ: ", round(ϵ, digits=3), "\n")
+    rw.ϵ = ϵ
+end
+
+#===============================================================================
+                        Multidimensional random walk
+===============================================================================#
+mutable struct GaussianRandomWalk{T} <: RandomWalk
+    Σ::Array{T,2}
+    pos::Vector{Bool}
+
+    function GaussianRandomWalk(Σ::Array{T,2}, pos=nothing) where T
+        @assert size(Σ)[1] == size(Σ)[2]
+        pos = (pos === nothing) ? fill(false, size(Σ)[1]) : pos
+        new{T}(Σ, pos)
     end
-
-    function _RandomWalk(::Type{T}, ϵ, pos::Nothing) where T
-        ϵ, N = Tuple(ϵ), length(ϵ)
-        new{T,N}(ϵ, Tuple([false for i in 1:N]))
-    end
-
-    function _RandomWalk(::Type{T}, ϵ, pos::Array{Any,1}) where T
-        ϵ, N = Tuple(ϵ), length(ϵ)
-        @assert length(pos) == 0
-        new{T,N}(ϵ, Tuple([false for i in 1:N]))
-    end
-
-    function _RandomWalk(::Type{T}, ϵ, pos::R) where {T,R<:Union{S,Vector{S},NTuple{N1,S}}} where {N1,S<:Integer}
-        ϵ, N = Tuple(ϵ), length(ϵ)
-        @assert minimum(pos) >= 1 && maximum(pos) <= N
-        new{T,N}(ϵ, Tuple([i in pos for i in 1:N]))
-    end
-
-    function _RandomWalk(::Type{T}, ϵ, pos::R) where {T,R<:Union{S,Vector{S},NTuple{N1,S}}} where {N1,S<:Bool}
-        ϵ, N = Tuple(ϵ), length(ϵ)
-        pos, N_temp = Tuple(pos), length(pos)
-        @assert N == N_temp
-        new{eltype(ϵ),N}(ϵ, pos)
-    end
-
 end
 
-additiveStep = (x,pos)->pos ? 0.0 : x
-multipStep = (x,pos)->pos ? exp(x) : 1.0
-eltype(::RandomWalk{T}) where T = T
-length(::RandomWalk{T,N}) where {T,N} = N
+eltype(::GaussianRandomWalk{T}) where T = T
+length(rw::GaussianRandomWalk) = length(rw.pos)
+remove_constraints!(rw::GaussianRandomWalk, ϑ) = (ϑ[rw.pos] = log.(ϑ[rw.pos]))
+reimpose_constraints!(rw::GaussianRandomWalk, ϑ) = (ϑ[rw.pos] = exp.(ϑ[rw.pos]))
 
-function new_tkernel(rw::RandomWalk, f, idx)
-    ϵ = collect(rw.ϵ)
-    ϵ[idx] = rw.pos[idx] ? exp(f(log(rw.ϵ[idx]))) : f(rw.ϵ[idx])
-    RandomWalk(ϵ, rw.pos)
+function _rand(rw::GaussianRandomWalk, θ, coord_idx)
+    ϑ = [thetainc(coord_idx, θ)...]
+    remove_constraints!(rw, ϑ)
+    ϑᵒ = rand(Gaussian(ϑ, rw.Σ))
+    reimpose_constraints!(rw, ϑ)
+    ϑᵒ
 end
 
-"""
-    rand!(rw::RandomWalk, θ)
-
-Update all elements of a random walker in-place.
-"""
-function rand!(rw::RandomWalk, θ)
-    θ .+= additiveStep.(rand.(map(Uniform,-rw.ϵ, rw.ϵ)), rw.pos)
-    θ .*= multipStep.(rand.(map(Uniform,-rw.ϵ, rw.ϵ)), rw.pos)
-    θ
+function rand(rw::GaussianRandomWalk, θ, coord_idx)
+    ϑ = _rand(rw, θ, coord_idx)
+    θᵒ = copy(θ)
+    move_to_proper_place!(ϑ, θᵒ, coord_idx)
 end
 
-"""
-    rand(rw::RandomWalk, θ)
-
-Return a newly sampled state of a random walker, with all element updated.
-"""
-function rand(rw::RandomWalk, θ)
-    θc = copy(θ)
-    rand!(rw, θc)
+function rand!(rw::GaussianRandomWalk, θ, coord_idx)
+    ϑ = _rand(rw, θ, coord_idx)
+    move_to_proper_place!(ϑ, θ, coord_idx)
 end
 
-"""
-    rand!(rw::RandomWalk, θ, ::UpdtIdx)
+_logjacobian(rw::GaussianRandomWalk, ϑ, coord_idx) = -sum(log.(ϑ[rw.pos]))
 
-Update elements of a random walker on indices specified by the object `UpdtIdx`
-in-place.
-"""
-function rand!(rw::RandomWalk, θ, ::UpdtIdx) where UpdtIdx
-    for i in idx(UpdtIdx())
-        θ[i] += additiveStep(rand(Uniform(-rw.ϵ[i], rw.ϵ[i])), rw.pos[i])
-        θ[i] *= multipStep(rand(Uniform(-rw.ϵ[i], rw.ϵ[i])), rw.pos[i])
-    end
-    θ
+function logpdf(rw::GaussianRandomWalk, coord_idx, θ, θᵒ)
+    ϑ = [thetainc(coord_idx, θ)...]
+    ϑᵒ = [thetainc(coord_idx, θᵒ)...]
+    logJ = _logjacobian(rw, ϑᵒ, coord_idx)
+    remove_constraints!(rw, ϑ)
+    remove_constraints!(rw, ϑᵒ)
+    logpdf(Gaussian(ϑ, rw.Σ), ϑᵒ) + logJ
 end
 
-"""
-    rand(rw::RandomWalk, θ, ::UpdtIdx)
-
-Return a newly sampled state of a random walker, with updated elements only on
-the indices specified by the object `UpdtIdx`.
-"""
-function rand(rw::RandomWalk, θ, ::UpdtIdx) where UpdtIdx
-    θc = copy(θ)
-    rand!(rw, θc, UpdtIdx())
+function readjust!(rw::GaussianRandomWalk, ::Any, ::Any, corr, ::Any, coord_idx)
+    ρ = matinc(corr, coord_idx)
+    Σ = 2.38^2/length(rw)*ρ
+    print("Updating multivariate random walker...\n")
+    print("correlation: ", round.(ρ, digits=2),
+          ", previous Σ: ", round.(rw.Σ, digits=3),
+          ", new ϵ: ", round.(Σ, digits=3), "\n")
+    rw.Σ = Σ
 end
 
 
-
-
-"""
-    logpdf(rw::RandomWalk, θ, θᵒ)
-Log-transition density of a random walker `rw` for going from `θ` to `θᵒ`.
-"""
-logpdf(rw::RandomWalk, θ, θᵒ) = sum( map((x,ϵ,pos)->pos ? -log(2.0*ϵ)-log(x) :
-                                                        0.0, θᵒ, rw.ϵ, rw.pos) )
-
-
-"""
-
-This is just a convention
-"""
-function logpdf(rw::RandomWalk, θ, θᵒ, μ, Σ, updt_idx)
-    logpdf(MvNormal(Vector(μ), Matrix(Σ)), θᵒ)
-end
+#===============================================================================
+                            Fusions of random walkers
+===============================================================================#

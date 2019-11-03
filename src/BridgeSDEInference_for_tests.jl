@@ -1,4 +1,7 @@
-include("types.jl")
+_DIR = "general"
+include(joinpath(_DIR, "types.jl"))
+include(joinpath(_DIR, "coordinate_access.jl"))
+include(joinpath(_DIR, "readjustments.jl"))
 
 _DIR = "stochastic_process"
 include(joinpath(_DIR, "bounded_diffusion_domain.jl"))
@@ -18,7 +21,7 @@ include(joinpath(_DIR, "pseudo_conjugate.jl"))
 
 _DIR = "mcmc_extras"
 include(joinpath(_DIR, "adaptation.jl"))
-include(joinpath(_DIR, "blocking_schedule.jl"))
+include(joinpath(_DIR, "blocking.jl"))
 include(joinpath(_DIR, "first_passage_times.jl"))
 include(joinpath(_DIR, "starting_pt.jl"))
 
@@ -31,8 +34,10 @@ include(joinpath(_DIR, "prokaryotic_autoregulatory_gene_network.jl"))
 
 _DIR = "mcmc"
 include(joinpath(_DIR, "priors.jl"))
+include(joinpath(_DIR, "mcmc_components.jl"))
 include(joinpath(_DIR, "setup.jl"))
 include(joinpath(_DIR, "workspace.jl"))
 include(joinpath(_DIR, "conjugate_updt.jl"))
+include(joinpath(_DIR, "updates.jl"))
 include(joinpath(_DIR, "mcmc.jl"))
-include(joinpath(_DIR, "repeated.jl"))
+#include(joinpath(_DIR, "repeated.jl"))

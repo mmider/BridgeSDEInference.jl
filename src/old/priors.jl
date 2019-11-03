@@ -31,14 +31,11 @@ be updating only a single parameter and thus only a single prior will be needed
 for each transition. In that case providing a list of priors in `priors` is
 sufficient. This constructor takes care of the internal objects in such setting.
 """
-struct Priors{S,T}
-    priors::S
-    coord_idx::T
-    function Priors(priors, coord_idx::T)
-        priors, coord_idx = Tuple(priors), Tuple(coord_idx)
-        S, T = typeof(priors), typeof(coord_idx)
-        new{S,T}(priors, coord_idx)
-    end
+struct Priors
+    priors
+    indicesForUpdt::Array{Array{Int64,1},1}
+    Priors(priors, indicesForUpdt) = new(Tuple(priors), indicesForUpdt)
+    Priors(priors) = new(Tuple(priors), [[i] for i in 1:length(priors)])
 end
 
 """
@@ -47,7 +44,7 @@ end
 Fetch the `i`-th list of priors (corresponding to the `i`-th transition kernel)
 from the `p` object.
 """
-getindex(p::Priors, i::Int) = p.priors[i]
+getindex(p::Priors, i::Int) = p.priors[p.indicesForUpdt[i]]
 
 """
     logpdf(p::Priors, θ)
@@ -55,8 +52,21 @@ Compute the logarithm of a product of all priors in object `p`, evaluated at `θ
 """
 function logpdf(p::Priors, θ)
     total = 0.0
-    for (prior,coords) in p
-        total += logpdf(prior, coords, θ)
+    for prior in p.priors
+        total += logpdf(prior, θ)
+    end
+    total
+end
+
+"""
+    logpdf(p::Priors, θ)
+Compute the logarithm of a product of all priors in the `updtIdx`-th list of
+priors of the object `p`, evaluated at `θ`
+"""
+function logpdf(p::Priors, θ, updtIdx::Int)
+    total = 0.0
+    for prior in p[updtIdx]
+        total += logpdf(prior, θ)
     end
     total
 end
@@ -72,14 +82,10 @@ length(p::Priors) = length(p.priors)
 
 Iterates over sets of priors defined for separate parameter update steps
 """
-function iterate(iter::Priors, i=1)
-    if i > length(iter)
+function iterate(iter::Priors, state=(1, 0))
+    i, count = state
+    if count >= length(iter)
         return nothing
     end
-    return ((iter.priors[i], iter.coord_idx[i]), i + 1)
+    return (iter[i], (i + 1, count + 1))
 end
-
-
-#===============================================================================
-                            Fusion of priors
-===============================================================================#

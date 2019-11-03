@@ -11,114 +11,64 @@ function init_setup()
 end
 
 @testset "acceptance tracker" begin
-    setup = init_setup().setup
-    updt_coord = ((1,2),(2,3))
-    BSI.set_transition_kernels!(setup, nothing, nothing, true, updt_coord,
-                            (BSI.MetropolisHastingsUpdt(),BSI.MetropolisHastingsUpdt()))
-    at = BSI.AccptTracker(setup)
+    at = BSI.AccptTracker(0)
 
     @testset "initialisation" begin
-        @test at.accpt_imp == 0
-        @test at.prop_imp == 0
-        @test at.accpt_updt == [0, 0]
-        @test at.prop_updt == [0, 0]
-        @test at.updt_len == length(updt_coord)
+        @test at.accpt == 0
+        @test at.prop == 0
     end
 
     accept_reject = [true, false, false, true, true, false]
+    for ar in accept_reject BSI.register_accpt!(at, ar) end
 
-    for ar in accept_reject
-        BSI.update!(at, BSI.ParamUpdate(), 1, ar)
-        BSI.update!(at, BSI.Imputation(), ar)
+    @testset "testing update!" begin
+        @test BSI.acceptance_rate(at) == sum(accept_reject)/length(accept_reject)
+    end
+    reset!(at)
+    @testset "after reset" begin
+        @test at.accpt == 0
+        @test at.prop == 0
     end
 
-    @testset "testing update! (1/2)" begin
-        accept_rate = sum(accept_reject)/length(accept_reject)
-        @test BSI.accpt_rate(at, BSI.ParamUpdate())[1] == accept_rate
-        @test isnan(BSI.accpt_rate(at, BSI.ParamUpdate())[2])
-        @test BSI.accpt_rate(at, BSI.Imputation()) == accept_rate
+    at_vec = [BSI.AccptTracker(0) for i in 1:6]
+    BSI.register_accpt!(at_vec, accept_reject)
+    @testset "testing registration for vector of accpt tracker!" begin
+        @test all([a.prop == 1 for a in at_vec])
+        @test all([at_vec[i].accpt == 1*accept_reject[i] for i in 1:length(at_vec)])
     end
-
-    for ar in accept_reject BSI.update!(at, BSI.ParamUpdate(), 2, ar) end
-
-    @testset "testing update! (2/2)" begin
-        accept_rate = sum(accept_reject)/length(accept_reject)
-        @test BSI.accpt_rate(at, BSI.ParamUpdate())[1] == accept_rate
-        @test BSI.accpt_rate(at, BSI.ParamUpdate())[2] == accept_rate
-        @test BSI.accpt_rate(at, BSI.Imputation()) == accept_rate
-    end
-
-end
-
-
-@testset "parameter history" begin
-    out = init_setup()
-    setup, θ = out.setup, out.θ
-    updt_coord = ((1,2),(2,3))
-    BSI.set_transition_kernels!(setup, nothing, nothing, true, updt_coord,
-                            (BSI.MetropolisHastingsUpdt(),BSI.MetropolisHastingsUpdt()))
-
-    num_mcmc_steps = 1000
-    warm_up = 50
-    BSI.set_mcmc_params!(setup, num_mcmc_steps, nothing, nothing, nothing, warm_up)
-    ph = BSI.ParamHistory(setup)
-
-    _foo(x::BSI.ParamHistory{T}) where T = T
-
-    @testset "initialisation" begin
-        @test eltype(ph.θ_chain) == typeof(θ) == _foo(ph)
-        @test length(ph.θ_chain) == length(updt_coord)*(num_mcmc_steps-warm_up)+1
-        @test ph.θ_chain[1] == last(ph) == θ
-        @test ph.counter == 1
-    end
-
-    N = 10
-    chain = [rand(5) for i in 1:N]
-    for i in 1:N BSI.update!(ph, chain[i]) end
-
-    @testset "updating chain" begin
-        @test ph.θ_chain[1] == θ
-        @test all([ph.θ_chain[i+1] == chain[i] for i in 1:N])
-        @test BSI.last(ph) == ph.θ_chain[N+1] == chain[N]
-        @test BSI.last(ph) != θ
+    reset!(at_vec)
+    @testset "vector after reset" begin
+        @test all([a.prop == 0 for a in at_vec])
+        @test all([a.accpt == 0 for a in at_vec])
     end
 end
 
-@testset "action tracker" begin
-    setup = init_setup().setup
-    save_iter = 10
-    verb_iter = 3
-    warm_up = 50
-    BSI.set_mcmc_params!(setup, nothing, save_iter, verb_iter, nothing, warm_up)
-    param_updt = true
-    BSI.set_transition_kernels!(setup, nothing, nothing, param_updt)
-    at = BSI.ActionTracker(setup)
+@testset "mcmc schedule" begin
+    num_mcmc_steps = 20
+    updt_idx = [[1,2,3],[4,5],[6]]
+    actions = (save=10, verbose=3, warm_up=5,
+               readjust=(x->x%7==0), fuse=(x->false))
+    schedule = MCMCSchedule(num_mcmc_steps, updt_idx, actions)
 
     @testset "initialisation" begin
-        @test at.save_iter == save_iter
-        @test at.verb_iter == verb_iter
-        @test at.warm_up == warm_up
-        @test at.param_updt == param_updt
+        @test schedule.num_mcmc_steps == num_mcmc_steps
+        @test schedule.updt_idx == updt_idx
+        @test schedule.actions == actions
     end
 
-    @testset "correct acting" begin
-        @test !BSI.act(BSI.SavePath(), at, 1)
-        @test !BSI.act(BSI.SavePath(), at, 10)
-        @test BSI.act(BSI.SavePath(), at, 60)
-        @test !BSI.act(BSI.SavePath(), at, 51)
-        @test !BSI.act(BSI.SavePath(), at, 61)
-        @test BSI.act(BSI.SavePath(), at, 40000)
-
-        @test !BSI.act(BSI.Verbose(), at, 1)
-        @test BSI.act(BSI.Verbose(), at, 3)
-        @test !BSI.act(BSI.Verbose(), at, 10)
-        @test BSI.act(BSI.Verbose(), at, 30)
-
-        @test !BSI.act(BSI.ParamUpdate(), at, 1)
-        @test !BSI.act(BSI.ParamUpdate(), at, 10)
-        @test !BSI.act(BSI.ParamUpdate(), at, 50)
-        @test BSI.act(BSI.ParamUpdate(), at, 51)
-        @test BSI.act(BSI.ParamUpdate(), at, 1000)
+    @testset "correct iterations" begin
+        i = 0
+        for step in schedule
+            i += 1
+            @test step.iter == i
+            @test step.idx == updt_idx[mod1(i, length(updt_idx))]
+            @test step.save == (i in [10, 20])
+            @test step.verbose == (i % actions.verbose == 0)
+            @test step.param_updt == (i > actions.warm_up)
+            @test step.readjust == (i % 7 == 0)
+            @test step.fuse == false
+        end
+        @test i == 20
     end
 end
 

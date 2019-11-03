@@ -145,7 +145,7 @@ function create_blocks(::ChequeredBlocking, P, params)
               [collect(knots_to_blocks(knotsB, length(P), i)) for i in 1:length(knotsB)+1])
 
     (Block(LsA, vs, ΣsA, auxA, knotsA, blocks[1], chpA),
-     Block(LsB, vs, ΣsB, auxB, knotsB, blocks[1], chpB))
+     Block(LsB, vs, ΣsB, auxB, knotsB, blocks[2], chpB))
 end
 
 create_blocks(blocking::NoBlocking, P, params) = blocking

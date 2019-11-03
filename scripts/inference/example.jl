@@ -25,7 +25,6 @@ filename = "path_fpt_simpleConjug.csv"
 # fetch the data
 (df, x0, obs, obs_time, fpt,
       fptOrPartObs) = readData(Val(fptObsFlag), joinpath(OUT_DIR, filename))
-x0
 param = :complexConjug
 θ_init = [10.0, -8.0, 25.0, 0.0, 3.0]
 P˟ = FitzhughDiffusion(param, θ_init...)
@@ -38,30 +37,30 @@ set_observations!(model_setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_tim
 set_imputation_grid!(model_setup, 1/5000)
 set_x0_prior!(model_setup, KnownStartingPt(x0))
 initialise!(eltype(x0), model_setup, Vern7(), false, NoChangePt(100))
+set_auxiliary!(model_setup; skip_for_save=10^1, adaptive_prop=NoAdaptation())
 
-blocks = create_blocks( ChequeredBlocking(), P̃,
+blocks = create_blocks( ChequeredBlocking(), model_setup.P,
                         (knots=collect(1:length(obs)-2)[1:1:end],
                          ϵ=10^(-10),
                          change_pt=SimpleChangePt(100)) )
 mcmc_setup = MCMCSetup(
-      MCMCImputation(blocks[1], 0.99, Vern7()),
-      MCMCImputation(blocks[2], 0.99, Vern7()),
-      MCMCParamUpdate(MetropolisHastingsUpdt(), 5, θ_init,
-                      RandomWalk(0.5, true), ImproperPosPrior(),
-                      UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 5))
-                      ),
-      MCMCParamUpdate(ConjugateUpdt(), [1,2,3], θ_init, nothing,
-                      MvNormal(fill(0.0, 3), diagm(0=>fill(1000.0, 3))),
-                      UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [1,2,3]))
-                      )
-)
+      Imputation(blocks[1], 0.99, Vern7()),
+      Imputation(blocks[2], 0.99, Vern7()),
+      ParamUpdate(MetropolisHastingsUpdt(), 5, θ_init,
+                  UniformRandomWalk(0.5, true), ImproperPosPrior(),
+                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 5))
+                  ),
+      ParamUpdate(ConjugateUpdt(), [1,2,3], θ_init, nothing,
+                  MvNormal(fill(0.0, 3), diagm(0=>fill(1000.0, 3))),
+                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [1,2,3]))
+                  ))
 
 schedule = MCMCSchedule(3*10^4, [[1,3,4],[2,3,4]],
-                        (save=3*10^2, verbose=10^2, warm_up=100, readjust=100,
-                         fuse=Inf))
-skip_for_save = 10^1 #NOTE still not set
+                        (save=3*10^2, verbose=10^2, warm_up=100,
+                         readjust=(x->x%100==0), fuse=(x->false)))
 
 Random.seed!(4)
+out = mcmc(mcmc_setup, schedule, model_setup)
 out, elapsed = @timeit mcmc(mcmc_setup, schedule, model_setup)
 display(out.accpt_tracker)
 

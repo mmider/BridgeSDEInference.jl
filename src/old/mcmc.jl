@@ -10,8 +10,55 @@
 
 import ForwardDiff: value # currently not needed, but will be
 
+
 #===============================================================================
-                        Routines for imputations
+                                Main routine
+===============================================================================#
+"""
+    mcmc(setup)
+
+Gibbs sampler alternately imputing unobserved parts of the path and updating
+unknown coordinates of the parameter vector. `setup` defines all variables of
+the Markov Chain
+"""
+function mcmc(setup::MCMCSetup)
+    adaptive_prop, num_mcmc_steps = setup.adaptive_prop, setup.num_mcmc_steps
+    ws, ll, θ = Workspace(setup)
+    gibbs = GibbsDefn(setup)
+    init_adaptation!(adaptive_prop, ws)
+
+    for i in 1:num_mcmc_steps
+        verbose = act(Verbose(), ws, i)
+        act(SavePath(), ws, i) && save_path!(ws)
+        ws = next_set_of_blocks(ws)
+        ll, acc = impute!(ws, ll, verbose, i)
+        update!(ws.accpt_tracker, Imputation(), acc)
+        update!(ws.accpt_tracker_short, Imputation(), acc)
+
+        if act(ParamUpdate(), ws, i)
+            for j in 1:length(gibbs)
+                ll, acc, θ = update_param!(gibbs[j], θ, ws, ll, verbose, i)
+                update!(ws.accpt_tracker, ParamUpdate(), j, acc)
+                update!(ws.accpt_tracker_short, ParamUpdate(), j, acc)
+                update!(ws.θ_chain, θ)
+                verbose && print("\n")
+            end
+            verbose && print("------------------------------------------------",
+                             "------\n")
+        end
+        act(Readjust(), ws, i) && readjust_pCN!(ws, i)
+        act(Readjust(), ws, i) && (gibbs = readjust_tk(ws, i, gibbs))
+        add_path!(adaptive_prop, ws.XX, i)
+        #print_adaptation_info(adaptive_prop, accImpCounter, accUpdtCounter, i)
+        adaptive_prop, ll = update!(adaptive_prop, ws, i, ll)
+        adaptive_prop = still_adapting(adaptive_prop)
+    end
+    display_acceptance_rate(ws.blocking)
+    ws
+end
+
+#===============================================================================
+                            Imputation routines       (some also for param updt)
 ===============================================================================#
 
 """
@@ -28,9 +75,9 @@ Imputation step of the MCMC scheme (without blocking).
 - `headstart`: flag for whether to 'ease into' fpt conditions
 ...
 """
-function update!(updt::MCMCImputation{NoBlocking}, ws::Workspace{OS}, θ, ll,
-                 step, ::Any, headstart=false) where OS
-    ρ = updt.ρs[1]
+function impute!(ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN,
+                 headstart=false) where OS
+    ρ = ws.ρ[1][1]
     # sample proposal starting point
     zᵒ, yᵒ = proposal_start_pt(ws, ws.P[1], ρ)
 
@@ -41,14 +88,14 @@ function update!(updt::MCMCImputation{NoBlocking}, ws::Workspace{OS}, θ, ll,
                      path_log_likhd(OS(), ws.XXᵒ, ws.P, 1:m, ws.fpt) +
                      lobslikelihood(ws.P[1], yᵒ)) : -Inf
 
-    print_info(step, value(ll), value(llᵒ), "impute")
+    print_info(verbose, it, value(ll), value(llᵒ), "impute")
 
     if accept_sample(llᵒ-ll, verbose)
         swap!(ws.XX, ws.XXᵒ, ws.WW, ws.WWᵒ, 1:m)
         set!(ws.z, zᵒ)
-        return llᵒ, true, θ
+        return llᵒ, true
     else
-        return ll, false, θ
+        return ll, false
     end
 end
 
@@ -69,6 +116,7 @@ function proposal_start_pt(ws::Workspace, P, ρ)
     yᵒ = start_pt(zᵒ, x0_prior, P)
     zᵒ, yᵒ
 end
+
 
 """
     sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
@@ -107,6 +155,7 @@ function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
     true
 end
 
+
 """
     sample_segment!(i, ws, y, ρ)
 
@@ -126,6 +175,7 @@ function sample_segment!(i, ws, y, ρ)
     success, ws.XXᵒ[i].yy[end]
 end
 
+
 """
     crank_nicolson!(yᵒ, y, ρ)
 
@@ -133,6 +183,12 @@ Preconditioned Crank-Nicolson update with memory parameter `ρ`, previous vector
 `y` and new vector `yᵒ`
 """
 crank_nicolson!(yᵒ, y, ρ) = (yᵒ .= √(1-ρ)*yᵒ + √(ρ)*y)
+
+#function crank_nicolson!(yᵒ, y, ρ)
+#    for i in 1:length(y)
+#        yᵒ[i] = √(1-ρ)*yᵒ[i] + √(ρ)*y[i]
+#    end
+#end
 
 """
     path_log_likhd(::OS, XX, P, iRange, fpt; skipFPT=false
@@ -155,8 +211,9 @@ function path_log_likhd(::OS, XX, P, iRange, fpt; skipFPT=false
     ll
 end
 
+
 """
-    print_info(step, ll, llᵒ, msg="update")
+    print_info(verbose::Bool, it::Integer, ll, llᵒ, msg="update")
 
 Print information to the console about current likelihood values
 
@@ -169,8 +226,8 @@ Print information to the console about current likelihood values
 - `msg`: message to start with
 ...
 """
-function print_info(step, ll, llᵒ, msg="update")
-    step.verbose && print(msg, ": ", step.it, " ll ", round(ll, digits=3), " ",
+function print_info(verbose::Bool, it::Integer, ll, llᵒ, msg="update")
+    verbose && print(msg, ": ", it, " ll ", round(ll, digits=3), " ",
                      round(llᵒ, digits=3), " diff_ll: ", round(llᵒ-ll,digits=3))
 end
 
@@ -190,6 +247,7 @@ function accept_sample(log_threshold, verbose=false)
     end
 end
 
+
 """
     swap!(A, Aᵒ, iRange)
 
@@ -201,6 +259,7 @@ function swap!(A, Aᵒ, iRange)
     end
 end
 
+
 """
     swap!(A, Aᵒ, B, Bᵒ, iRange)
 
@@ -211,6 +270,7 @@ function swap!(A, Aᵒ, B, Bᵒ, iRange)
     swap!(A, Aᵒ, iRange)
     swap!(B, Bᵒ, iRange)
 end
+
 
 """
     impute!(ws::Workspace{OS,ChequeredBlocking}, ll, verbose=false, it=NaN,
@@ -226,17 +286,16 @@ Imputation step of the MCMC scheme (without blocking).
 - `headstart`: flag for whether to 'ease into' fpt conditions
 ...
 """
-function update!(updt::MCMCImputation{<:ChequeredBlocking}, ws::Workspace{OS},
-                 θ, ll, step, ::Any, headstart=false) where OS
+function impute!(ws::Workspace{OS,<:ChequeredBlocking}, ll, verbose=false,
+                 it=NaN, headstart=false) where OS
     P, XXᵒ, XX = ws.P, ws.XXᵒ, ws.XX
 
-    recompute_accepted_law!(updt, ws)
+    recompute_accepted_law!(ws)
     # proposal starting point:
-    z_prop, y_prop = proposal_start_pt(ws, P[1], updt.ρs[1])
+    z_prop, y_prop = proposal_start_pt(ws, P[1], ws.ρ[ws.blidx][1])
 
     ll_total = 0.0
-    acc = fill(false, length(updt.blocking.blocks))
-    for (block_idx, block) in enumerate(updt.blocking.blocks)
+    for (block_idx, block) in enumerate(ws.blocking.blocks[ws.blidx])
         block_flag = Val{block[1]}()
         # previously accepted starting point
         y = XX[block[1]].yy[1]
@@ -244,8 +303,8 @@ function update!(updt::MCMCImputation{<:ChequeredBlocking}, ws::Workspace{OS},
         yᵒ = choose_start_pt(block_flag, y, y_prop)
 
         # sample path in block
-        success = sample_segments!(block, ws, yᵒ, updt.ρs[block_idx])
-        set_end_pt_manually!(updt, block_idx, block, ws)
+        success = sample_segments!(block, ws, yᵒ, ws.ρ[ws.blidx][block_idx])
+        set_end_pt_manually!(block_idx, block, ws)
 
         # starting point, path and observations contribution
         llᵒ = success ? (start_pt_log_pdf(block_flag, ws.x0_prior, yᵒ) +
@@ -256,18 +315,21 @@ function update!(updt::MCMCImputation{<:ChequeredBlocking}, ws::Workspace{OS},
         ll_prev += path_log_likhd(OS(), XX, P, block, ws.fpt; skipFPT=true)
         ll_prev += lobslikelihood(P[block[1]], y)
 
-        print_info(step, value(ll), value(llᵒ), "impute")
+        print_info(verbose, it, value(ll_prev), value(llᵒ), "impute")
         if accept_sample(llᵒ-ll_prev, verbose)
             swap!(XX, XXᵒ, block)
+            register_accpt!(ws, block_idx, true)
             set_z!(block_flag, ws, z_prop)
-            acc[block_idx] = true
             ll_total += llᵒ
         else
+            register_accpt!(ws, block_idx, false)
             ll_total += ll_prev
         end
     end
-    return ll_total, acc, θ
+    # acceptance indicator does not matter for sampling with blocking
+    return ll_total, true
 end
+
 
 """
     recompute_accepted_law!(ws::Workspace)
@@ -275,9 +337,9 @@ end
 Recompute the (H, Hν, c) triplet as well as the noise that corresponds to law
 `ws.P` that is obtained after switching blocks
 """
-function recompute_accepted_law!(updt, ws::Workspace)
-    solve_back_rec!(updt.blocking.blocks, updt.solver, ws.P)         # compute (H, Hν, c) for given blocks
-    noise_from_path!(updt.blocking.blocks, ws.XX, ws.WW, ws.P) # find noise WW that generates XX under 𝔅.P
+function recompute_accepted_law!(ws::Workspace)
+    solve_back_rec!(ws, ws.P)         # compute (H, Hν, c) for given blocks
+    noise_from_path!(ws, ws.XX, ws.WW, ws.P) # find noise WW that generates XX under 𝔅.P
 
     # compute white noise generating starting point under 𝔅
     z = inv_start_pt(ws.XX[1].yy[1], ws.x0_prior, ws.P[1])
@@ -291,13 +353,14 @@ end
 Solve backward recursion to find H, Hν and c, which together define r̃(t,x)
 and p̃(x, 𝓓) under the auxiliary law, when no blocking is done
 """
-function solve_back_rec!(::NoBlocking, solver, P)
+function solve_back_rec!(::NoBlocking, ws::Workspace{OS,B,ST}, P) where {OS,B,ST}
     m = length(P)
-    gpupdate!(P[m]; solver=solver)
+    gpupdate!(P[m]; solver=ST())
     for i in (m-1):-1:1
-        gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1]; solver=solver)
+        gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1]; solver=ST())
     end
 end
+
 
 """
     solve_back_rec!(ws::Workspace{OS,B,ST}, P) where {OS,B,ST}
@@ -305,23 +368,24 @@ end
 Solve backward recursion to find H, Hν and c, which together define r̃(t,x)
 and p̃(x, 𝓓) under the auxiliary law, when blocking is done
 """
-function solve_back_rec!(blocks, solver, P)
-    for block in reverse(blocks)
-        gpupdate!(P[block[end]]; solver=solver)
+function solve_back_rec!(ws::Workspace{OS,B,ST}, P) where {OS,B,ST}
+    for block in reverse(ws.blocking.blocks[ws.blidx])
+        gpupdate!(P[block[end]]; solver=ST())
         for i in reverse(block[1:end-1])
-            gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1];
-                      solver=solver)
+            gpupdate!(P[i], P[i+1].H[1], P[i+1].Hν[1], P[i+1].c[1]; solver=ST())
         end
     end
 end
+
 
 """
     noise_from_path!(ws::Workspace, XX, WW, P)
 
 Compute driving Wiener noise `WW` from path `XX` drawn under law `P`
 """
-function noise_from_path!(blocks, XX, WW, P)
-    for block in blocks
+function noise_from_path!(ws::Workspace, XX, WW, P)
+    𝔅 = ws.blocking
+    for block in 𝔅.blocks[ws.blidx]
         for i in block
             inv_solve!(Euler(), XX[i], WW[i], P[i])
         end
@@ -332,6 +396,7 @@ end
 choose_start_pt(::Val{1}, y, yᵒ) = copy(yᵒ)
 choose_start_pt(::Any, y, yᵒ) = copy(y)
 
+
 """
     set_end_pt_manually!(block_idx, block, ws::Workspace)
 
@@ -339,11 +404,12 @@ Manually set the end-point of the proposal path under blocking so that it agrees
 with the end-point of the previously accepted path. If it is the last block,
 then do nothing
 """
-function set_end_pt_manually!(updt::MCMCImputation, block_idx, block, ws::Workspace)
-    if block_idx < length(updt.blocking.blocks)
+function set_end_pt_manually!(block_idx, block, ws::Workspace)
+    if block_idx < length(ws.blocking.blocks[ws.blidx])
         ws.XXᵒ[block[end]].yy[end] = ws.XX[block[end]].yy[end]
     end
 end
+
 
 """
     start_pt_log_pdf(::Val{1}, yPr::StartingPtPrior, y)
@@ -365,9 +431,8 @@ set_z!(::Val{1}, ws::Workspace, zᵒ) = set!(ws.z, zᵒ)
 
 set_z!(::Any, ::Workspace, ::Any) = nothing
 
-
 #===============================================================================
-                Parameter update routines via Metropolis-Hastings
+                            Parameter update routines
 ===============================================================================#
 
 """
@@ -385,13 +450,14 @@ Update parameters
 - `it`: iteration index of the MCMC algorithm
 ...
 """
-function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt},
-                 ws::Workspace{OS}, θ, ll, step, blocking::NoBlocking) where OS
+function update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx}, θ,
+                       ws::Workspace{OS,NoBlocking}, ll, verbose=false,
+                       it=NaN) where {UpdtIdx,OS}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(WW)
-    θᵒ = rand(pu.t_kernel, θ, pu.updt_coord)               # sample new parameter
+    θᵒ = rand(pu.t_kernel, θ, UpdtIdx())               # sample new parameter
     update_laws!(Pᵒ, θᵒ)
-    pu.aux.recompute_ODEs && solve_back_rec!(blocking, pu.aux.solver, Pᵒ) # compute (H, Hν, c)
+    pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, Pᵒ) # compute (H, Hν, c)
 
     # find white noise which for a given θᵒ gives a correct starting point
     y = XX[1].yy[1]
@@ -403,12 +469,12 @@ function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt},
                      path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt) +
                      lobslikelihood(Pᵒ[1], y)) : -Inf
 
-    print_info(step, value(ll), value(llᵒ))
+    print_info(verbose, it, ll, llᵒ)
 
-    llr = ( llᵒ - ll + prior_kernel_contrib(pu, θ, θᵒ))
+    llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ))
 
     # Accept / reject
-    if accept_sample(llr, step.verbose)
+    if accept_sample(llr, verbose)
         swap!(XX, XXᵒ, P, Pᵒ, 1:m)
         set!(ws.z, zᵒ)
         return llᵒ, true, θᵒ
@@ -416,6 +482,7 @@ function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt},
         return ll, false, θ
     end
 end
+
 
 """
     update_laws!(Ps, θᵒ)
@@ -445,20 +512,38 @@ function find_path_from_wiener!(XX, y, WW, P, iRange)
     true
 end
 
+
 """
     prior_kernel_contrib(t_kern, priors, θ, θᵒ)
 
 Contribution to the log-likelihood ratio from transition kernel `t_kern` and
 `priors`.
 """
-function prior_kernel_contrib(pu::T, θ, θᵒ) where {T <: MCMCUpdate}
-    c = pu.updt_coord
-    llr = logpdf(pu.t_kernel, c, θᵒ, θ) - logpdf(pu.t_kernel, c, θ, θᵒ)
+function prior_kernel_contrib(t_kern, priors, θ, θᵒ)
+    llr = logpdf(t_kern, θᵒ, θ) - logpdf(t_kern, θ, θᵒ)
     for prior in priors
-        llr += logpdf(prior, c, θᵒ) - logpdf(prior, c, θ)
+        llr += logpdf(prior, θᵒ) - logpdf(prior, θ)
     end
     llr
 end
+
+
+
+
+function prior_kernel_contrib(t_kern, priors, θ, θᵒ, μ, Σ, μᵒ, Σᵒ, updt_idx)
+    ϑᵒ = SVector(thetainc(updt_idx, θᵒ))
+    ϑ = SVector(thetainc(updt_idx, θ))
+
+    llr = logpdf(t_kern, ϑᵒ, ϑ, μᵒ, Σᵒ, updt_idx) - logpdf(t_kern, ϑ, ϑᵒ, μ, Σ, updt_idx)
+    print(logpdf(t_kern, ϑᵒ, ϑ, μᵒ, Σᵒ, updt_idx), ", ")
+    print(logpdf(t_kern, ϑ, ϑᵒ, μ, Σ, updt_idx), "\n")
+    for prior in priors
+        llr += logpdf(prior, ϑᵒ) - logpdf(prior, ϑ)
+    end
+    llr
+end
+
+
 
 
 #NOTE blocking and no-blocking param update should be joined into one function
@@ -468,20 +553,20 @@ end
                   ) where {UpdtIdx,OS,B,ST}
 Update parameters
 """
-function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt}, θ,
-                 ws::Workspace{OS}, ll, step, blocking::ChequeredBlocking
-                 ) where OS
+function update_param!(pu::ParamUpdtDefn{MetropolisHastingsUpdt,UpdtIdx},
+                       θ, ws::Workspace{OS,B}, ll, verbose=false, it=NaN
+                       ) where {UpdtIdx,OS,B}
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(P)
-    θᵒ = rand(pu.t_kernel, θ, pu.updt_coord)
+    θᵒ = rand(pu.t_kernel, θ, UpdtIdx())               # sample new parameter
     update_laws!(Pᵒ, θᵒ)                   # update law `Pᵒ` accordingly
-    solve_back_rec!(blocking.blocks, pu.solver, Pᵒ)   # compute (H, Hν, c)
+    solve_back_rec!(ws, Pᵒ)                 # compute (H, Hν, c)
 
     y = XX[1].yy[1]
     zᵒ = inv_start_pt(y, ws.x0_prior, Pᵒ[1])
 
     llᵒ = logpdf(ws.x0_prior, y)
-    for (block_idx, block) in enumerate(blocking.blocks)
+    for (block_idx, block) in enumerate(ws.blocking.blocks[ws.blidx])
         y = XX[block[1]].yy[1]
         success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, block)
         !success && accept_sample(-Inf, verbose)
@@ -493,12 +578,12 @@ function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt}, θ,
         llᵒ += path_log_likhd(OS(), XXᵒ, Pᵒ, block, ws.fpt)
         llᵒ += lobslikelihood(Pᵒ[block[1]], y)
     end
-    print_info(step, value(ll), value(llᵒ))
+    print_info(verbose, it, ll, llᵒ)
 
-    llr = ( llᵒ - ll + prior_kernel_contrib(pu, θ, θᵒ))
+    llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ))
 
     # Accept / reject
-    if accept_sample(llr, step.verbose)
+    if accept_sample(llr, verbose)
         swap!(XX, XXᵒ, P, Pᵒ, 1:m)
         set!(ws.z, zᵒ)
         return llᵒ, true, θᵒ
@@ -508,25 +593,22 @@ function update!(pu::MCMCParamUpdate{MetropolisHastingsUpdt}, θ,
 end
 
 
-#===============================================================================
-                Parameter update routines via conjugate updates
-===============================================================================#
-
-
 """
     update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
                   ws::Workspace{OS,NoBlocking,ST}, ll, verbose=false, it=NaN
                   ) where {UpdtIdx,OS,ST}
 Update parameters using conjugate draws
 """
-function update!(pu::MCMCParamUpdate{ConjugateUpdt}, θ, ws::Workspace{OS}, ll,
-                 step, blocking::NoBlocking) where OS
+function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
+                       ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN
+                       ) where {UpdtIdx,OS}
     WW, P, XX, fpt = ws.WW, ws.P, ws.XX, ws.fpt
     m = length(WW)
-    θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], pu.updt_coord)   # sample new parameter
+    θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
+
 
     update_laws!(P, θᵒ)
-    pu.aux.recompute_ODEs && solve_back_rec!(blocking, pu.aux.solver, P) # compute (H, Hν, c)
+    pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, P) # compute (H, Hν, c)
 
     for i in 1:m    # compute wiener path WW that generates XX
         inv_solve!(Euler(), XX[i], WW[i], P[i])
@@ -538,10 +620,72 @@ function update!(pu::MCMCParamUpdate{ConjugateUpdt}, θ, ws::Workspace{OS}, ll,
     llᵒ = logpdf(ws.x0_prior, y)
     llᵒ += path_log_likhd(OS(), XX, P, 1:m, fpt; skipFPT=true)
     llᵒ += lobslikelihood(P[1], y)
-    print_info(step, value(ll), value(llᵒ))
+    print_info(verbose, it, value(ll), value(llᵒ))
     set!(ws.z, z)
     return llᵒ, true, θᵒ
 end
+
+
+function aux_vola_well_defined(ws, P)
+    for (i,X) in enumerate(ws.XX)
+        try
+            σ(X.tt[1], X.yy[1], P[i].Pt)
+        catch e
+            if isa(e, DomainError)
+                return false
+            else
+                rethrow(e)
+            end
+        end
+    end
+    true
+end
+
+
+function update_param!(pu::ParamUpdtDefn{PseudoConjugateUpdt,UpdtIdx}, θ,
+                       ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN
+                       ) where {UpdtIdx,OS}
+    WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
+    m = length(WW)
+    θᵒ, Σ = pseudo_conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
+    #print("old θ: ", θ, ", new θ: ", θᵒ, "\n\n")
+
+    update_laws!(Pᵒ, θᵒ)
+    preemptive_rejection = !aux_vola_well_defined(ws, Pᵒ)
+    preemptive_rejection && accept_sample(-Inf, verbose)
+    preemptive_rejection && return ll, false, θ
+
+    pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, Pᵒ)
+
+    y = XX[1].yy[1]
+    zᵒ = inv_start_pt(y, ws.x0_prior, Pᵒ[1])
+
+    success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, 1:m)
+
+    !success && accept_sample(-Inf, verbose)
+    !success && return ll, false, θ
+
+    llᵒ = ( logpdf(ws.x0_prior, y) +
+            path_log_likhd(OS(), XXᵒ, Pᵒ, 1:m, fpt) +
+            lobslikelihood(Pᵒ[1], y) )
+
+    print_info(verbose, it, ll, llᵒ)
+
+    _, Σᵒ = pseudo_conjugate_draw(θᵒ, XXᵒ, Pᵒ[1].Target, pu.priors[1], UpdtIdx())
+    llr = ( llᵒ - ll + prior_kernel_contrib(pu.t_kernel, pu.priors, θ, θᵒ, Σ,
+                                            Σᵒ, UpdtIdx()))
+
+    if accept_sample(llr, verbose)
+        swap!(XX, XXᵒ, P, Pᵒ, 1:m)
+        set!(ws.z, zᵒ)
+        return llᵒ, true, θᵒ
+    else
+        return ll, false, θ
+    end
+end
+
+
+
 
 #NOTE blocking and no-blocking param conjugate update should be joined into one function
 """
@@ -552,14 +696,15 @@ Update parameters
 see the definition of  update_param!(…, ::MetropolisHastingsUpdt, …) for the
 explanation of the arguments.
 """
-function update!(pu::ParamUpdtDefn{ConjugateUpdt}, θ, ws::Workspace{OS}, ll,
-                 step, blocking::ChequeredBlocking) where OS
+function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
+                       ws::Workspace{OS,B}, ll, verbose=false, it=NaN
+                       ) where {UpdtIdx,OS,B}
     WW, P, XX, fpt = ws.WW, ws.P, ws.XX, ws.fpt
     m = length(WW)
-    θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], pu.updt_coord)   # sample new parameter
+    θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], UpdtIdx())   # sample new parameter
 
     update_laws!(P, θᵒ)
-    pu.aux.recompute_ODEs && solve_back_rec!(blocking.blocks, pu.aux.solver, P)
+    pu.recompute_ODEs && solve_back_rec!(ws, P)
     for i in 1:m    # compute wiener path WW that generates XX
         inv_solve!(Euler(), XX[i], WW[i], P[i])
     end
@@ -568,11 +713,11 @@ function update!(pu::ParamUpdtDefn{ConjugateUpdt}, θ, ws::Workspace{OS}, ll,
     z = inv_start_pt(y, ws.x0_prior, P[1])
 
     llᵒ = logpdf(ws.x0_prior, y)
-    for block in blocking.blocks
+    for block in ws.blocking.blocks[ws.blidx]
         llᵒ += path_log_likhd(OS(), XX, P, block, ws.fpt; skipFPT=true)
         llᵒ += lobslikelihood(P[block[1]], XX[block[1]].yy[1])
     end
-    print_info(step, value(ll), value(llᵒ))
+    print_info(verbose, it, value(ll), value(llᵒ))
     set!(ws.z, z)
     return llᵒ, true, θᵒ
 end

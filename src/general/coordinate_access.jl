@@ -101,11 +101,18 @@ julia> moveToProperPlace([10,20,30], [1,2,3,4,5],
  30.0
 ```
 """
-function move_to_proper_place!(ϑ, θ, coord_idx)
+function move_to_proper_place(ϑ, θ, coord_idx::Val{T}) where T
     θᵒ = copy(θ)
-    θᵒ[[indices(coord_idx)...]] = ϑ
+    θᵒ[[indices(coord_idx)...]] = wrap(ϑ)
     θᵒ
 end
 
-truelength(::Val{T}) = sum(T)
-length(::Val{T}) = length(T)
+function move_to_proper_place!(ϑ, θ, coord_idx::Val{T}) where T
+    θ[[indices(coord_idx)...]] = wrap(ϑ)
+    θ
+end
+
+wrap(x::Any) = x
+wrap(x::Number) = [x]
+truelength(::Val{T}) where T = sum(T)
+length(::Val{T}) where T = length(T)
