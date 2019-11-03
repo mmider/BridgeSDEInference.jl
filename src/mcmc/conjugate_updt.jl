@@ -68,8 +68,8 @@ function conjugate_draw(θ, XX, PT, prior, updtIdx)
     move_to_proper_place(ϑ, θ, updtIdx)     # align so that dimensions agree
 end
 
-
 mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
+#NOTE already defined in coordinate_access.jl
 @generated function thetaex(::Val{T}, θ) where T
     z = Expr(:tuple, 1.0, (:(θ[$i]) for i in 1:length(T) if  !T[i])...)
     return z

@@ -3,6 +3,10 @@
     with a schedule on how to choose and modify those blocks
 =#
 
+#===============================================================================
+                        Trackers of acceptance probability
+===============================================================================#
+
 mutable struct AccptTracker{S}
     accpt::S
     prop::S
@@ -19,13 +23,41 @@ function acceptance_rate(at::AccptTracker{S}) where S
     at.accpt/at.prop
 end
 
-function register_accpt!(at, accepted)
-    at.prop += 1
-    at.accpt += 1*accepted
+function register_accpt!(at::AccptTracker{S}, accepted) where S
+    at.prop += one(S)
+    at.accpt += one(S)*accepted
 end
 
+function register_accpt!(at::Vector{AccptTracker{S}}, accepted::Vector) where S
+    @assert length(at) == length(accepted)
+    for i in 1:length(at)
+        register_accpt!(at[i], accepted[i])
+    end
+end
 
-abstract type MCMCUpdate end
+"""
+    display(at::AccptTracker)
+
+Show the acceptance rates
+"""
+function display(at::AccptTracker)
+    print("Acceptance rate: ", round(accpetance_rate(at), digits=3), ".\n")
+end
+
+#===============================================================================
+                        Definition of a single Gibbs step
+===============================================================================#
+
+abstract type AuxiliaryInfo end
+
+struct UpdtAuxiliary{ST} <: AuxiliaryInfo
+    solver::ST
+    recompute_ODEs::Bool
+    function UpdtAuxiliary(solver::ST, recompute_ODEs::Bool) where ST<:ODESolverType
+        new{ST}(solver, recompute_ODEs)
+    end
+end
+
 
 """
 
@@ -33,22 +65,53 @@ Needs to have a prior, transition kernel, acceptance rate tracker, information
 about the which coordinates are being updated and an object with auxiliary,
 use-specific information say whether to recompute_ODEs
 """
-struct MCMCParamUpdate{R,S,T,U,V} <: MCMCUpdate
-    updt_type::R
+struct MCMCParamUpdate{UpdtType,S,T,U,V} <: MCMCUpdate
     updt_coord::S
     t_kernel::T
     priors::U
     accpt_tracker::AccptTracker
-    readjust_param::V
-    aux::Z
+    accpt_history::Vector{Bool}
+    aux::V
+    readjust_param::ReadjustT
 
-    function MCMCUpdate(updt_type::R, updt_coord::S, t_kernel::T, priors::U,
-                        readjust_param::V, aux::Z) where {R<:ParamUpdateType,S,T,U,V,Z}
-        accpt_tracker = AccptTracker(0)
-        new{R,S,T,U,V,Z}(updt_type, updt_coord, t_kernel, priors, accpt_tracker,
-                         readjust_param, aux)
+
+    function MCMCUpdate(::UpdtType, updt_coord, θ, t_kernel::T, priors::U,
+                        aux::V, readjust_param=(100, 0.1, -999, 999, 0.234, 50)
+                        ) where {UpdtType<:ParamUpdateType,T,U,V<:AuxiliaryInfo}
+        updt_coord = reformat_updt_coord(updt_coord, θ)
+        S = typeof(updt_coord)
+        new{UpdtType,S,T,U,V}(updt_coord, t_kernel, priors, AccptTracker(0),
+                              Bool[], aux, named_readjust(readjust_param))
     end
 end
+
+"""
+    reformat_updt_coord(updt_coord::Nothing, θ)
+
+Chosen not to update parameters, returned object is not important
+"""
+reformat_updt_coord(updt_coord::Nothing, θ) = (Val((true,)),)
+
+
+IntContainer = Union{Number,NTuple{N,<:Integer},Vector{<:Integer}} where N
+"""
+    reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
+
+Single joint update of multiple parameters at once
+"""
+function reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
+    @assert all([1 <= uc <= length(θ) for uc in updt_coord])
+    Val{Tuple([i in updt_coord for i in 1:length(θ)])}()
+end
+
+"""
+    reformat_updt_coord(updt_coord::Nothing, θ)
+
+If the user does not use indices of coordinates to be updated it is assumed that
+appropriate Val{(...)}() object is passed and nothing is done, use at your own risk
+"""
+reformat_updt_coord(updt_coord, θ) = updt_coord
+
 
 function readjust!(pu::MCMCParamUpdate, corr_mat, mcmc_iter)
     at = pu.accpt_tracker
@@ -57,32 +120,43 @@ function readjust!(pu::MCMCParamUpdate, corr_mat, mcmc_iter)
     reset!(at)
 end
 
+aux_params(::Any, aux) = aux
 
-struct MCMCImputation{B,T} <: MCMCUpdate
+function register_accpt!(pu::MCMCParamUpdate, acc)
+    register_accpt!(pu.accpt_tracker, acc)
+    push!(accpt_history, acc)
+end
+#===============================================================================
+                        Definition of an imputation step
+===============================================================================#
+struct MCMCImputation{B,ST,T} <: MCMCUpdate
     accpt_tracker::Vector{AccptTracker}
+    accpt_history::Vector{T}
     ρs::Vector{Float64}
     blocking::B
-    readjust_param::T
+    solver::ST
+    readjust_param::ReadjustT
 
-    function MCMCImputation(___TODO_blocking, ρ, readjust_param)
-        accpt_tracker = [AccptTracker(0) for _ in 1:num_blocks]
-        T = typeof(readjust_param)
-        @assert typeof(ρ) <: Number
-        ρs = fill(ρ, num_blocks)
-        new{T}(accpt_tracker, ρs, readjust_param)
+    function MCMCImputation(blocking::B, ρ::S, solver::ST=Ralston3(),
+                            readjust_param=(100, 0.1, 0.00001, 0.99999, 0.234, 50)
+                            ) where {B,S<:Number,ST<:ODESolverType}
+        accpt_tracker = [AccptTracker(0) for _ in 1:length(blocking)]
+        accpt_history = NTuple{length(blocking),Bool}[]
+        T = typeof(accpt_history)
+        readjust_param = named_readjust(readjust_param)
+        ρs = fill(ρ, length(blocking))
+        new{B,ST,T}(accpt_tracker, accpt_history, ρs, blocking, solver,
+                    readjust_param)
     end
 end
-
-sigmoid(x, a=1.0) = 1.0 / (1.0 + exp(-a*x))
-logit(x, a=1.0) = (log(x) - log(1-x))/a
 
 function readjust!(pu::MCMCImputation, ::Any, mcmc_iter)
     at = pu.accpt_tracker
     p = pu.readjust_param
-    δ = max(p.minδ, p.scale/sqrt(max(1.0, mcmc_iter/p.step-p.offset)))
+    δ = compute_δ(p, mcmc_iter)
     ar = [acceptance_rate(tracker) for tracker in at]
     for i in 1:length(pu.ρs)
-        pu.ρs[i] = min(sigmoid(logit(ws.ρ[i]) - (2*(ar[i] > p.trgt)-1)*δ), p.maxρ)
+        pu.ρs[i] = compute_ϵ(ws.ρ[i], p, ar[i], δ, -1.0, logit, sigmoid)
     end
     display_new_ρ(ar, pu.ρs)
     reset!(at)
@@ -96,6 +170,16 @@ function display_new_ρ(accpt_rates, ρs)
     print("\n")
 end
 
+aux_params(pu::MCMCImputation, aux) = pu.blocking
+
+function register_accpt!(pu::MCMCImputation, acc)
+    register_accpt!(pu.accpt_tracker, acc)
+    push!(pu.accpt_history, tuple(acc...))
+end
+
+#===============================================================================
+                        Overall schedule defining MCMC
+===============================================================================#
 
 struct MCMCSchedule{T}
     num_mcmc_steps::Int64
@@ -105,16 +189,15 @@ struct MCMCSchedule{T}
 
     function MCMCSchedule(num_mcmc_steps, updt_idx, actions)
         try
-            names = (:save, :verbose, :warm_up, :readjust, :param_updt, :fuse)
+            names = (:save, :verbose, :warm_up, :readjust, :fuse)
             for name in names
                 @assert name in keys(actions)
             end
         catch e
             if isa(e, AssertionError)
-                @assert length(actions) == 6
+                @assert length(actions) == 5
                 actions = (save=actions[1], verbose=actions[2], warm_up=actions[3],
-                           readjust=actions[4], param_updt=actions[5],
-                           fuse=actions[6])
+                           readjust=actions[4], fuse=actions[5])
 
                 print("`actions` has been passed without names. The names are ",
                       " set automatically:\n",
@@ -122,7 +205,6 @@ struct MCMCSchedule{T}
                       "print to console every ", actions.verbose, " iterations,\n",
                       "warm up the sampler for ", actions.warm_up, " iterations,\n",
                       "readjust proposals using function ", actions.readjust, "\n",
-                      "update parameters: ", actions.param_updt,
                       ",\nfuse the most correlated param updates at iterations ",
                       "determined by the function ", actions.fuse, ".\n")
             else
@@ -160,18 +242,23 @@ end
 transition(schedule::MCMCSchedule, elem) = mod1(elem + 1, length(schedule.updt_idx))
 
 
-function mcmc(kernels, schedule::MCMCSchedule, setup::T) where T <: ModelSetup
-    ws, ll, θ = Workspace(setup, schedule)
-    ws_mcmc = Workspace(schedule)
+
+#===============================================================================
+                                The main routine
+===============================================================================#
+
+function mcmc(setup_mcmc::MCMCSetup, schedule::MCMCSchedule, setup::T) where T <: ModelSetup
+    ws, ll, θ = create_workspace(setup)
+    ws_mcmc = create_workspace(setup_mcmc, schedule, θ)
 
     aux = nothing
     for step in schedule
         step.save && save_imputed!(ws)
-        ws = next(ws)
         for i in step.idx
+            ws = next(ws, ws_mcmc.updates[i])
             ll, acc, θ = update!(ws_mcmc.updates[i], ws, θ, ll, step, aux)
-            aux = aux_params(ws_mcmc.updates[i])
-            update!(ws_mcmc, ws, acc, θ, i)
+            aux = aux_params(ws_mcmc.updates[i], aux)
+            update!(ws_mcmc, acc, θ, i)
             step.verbose && print("\n")
         end
         step.verbose && print("-----------------------------------------------",

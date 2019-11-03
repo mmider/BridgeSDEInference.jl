@@ -14,17 +14,28 @@
 
 import Base: last, getindex, length, display, eltype
 
+#===============================================================================
+                        Workspace for the MCMC chain
+===============================================================================#
 
 struct MCMCWorkspace{T,S}
     θ_chain::Vector{T}
     updates::S
     adjust_param
+    function MCMCWorkspace(setup::MCMCSetup, schedule::MCMCSchedule, θ::T
+                           ) where T
+        # TODO create an object that pre-allocates the memory based on schedule
+        # this is difficult due to potential fusing of kernels which results
+        # in a random overall number of updates
+        θ_chain = [θ]
+        new{T,S}(θ_chain, setup.updates, )
+    end
 end
 
 
 function update!(ws::MCMCWorkspace, acc, θ, i)
     typeof(ws.updates[i]) != MCMCImputation && push!(ws.θ_chain, θ)
-    update!(ws.updates[i], acc)
+    register_accpt!(ws.updates[i], acc)
 end
 
 function readjust!(ws::MCMCWorkspace)
@@ -40,33 +51,36 @@ function fuse!(ws::MCMCWorkspace, schedule::MCMCSchedule)
 end
 
 
+"""
+    getindex(g::GibbsDefn, i::Int)
 
+Return `i`th definition of parameter update
+"""
+getindex(g::MCMCWorkspace, i::Int) = g.updates[i]
 
 """
-    display(at::AccptTracker)
+    length(g::GibbsDefn{N})
 
-Show the acceptance rates
+Return the total number of parameter updates in a single Gibbs sweep
 """
-function display(at::AccptTracker)
-    print("Imputation acceptance rate: ", accpt_rate(at, Imputation()),
-          ".\nParameter update acceptance rate: ",
-          accpt_rate(at, ParamUpdate()), ".\n")
-end
+length(g::MCMCWorkspace) = length(g.updates)
 
 
 mutable struct SingleElem{T} val::T end
 
 set!(x::SingleElem{T}, y::T) where T = (x.val = y)
 
-const RhoInfoType = NamedTuple{(:step, :scale, :minδ, :maxρ, :trgt, :offset),
-                               Tuple{Int64, Float64, Float64, Float64, Float64, Int64}}
+#===============================================================================
+                    Workspace for the Diffusion Model
+===============================================================================#
 """
     Workspace{ObsScheme,S,TX,TW,R,ST}
 
 The main container of the `mcmc` function from `mcmc.jl` in which most data
 pertinent to sampling is stored
 """
-struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}# ,Q, where Q = eltype(result)
+struct Workspace{ObsScheme,B,S,TX,TW,R,TP,TZ,Tθ}# ,Q, where Q = eltype(result)
+    # Related to imputed path
     Wnr::Wiener{S}         # Wiener, driving law
     XXᵒ::Vector{TX}        # Diffusion proposal paths
     XX::Vector{TX}         # Accepted diffusion paths
@@ -75,44 +89,29 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}# ,Q, where Q = eltype(resul
     Pᵒ::Vector{R}          # Guided proposals parameterised by proposal param
     P::Vector{R}           # Guided proposals parameterised by accepted param
     fpt::Vector            # Additional information about first passage times
-    #ρ::Vector{Vector{Float64}}      # Memory parameter of the precond Crank-Nicolson scheme
-    #recompute_ODEs::Vector{Bool}    # Info on whether to recompute H,Hν,c after resp. param updt
-    #accpt_tracker::AccptTracker     # Object for tracking acceptance rate
-    #accpt_tracker_short::AccptTracker
-    #θ_chain::ParamHistory           # Object for tracking parameter history
-    #action_tracker::ActionTracker   # Object for tracking steps to perform on a given iteration
+    # Related to historically sampled paths
     skip_for_save::Int64            # Thining parameter for saving path
     paths::Vector                   # Storage with historical, accepted paths
     time::Vector{Float64}           # Storage with time axis
-    blocking::B
-    blidx::Int64
+    # Related to the starting point
     x0_prior::TP
     z::SingleElem{TZ}
-    #pCN_readjust_param::RhoInfoType
-    #θ_readjust_param::Tθ
-
-    #result::Vector{Q} #TODO come back to later
-    #resultᵒ::Vector{Q} #TODO come back to later
+    #recompute_ODEs::Vector{Bool}    # Info on whether to recompute H,Hν,c after resp. param updt
 
     """
         Workspace(setup::MCMCSetup{ObsScheme})
 
     Initialise workspace of the mcmc sampler according to a `setup` variable
     """
-    function Workspace(setup::MCMCSetup{ObsScheme}, schedule::MCMCSchedule) where ObsScheme
+    function Workspace(setup::DiffusionSetup{ObsScheme}) where ObsScheme
         x0_prior, Wnr = deepcopy(setup.x0_prior), deepcopy(setup.Wnr)
         XX, WW = deepcopy(setup.XX), deepcopy(setup.WW)
         P, fpt = deepcopy(setup.P), deepcopy(setup.fpt)
-        updt_coord = deepcopy(setup.updt_coord)
-        pCN_readjust = deepcopy(setup.pCN_readjust_param)
-        θ_readjust = deepcopy(setup.θ_readjust_param)
 
         # forcedSolve defines type by the starting point, make sure it matches
         x0_guess = eltype(eltype(XX))(setup.x0_guess)
         TW, TX, S, R = eltype(WW), eltype(XX), valtype(Wnr), eltype(P)
-        ST, TP, Tθ = typeof(setup.solver), typeof(x0_prior), typeof(θ_readjust)
-
-
+        TP = typeof(x0_prior)
         m = length(P)
 
         y = copy(x0_guess)
@@ -127,77 +126,32 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}# ,Q, where Q = eltype(resul
             y = XX[i].yy[end]
         end
         y = x0_guess
-        ll = logpdf(x0_prior, y)
-        ll += path_log_likhd(ObsScheme(), XX, P, 1:m, fpt, skipFPT=true)
-        ll += lobslikelihood(P[1], y)
+        ll = ( logpdf(x0_prior, y)
+               + path_log_likhd(ObsScheme(), XX, P, 1:m, fpt, skipFPT=true)
+               + lobslikelihood(P[1], y) )
 
-        XXᵒ = deepcopy(XX)
-        WWᵒ = deepcopy(WW)
-        Pᵒ = deepcopy(P)
+        XXᵒ, WWᵒ, Pᵒ = deepcopy(XX), deepcopy(WW), deepcopy(P)
 
         # compute the white noise that generates x0_guess under the initial posterior
         z = inv_start_pt(y, x0_prior, P[1])
         TZ = typeof(z)
         z = SingleElem{TZ}(z)
 
-        #TODO come back to gradient initialisation
-        skip = setup.skip_for_save
         _time = collect(Iterators.flatten(p.tt[1:skip:end-1] for p in P))
 
-        θ_history = ParamHistory(setup)
-
-        blocking = set_blocking(setup.blocking, setup.blocking_params, P)
-        ρ = prepare_mem_param(setup.ρ, blocking)
-        display(blocking)
-        B = typeof(blocking)
-
-        (workspace = new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}(Wnr, XXᵒ, XX, WWᵒ, WW,
-                                                         Pᵒ, P, fpt, ρ,
-                                                         check_if_recompute_ODEs(setup),
-                                                         AccptTracker(setup),
-                                                         AccptTracker(setup),
-                                                         θ_history,
-                                                         ActionTracker(setup),
-                                                         skip, [], _time,
-                                                         blocking, 1, x0_prior,
-                                                         z, pCN_readjust,
-                                                         θ_readjust),
-         ll = ll, θ = last(θ_history))
+         #check_if_recompute_ODEs(setup)
+         (workspace = new{ObsScheme,S,TX,TW,R,TP,TZ,Tθ}(Wnr, XXᵒ, XX, WWᵒ, WW,
+                                                        Pᵒ, P, fpt,
+                                                        setup.skip_for_save,
+                                                        [], _time, x0_prior, z),
+          ll = ll, params(P[1].Target))
     end
 
-    # NOTE this constructor is no longer in use, can be removed
-    """
-        Workspace(ws::Workspace{ObsScheme,S,TX,TW,R}, new_ρ::Float64)
-
-    Copy constructor of `workspace`. Keeps everything the same as passed `ws`
-    with the exception of new memory parameter for the preconditioned
-    Crank-Nicolson scheme, which is changed to `new_ρ`.
-    """
-    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}, new_ρ::Vector{Vector{Float64}}
-                       ) where {ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}
-        new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
-                                            ws.WW, ws.Pᵒ, ws.P, ws.fpt, new_ρ,
-                                            ws.recompute_ODEs, ws.accpt_tracker,
-                                            ws.accpt_tracker_short,
-                                            ws.θ_chain, ws.action_tracker,
-                                            ws.skip_for_save, ws.paths, ws.time,
-                                            ws.blocking, ws.blidx, ws.x0_prior,
-                                            ws.z, ws.pCN_readjust_param,
-                                            ws.θ_readjust_param)
-    end
-
-    function Workspace(ws::Workspace{ObsScheme,B,ST,S,TX,TW,R̃,TP,TZ,Tθ},
-                       P::Vector{R}, Pᵒ::Vector{R}, idx
-                       ) where {ObsScheme,B,ST,S,TX,TW,R̃,R,TP,TZ,Tθ}
-        new{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ,
-                                            ws.WW, Pᵒ, P, ws.fpt, ws.ρ,
-                                            ws.recompute_ODEs, ws.accpt_tracker,
-                                            ws.accpt_tracker_short,
-                                            ws.θ_chain, ws.action_tracker,
-                                            ws.skip_for_save, ws.paths, ws.time,
-                                            ws.blocking, idx, ws.x0_prior, ws.z,
-                                            ws.pCN_readjust_param,
-                                            ws.θ_readjust_param)
+    function Workspace(ws::Workspace{ObsScheme,S,TX,TW,R̃,TP,TZ}, P::Vector{R},
+                       Pᵒ::Vector{R}) where {ObsScheme,S,TX,TW,R̃,R,TP,TZ}
+        new{ObsScheme,S,TX,TW,R,TP,TZ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW, Pᵒ,
+                                       P, ws.fpt, ws.skip_for_save, ws.paths,
+                                       ws.time, ws.x0_prior, ws.z)
     end
 end
 
@@ -206,37 +160,24 @@ eltype(::Type{SamplePath{T}}) where T = T
 solver_type(::Workspace{O,B,ST}) where {O,B,ST} = ST
 
 
-next_set_of_blocks(ws::Workspace{O,NoBlocking}) where O = ws
-
-"""
-    next(𝔅::ChequeredBlocking, XX, θ)
-
-Switch the set of blocks that are being updated. `XX` is the most recently
-sampled (accepted) path. `θ` can be used to change parametrisation.
-"""
-function next_set_of_blocks(ws::Workspace{O,<:ChequeredBlocking}) where O
-    XX, P, Pᵒ, 𝔅 = ws.XX, ws.P, ws.Pᵒ, ws.blocking
-    idx = (ws.blidx % 2) + 1
+next(ws::Workspace, ::Any) = ws
+function next(ws::Workspace, updt::MCMCImputation{<:ChequeredBlocking})
+    XX, P, Pᵒ, bl = ws.XX, ws.P, ws.Pᵒ, updt.blocking
     θ = params(P[1].Target)
+    vs = find_end_pts(bl, XX)
 
-    vs = find_end_pts(𝔅, XX, idx)
-    Ls = 𝔅.Ls[idx]
-    Σs = 𝔅.Σs[idx]
-    ch_pts = 𝔅.change_pts[idx]
-    aux_flags = 𝔅.aux_flags[idx]
-
-    P_new = [GuidPropBridge(P[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ, aux_flags[i])
-             for (i,_) in enumerate(P)]
-    Pᵒ_new = [GuidPropBridge(Pᵒ[i], Ls[i], vs[i], Σs[i], ch_pts[i], θ, aux_flags[i])
-              for (i,_) in enumerate(Pᵒ)]
-    Workspace(ws, P_new, Pᵒ_new, idx)
+    P_new = [GuidPropBridge(Pi, bl.Ls[i], vs[i], bl.Σs[i], bl.change_pts[i],
+                            θ, bl.aux_flags[i]) for (i,Pi) in enumerate(P)]
+    Pᵒ_new = [GuidPropBridge(Pᵒi, bl.Ls[i], vs[i], bl.Σs[i], bl.change_pts[i],
+                             θ, bl.aux_flags[i]) for (i,Pᵒi) in enumerate(Pᵒ)]
+    Workspace(ws, P_new, Pᵒ_new)
 end
 
-prepare_mem_param(ρ::Number, ::NoBlocking) = [[ρ]]
+#prepare_mem_param(ρ::Number, ::NoBlocking) = [[ρ]]
 
-function prepare_mem_param(ρ::Number, blocking::ChequeredBlocking)
-    [[ρ for _ in block_seq] for block_seq in blocking.accpt_tracker.accpt]
-end
+#function prepare_mem_param(ρ::Number, blocking::ChequeredBlocking)
+#    [[ρ for _ in block_seq] for block_seq in blocking.accpt_tracker.accpt]
+#end
 
 
 #NOTE deprecated
@@ -250,103 +191,13 @@ Save the entire path spanning all segments in `XX`. Only 1 in every `ws.skip`
 points is saved to reduce storage space. To-be-saved `XX` is set to `wsXX` or
 `bXX` depending on whether blocking is used.
 """
-function save_path!(ws)
+function save_imputed!(ws::Workspace)
     skip = ws.skip_for_save
     push!(ws.paths, collect(Iterators.flatten(ws.XX[i].yy[1:skip:end-1]
                                                for i in 1:length(ws.XX))))
 end
 
 
-function readjust_tk(ws, mcmc_iter, param_updt_defn)
-    at = ws.accpt_tracker_short
-    p = ws.θ_readjust_param
-    δ = max(p.minδ, p.scale/sqrt(max(1.0, mcmc_iter/p.step-p.offset)))
-    a_r = accpt_rate(at, ParamUpdate())
-    fns = [λ->max(min(λ + (2*(a_r[i] > p.trgt)-1)*δ, p.maxδ), p.minδ) for i in 1:length(a_r)]
-    print("param updt acceptance rate: ", a_r, "\n")
-    gd = GibbsDefn(param_updt_defn, fns, p.idx_MH, p.idx_θ)
-    print("new transition kernels: \n")
-    for i in 1:length(gd)
-        print(i, ". ", gd.updates[i].t_kernel, "\n")
-    end
-    gd
-end
-
-
-
-"""
-    ParamUpdtDefn
-
-For a given, single parameter update step defines transition kernels, priors,
-which coordinates are updated etc.
-"""
-struct ParamUpdtDefn{R,S,T,U}
-    updt_type::R         # The type of update (Metropolis-Hastings/conjugate etc)
-    updt_coord::S        # Which coordinates to update
-    t_kernel::T          # Transition kernel for a given parameter update
-    priors::U            # Prior over updated parameters
-    recompute_ODEs::Bool # Whether given param updt calls for recomputing H,Hν,c
-
-    """
-        ParamUpdtDefn(updt_type::R, updt_coord::S, t_kernel::T, priors::U,
-                      recompute_ODEs::Bool)
-
-    Initialisation of the complete definition of the parameter update step
-    """
-    function ParamUpdtDefn(updt_type::R, updt_coord::S, t_kernel::T, priors::U,
-                           recompute_ODEs::Bool
-                           ) where {R<:ParamUpdateType,S,T,U}
-        new{R,S,T,U}(updt_type, updt_coord, t_kernel, priors, recompute_ODEs)
-    end
-end
-
-"""
-    GibbsDefn
-
-Definition of the entire Gibbs sweep.
-"""
-struct GibbsDefn{N}
-    updates::NTuple{N,ParamUpdtDefn}
-
-    """
-        GibbsDefn(setup)
-
-    Initialises Gibbs sweep according to the `setup`
-    """
-    function GibbsDefn(setup)
-        recompute_ODEs = check_if_recompute_ODEs(setup)
-
-        updates = [ParamUpdtDefn(ut, uc, tk, pr, ro) for (ut, uc, tk, pr, ro)
-                   in zip(setup.updt_type, setup.updt_coord, setup.t_kernel,
-                          setup.priors, recompute_ODEs)]
-        new{length(updates)}(Tuple(updates))
-    end
-
-    function GibbsDefn(gd::GibbsDefn, fns, idx_MH, idx_θ)
-        t_kernels = [(i in idx_MH ?
-                      new_tkernel(gd.updates[i].t_kernel, fns[i], idx_θ[i]) :
-                      gd.updates[i].t_kernel)
-                     for i in 1:length(gd.updates)]
-        updates = [ParamUpdtDefn(u.updt_type, u.updt_coord, t_kernels[i],
-                                 u.priors, u.recompute_ODEs)
-                   for (i, u) in enumerate(gd.updates)]
-        new{length(updates)}(Tuple(updates))
-    end
-end
-
-"""
-    getindex(g::GibbsDefn, i::Int)
-
-Return `i`th definition of parameter update
-"""
-getindex(g::GibbsDefn, i::Int) = g.updates[i]
-
-"""
-    length(g::GibbsDefn{N})
-
-Return the total number of parameter updates in a single Gibbs sweep
-"""
-length(g::GibbsDefn{N}) where N = N
 
 
 
@@ -424,4 +275,14 @@ function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
         end
     end
     adpt, ll
+end
+
+setup_mcmc, schedule
+
+function create_workspace(setup::MCMCSetup, schedule::MCMCSchedule)
+    MCMCWorkspace(setup, schedule)
+end
+
+function create_workspace(setup::T, schedule::MCMCSchedule) where {T <: ModelSetup}
+    Workspace(setup, schedule)
 end

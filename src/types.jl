@@ -162,7 +162,7 @@ function idx(::Val{T}) where T
     tuple((i for i in 1:length(T) if T[i])...)
 end
 
-
+#NOTE already defined in coordinate_access
 """
     moveToProperPlace(ϑ, θ, ::Val{T}) where {T}
 
@@ -194,3 +194,18 @@ get_aux_flag(::Any) = nothing
 # NOTE quick, but potentially dangerous way to generically handle the new
 # cloning functionality, change later!
 clone(A, B, C, D) = clone(A, B, C)
+
+
+
+
+
+
+
+
+
+
+
+
+
+abstract type MCMCUpdate end
+abstract type ModelSetup end
