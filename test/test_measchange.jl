@@ -48,7 +48,7 @@ function test_measchange()
     Noise = Gaussian(𝕏(0.0), Σ)
 
     sample!(W, Wnr)
-    X = solve(Euler(), x0, W, P)
+    _, X = solve(Euler(), x0, W, P)
     v1 = X.yy[end]
     X.yy[end] = zero(v1)
     solve!(Euler(), X, x0, W, P)
