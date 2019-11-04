@@ -3,7 +3,8 @@ Running the MCMC sampler is very simple, it is enough to call
 ```@docs
 mcmc
 ```
-passing the initialised `MCMCsetup` object, as follows:
+passing the initialised `MCMCSetup`, `MCMCSchedule` and `DiffusionSetup`
+objects, as follows:
 ```julia
-out = mcmc(setup)
+out = mcmc(mcmc_setup, schedule, model_setup)
 ```

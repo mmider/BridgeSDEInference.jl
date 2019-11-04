@@ -85,7 +85,7 @@ find the posterior:
 
 ## Overview of the solutions in BridgeSDEInference.jl
 
-The first two problems from [Overview of mathematical problems](@ref) are
+The first two problems from [Problem statements](@ref) are
 addressed by the function
 ```@docs
 mcmc
