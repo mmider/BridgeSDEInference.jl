@@ -159,7 +159,7 @@ end
 eltype(::SamplePath{T}) where T = T
 eltype(::Type{SamplePath{T}}) where T = T
 solver_type(::Workspace{O,B,ST}) where {O,B,ST} = ST
-
+obs_scheme(::Workspace{O}) where O = O()
 
 next(ws::Workspace, ::Any) = ws
 function next(ws::Workspace, updt::Imputation{<:Block})
@@ -208,57 +208,6 @@ function adaptation_object(setup::DiffusionSetup, ws::Workspace)
     resize!(adpt, m, [length(ws.XX[i]) for i in 1:m])
     adpt
 end
-
-function adaptation!(ws::Workspace, adpt::Adaptation, mcmc_iter, ll)
-    if still_adapting(adpt) && mcmc_iter % adpt.skip == 0
-        add_path!(ws, adpt)
-        ll = update!(ws, adpt, ll)
-    end
-    ll
-end
-
-function add_path!(ws::Workspace, adpt::Adaptation)
-    m = length(X)
-    for j in 1:m
-        adpt.X[adpt.N[2]][j] .= ws.X[j].yy
-    end
-end
-
-function update!(ws::Workspace, adpt::Adaptation, ll)
-    if adpt.N[2] == adpt.sizes[adpt.N[1]]
-        X_bar = mean_trajectory(adpt)
-        m = length(ws.P)
-        for j in 1:m
-            Pt = recentre(ws.P[j].Pt, ws.XX[j].tt, X_bar[j])
-            update_λ!(Pt, adpt.λs[adpt.N[1]])
-            ws.P[j] = GuidPropBridge(ws.P[j], Pt)
-
-            Ptᵒ = recentre(ws.Pᵒ[j].Pt, ws.XX[j].tt, X_bar[j])
-            update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
-            ws.Pᵒ[j] = GuidPropBridge(ws.Pᵒ[j], Ptᵒ)
-        end
-
-        solve_back_rec!(NoBlocking(), Vern7(), ws.P) # hard-coded for simplicity
-        #solveBackRec!(NoBlocking(), ws.Pᵒ, ST())
-        y = ws.XX[1].yy[1]
-        z = inv_start_pt(y, ws.x0_prior, ws.P[1])
-        set!(ws.z, z)
-
-        for j in 1:m
-            inv_solve!(Euler(), ws.XX[j], ws.WW[j], ws.P[j])
-        end
-        ll = logpdf(ws.x0_prior, y)
-        ll += path_log_likhd(ObsScheme(), ws.XX, ws.P, 1:m, ws.fpt)
-        ll += lobslikelihood(ws.P[1], y)
-        adpt.N[2] = 1
-        adpt.N[1] += 1
-    else
-        adpt.N[2] += 1
-    end
-    ll
-end
-
-
 
 function create_workspace(setup::MCMCSetup, schedule::MCMCSchedule, θ)
     MCMCWorkspace(setup, schedule, θ)
