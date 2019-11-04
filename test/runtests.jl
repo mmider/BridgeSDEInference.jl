@@ -1,7 +1,8 @@
 using Test, Suppressor
-using Bridge, BridgeSDEInference, StaticArrays, Distributions
+using Bridge, StaticArrays, Distributions
 using Statistics, Random, LinearAlgebra
 
+using BridgeSDEInference
 const BSI = BridgeSDEInference
 using BridgeSDEInference: ℝ
 

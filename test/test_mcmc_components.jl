@@ -12,7 +12,7 @@
     @testset "testing update!" begin
         @test BSI.acceptance_rate(at) == sum(accept_reject)/length(accept_reject)
     end
-    reset!(at)
+    BSI.reset!(at)
     @testset "after reset" begin
         @test at.accpt == 0
         @test at.prop == 0
@@ -24,7 +24,7 @@
         @test all([a.prop == 1 for a in at_vec])
         @test all([at_vec[i].accpt == 1*accept_reject[i] for i in 1:length(at_vec)])
     end
-    reset!(at_vec)
+    BSI.reset!(at_vec)
     @testset "vector after reset" begin
         @test all([a.prop == 0 for a in at_vec])
         @test all([a.accpt == 0 for a in at_vec])

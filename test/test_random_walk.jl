@@ -35,17 +35,17 @@
         ϵ = 1.0
         rw = BSI.UniformRandomWalk(ϵ, true)
         accpt_track = BSI.AccptTracker(0)
-        for i in 1:10 register_accpt!(accpt_track, true) end
-        for i in 1:10 register_accpt!(accpt_track, false) end
+        for i in 1:10 BSI.register_accpt!(accpt_track, true) end
+        for i in 1:10 BSI.register_accpt!(accpt_track, false) end
         δ = 0.1
         param = BSI.named_readjust((100, δ, 0.0, 999.9, 0.234, 50))
-        @suppress readjust!(rw, accpt_track, param, nothing, 10, nothing)
+        @suppress BSI.readjust!(rw, accpt_track, param, nothing, 10, nothing)
         @test rw.ϵ == 1.0+δ
 
-        reset!(accpt_track)
-        for i in 1:2 register_accpt!(accpt_track, true) end
-        for i in 1:10 register_accpt!(accpt_track, false) end
-        @suppress readjust!(rw, accpt_track, param, nothing, 11, nothing)
+        BSI.reset!(accpt_track)
+        for i in 1:2 BSI.register_accpt!(accpt_track, true) end
+        for i in 1:10 BSI.register_accpt!(accpt_track, false) end
+        @suppress BSI.readjust!(rw, accpt_track, param, nothing, 11, nothing)
         @test rw.ϵ == 1.0
 
     end

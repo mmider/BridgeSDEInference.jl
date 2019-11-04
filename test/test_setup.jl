@@ -46,7 +46,7 @@
     end
 
     x0_prior = BSI.KnownStartingPt(obs[1])
-    set_x0_prior!(setup, x0_prior)
+    BSI.set_x0_prior!(setup, x0_prior)
     @testset "setting priors" begin
         @test setup.x0_prior == x0_prior
         @test @suppress BSI.check_if_complete(setup, [:obs, :imput, :prior])
@@ -69,7 +69,7 @@
         @test setup.obs == map(x->SVector{2}(x), obs)
     end
 
-    BSI.initialise!(Float64, setup, Vern7(), false, NoChangePt())
+    BSI.initialise!(Float64, setup, BSI.Vern7(), false, BSI.NoChangePt())
     @testset "initialisation of proposal law" begin
         @test length(setup.P) == 2
         @test typeof(setup.P[1].Pt) == typeof(setup.P̃[1])

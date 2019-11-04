@@ -247,7 +247,7 @@ function update!(updt::Imputation{<:Block}, ws::Workspace{OS}, θ, ll, step,
 
         # sample path in block
         success = sample_segments!(block, ws, yᵒ, updt.ρs[block_idx])
-        set_end_pt_manually!(updt, block_idx, block, ws)
+        set_end_pt_manually!(block_idx, block, ws, length(updt.blocking.blocks))
 
         # starting point, path and observations contribution
         llᵒ = success ? (start_pt_log_pdf(block_flag, ws.x0_prior, yᵒ) +
@@ -342,8 +342,8 @@ Manually set the end-point of the proposal path under blocking so that it agrees
 with the end-point of the previously accepted path. If it is the last block,
 then do nothing
 """
-function set_end_pt_manually!(updt::Imputation, block_idx, block, ws::Workspace)
-    if block_idx < length(updt.blocking.blocks)
+function set_end_pt_manually!(block_idx, block, ws::Workspace, block_len)
+    if block_idx < block_len
         ws.XXᵒ[block[end]].yy[end] = ws.XX[block[end]].yy[end]
     end
 end
@@ -508,18 +508,6 @@ function update!(pu::ParamUpdate{MetropolisHastingsUpdt}, ws::Workspace{OS}, θ,
 end
 
 
-"""
-    set_end_pt_manually!(block_idx, block, ws::Workspace)
-
-Manually set the end-point of the proposal path under blocking so that it agrees
-with the end-point of the previously accepted path. If it is the last block,
-then do nothing
-"""
-function set_end_pt_manually!(block_idx, block, ws::Workspace, block_len)
-    if block_idx < block_len
-        ws.XXᵒ[block[end]].yy[end] = ws.XX[block[end]].yy[end]
-    end
-end
 
 #===============================================================================
                 Parameter update routines via conjugate updates

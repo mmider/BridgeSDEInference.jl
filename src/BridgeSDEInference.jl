@@ -28,7 +28,7 @@ export UniformRandomWalk, GaussianRandomWalk
 export Priors
 
 # blocking_schedule.jl
-export NoBlocking, ChequeredBlocking
+export NoBlocking, ChequeredBlocking, create_blocks
 
 # starting_pt.jl
 export KnownStartingPt, GsnStartingPt
@@ -49,8 +49,10 @@ export Prokaryote, ProkaryoteAux
 export Adaptation, NoAdaptation
 
 # setup.jl
-export MCMCSetup, set_observations!, set_imputation_grid!, set_transition_kernels!
-export set_priors!, set_mcmc_params!, set_blocking!, set_solver!, initialise!
+export MCMCSetup, DiffusionSetup, set_observations!, set_imputation_grid!
+export set_x0_prior!, initialise!, set_auxiliary!
+
+export MCMCSchedule
 
 export Workspace
 
