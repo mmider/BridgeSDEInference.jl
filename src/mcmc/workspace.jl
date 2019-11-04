@@ -199,84 +199,65 @@ function save_imputed!(ws::Workspace)
 end
 
 
-
-
-
-
-"""
-    init_adaptation!(adpt::Adaptation{Val{false}}, ws::Workspace)
-
-Nothing to do when no adaptation needs to be done
-"""
-init_adaptation!(adpt::Adaptation{Val{false}}, ws::Workspace) = nothing
-
-"""
-    init_adaptation!(adpt::Adaptation{Val{true}}, ws::Workspace)
-
-Resize internal container with paths in `adpt` to match the length of imputed
-paths
-"""
-function init_adaptation!(adpt::Adaptation{Val{true}}, ws::Workspace)
+function adaptation_object(setup::DiffusionSetup, ws::Workspace)
+    adpt = deepcopy(setup.adaptive_prop)
+    if typeof(adpt) <: Adaptation{Val{false}}
+        return nothing
+    end
     m = length(ws.XX)
     resize!(adpt, m, [length(ws.XX[i]) for i in 1:m])
+    adpt
 end
 
-
-"""
-    update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, yPr, i, ll,
-            solver::ODESolverType)
-
-Nothing to be done for no adaptation
-"""
-function update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, i,
-                 ll) where ObsScheme
-    adpt, ll
-end
-
-
-"""
-    update!(adpt::Adaptation{Val{false}}, ws::Workspace{ObsScheme}, yPr, i, ll,
-            solver::ODESolverType)
-
-Update the proposal law according to the adaptive scheme and the recently saved
-history of the imputed paths
-"""
-function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
-                 i, ll) where {ObsScheme,B,ST}
-    if i % adpt.skip == 0
-        if adpt.N[2] == adpt.sizes[adpt.N[1]]
-            X_bar = mean_trajectory(adpt)
-            m = length(ws.P)
-            for j in 1:m
-                Pt = recentre(ws.P[j].Pt, ws.XX[j].tt, X_bar[j])
-                update_λ!(Pt, adpt.λs[adpt.N[1]])
-                ws.P[j] = GuidPropBridge(ws.P[j], Pt)
-
-                Ptᵒ = recentre(ws.Pᵒ[j].Pt, ws.XX[j].tt, X_bar[j])
-                update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
-                ws.Pᵒ[j] = GuidPropBridge(ws.Pᵒ[j], Ptᵒ)
-            end
-
-            solve_back_rec!(NoBlocking(), ws, ws.P)
-            #solveBackRec!(NoBlocking(), ws.Pᵒ, ST())
-            y = ws.XX[1].yy[1]
-            z = inv_start_pt(y, ws.x0_prior, ws.P[1])
-            set!(ws.z, z)
-
-            for j in 1:m
-                inv_solve!(Euler(), ws.XX[j], ws.WW[j], ws.P[j])
-            end
-            ll = logpdf(ws.x0_prior, y)
-            ll += path_log_likhd(ObsScheme(), ws.XX, ws.P, 1:m, ws.fpt)
-            ll += lobslikelihood(ws.P[1], y)
-            adpt.N[2] = 1
-            adpt.N[1] += 1
-        else
-            adpt.N[2] += 1
-        end
+function adaptation!(ws::Workspace, adpt::Adaptation, mcmc_iter, ll)
+    if still_adapting(adpt) && mcmc_iter % adpt.skip == 0
+        add_path!(ws, adpt)
+        ll = update!(ws, adpt, ll)
     end
-    adpt, ll
+    ll
 end
+
+function add_path!(ws::Workspace, adpt::Adaptation)
+    m = length(X)
+    for j in 1:m
+        adpt.X[adpt.N[2]][j] .= ws.X[j].yy
+    end
+end
+
+function update!(ws::Workspace, adpt::Adaptation, ll)
+    if adpt.N[2] == adpt.sizes[adpt.N[1]]
+        X_bar = mean_trajectory(adpt)
+        m = length(ws.P)
+        for j in 1:m
+            Pt = recentre(ws.P[j].Pt, ws.XX[j].tt, X_bar[j])
+            update_λ!(Pt, adpt.λs[adpt.N[1]])
+            ws.P[j] = GuidPropBridge(ws.P[j], Pt)
+
+            Ptᵒ = recentre(ws.Pᵒ[j].Pt, ws.XX[j].tt, X_bar[j])
+            update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
+            ws.Pᵒ[j] = GuidPropBridge(ws.Pᵒ[j], Ptᵒ)
+        end
+
+        solve_back_rec!(NoBlocking(), Vern7(), ws.P) # hard-coded for simplicity
+        #solveBackRec!(NoBlocking(), ws.Pᵒ, ST())
+        y = ws.XX[1].yy[1]
+        z = inv_start_pt(y, ws.x0_prior, ws.P[1])
+        set!(ws.z, z)
+
+        for j in 1:m
+            inv_solve!(Euler(), ws.XX[j], ws.WW[j], ws.P[j])
+        end
+        ll = logpdf(ws.x0_prior, y)
+        ll += path_log_likhd(ObsScheme(), ws.XX, ws.P, 1:m, ws.fpt)
+        ll += lobslikelihood(ws.P[1], y)
+        adpt.N[2] = 1
+        adpt.N[1] += 1
+    else
+        adpt.N[2] += 1
+    end
+    ll
+end
+
 
 
 function create_workspace(setup::MCMCSetup, schedule::MCMCSchedule, θ)

@@ -72,6 +72,7 @@ mutable struct DiffusionSetup{ObsScheme} <: ModelSetup
     end
 end
 
+adaptation_object(setup::DiffusionSetup) = deepcopy(setup.adaptive_prop)
 
 """
     set_observations!(setup::DiffusionSetup, Ls, Σs, obs, obs_times,

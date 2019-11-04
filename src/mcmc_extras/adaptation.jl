@@ -63,29 +63,10 @@ Helper function for constructing a flag saying that no adaptation is to be done
 """
 NoAdaptation() = Adaptation{Val{false},Nothing}()
 
-"""
-    check_if_adapt(::Adaptation{Val{T}})
 
-Check if any adaptation needs to be done
-"""
-check_if_adapt(::Adaptation{Val{T}}) where T = T
+still_adapting(::Adaptation{Val{false}}) = false
+still_adapting(adpt::Adaptation{Val{true}}) = adpt.N[1] <= length(adpt.sizes)
 
-"""
-    still_adapting(adpt::Adaptation{Val{true}})
-
-If the adaptation has not been completed then do nothing, else return a flag
-that no further adaptation is to be done
-"""
-function still_adapting(adpt::Adaptation{Val{true}})
-    adpt.N[1] > length(adpt.sizes) ? NoAdaptation() : adpt
-end
-
-"""
-    still_adapting(adpt::Adaptation{Val{false}})
-
-There is nothing to be done for a flag indicating no adaptation
-"""
-still_adapting(adpt::Adaptation{Val{false}}) = adpt
 
 """
     resize!(adpt::Adaptation{TV,T}, m, ns::Vector{Int64})
@@ -100,28 +81,6 @@ function resize!(adpt::Adaptation{TV,T}, m, ns::Vector{Int64}) where {TV,T}
     end
 end
 
-"""
-    add_path!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i)
-
-Save path `X` into the history stored by `adpt` object. Do so only if the index
-`i` of the current update step is not supposed to be skipped.
-"""
-function add_path!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i) where T
-    if i % adpt.skip == 0
-        m = length(X)
-        for j in 1:m
-            adpt.X[adpt.N[2]][j] .= X[j].yy
-        end
-    end
-end
-
-
-"""
-    add_path!(adpt::Adaptation{Val{false}}, ::Any, ::Any)
-
-Nothing to be done when no adaptation is to be performed
-"""
-add_path!(adpt::Adaptation{Val{false}}, ::Any, ::Any) = false
 
 
 """
