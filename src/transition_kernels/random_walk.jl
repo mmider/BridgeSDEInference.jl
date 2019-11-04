@@ -25,7 +25,7 @@ function _rand(rw::UniformRandomWalk, θ, coord_idx)
     ϑ = thetainc(coord_idx, θ)[1]
     δ = rand(Uniform(-rw.ϵ, rw.ϵ))
     ϑ += rw.pos ? 0.0 : δ
-    ϑ *= rw.pos ? δ : 1.0
+    ϑ *= rw.pos ? exp(δ) : 1.0
     ϑ
 end
 

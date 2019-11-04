@@ -24,10 +24,10 @@ function mcmc(setup_mcmc::MCMCSetup, schedule::MCMCSchedule, setup::T) where T <
         step.fuse && fuse!(ws_mcmc, schedule)
     end
     display_summary(ws, ws_mcmc)
-    ws
+    ws, ws_mcmc
 end
 
-
+display_summary(::Any, ::Any) = print("nothing to display...\n")
 
 #=
 

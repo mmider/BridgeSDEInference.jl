@@ -1,8 +1,8 @@
 using PyPlot
 
-function plot_chains(ws::Workspace,indices=nothing;truth=nothing,figsize=(15,10),
+function plot_chains(ws::MCMCWorkspace,indices=nothing;truth=nothing,figsize=(15,10),
                      ylims=nothing)
-    θs = ws.θ_chain.θ_chain
+    θs = ws.θ_chain
     num_steps = length(θs)
     if indices === nothing
         indices = 1:length(θs[1])
@@ -31,10 +31,10 @@ function plot_chains(ws::Workspace,indices=nothing;truth=nothing,figsize=(15,10)
     ax
 end
 
-function plot_paths(ws::Workspace, coords=nothing; transf=nothing,
+function plot_paths(ws::Workspace, ws_mcmc::MCMCWorkspace, schedule, coords=nothing; transf=nothing,
                     figsize=(12,8), alpha=0.5, obs=nothing,
-                    path_indices=1:length(out.paths), ylims=nothing)
-    yy, tt = out.paths, out.time
+                    path_indices=1:length(ws.paths), ylims=nothing)
+    yy, tt = ws.paths, ws.time
     if coords === nothing
         coords = 1:length(yy[1][1])
     end
@@ -42,7 +42,7 @@ function plot_paths(ws::Workspace, coords=nothing; transf=nothing,
         transf = [(x,θ)->x for _ in coords]
     end
     n_coords = length(coords)
-    θs = θs_for_transform(ws)
+    θs = θs_for_transform(ws_mcmc, schedule)
 
     fig, ax = plt.subplots(n_coords, 1, figsize=figsize, sharex=true)
     M = min(length(yy), length(path_indices))
@@ -80,7 +80,7 @@ function plot_paths(ws::Workspace, coords=nothing; transf=nothing,
     ax
 end
 
-function θs_for_transform(ws::Workspace)
+function θs_for_transform(ws::Any) # old implementation
     θs = ws.θ_chain.θ_chain
     if ws.θ_chain.counter < 2
         θs = [params(ws.P[1].Target) for i in 1:length(ws.paths)]
@@ -91,5 +91,15 @@ function θs_for_transform(ws::Workspace)
         θs = θs[[num_updts*(i-warm_up) for i in 1:N
                  if (i % save_iter == 0) && i > warm_up ]]
     end
+    θs
+end
+
+function θs_for_transform(ws::MCMCWorkspace, schedule)
+    θs = ws.θ_chain
+    warm_up, save_iter = schedule.actions.warm_up, schedule.actions.save
+    num_updts = length(schedule.updt_idx[1])-1
+    N = Int64((length(θs)-1)/num_updts) + warm_up
+    θs = θs[[num_updts*(i-warm_up) for i in 1:N
+            if (i % save_iter == 0) && i > warm_up ]]
     θs
 end

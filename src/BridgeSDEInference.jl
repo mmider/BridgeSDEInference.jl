@@ -96,6 +96,6 @@ include(joinpath(_DIR, "workspace.jl"))
 include(joinpath(_DIR, "conjugate_updt.jl"))
 include(joinpath(_DIR, "updates.jl"))
 include(joinpath(_DIR, "mcmc.jl"))
-include(joinpath(_DIR, "repeated.jl"))
+#include(joinpath(_DIR, "repeated.jl"))
 
 end

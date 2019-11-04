@@ -133,7 +133,7 @@ struct ImproperPrior end
 logpdf(::ImproperPrior, coord_idx, θ) = 0.0
 
 struct ImproperPosPrior end
-logpdf(::ImproperPosPrior, coord_idx, θ) = -sum(log.(θ[indices(coord_idx)]))
+logpdf(::ImproperPosPrior, coord_idx, θ) = -sum(log.(θ[[indices(coord_idx)...]]))
 
 valtype(::Val{T}) where T = T
 

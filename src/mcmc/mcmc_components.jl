@@ -41,6 +41,11 @@ function register_accpt!(at::Vector{AccptTracker{S}}, accepted::Vector) where S
     end
 end
 
+function register_accpt!(at::Vector{AccptTracker{S}}, accepted::Bool) where S
+    @assert length(at) == 1
+    register_accpt!(at[1], accepted)
+end
+
 """
     display(at::AccptTracker)
 
@@ -132,7 +137,7 @@ aux_params(::Any, aux) = aux
 
 function register_accpt!(pu::ParamUpdate, acc)
     register_accpt!(pu.accpt_tracker, acc)
-    push!(accpt_history, acc)
+    push!(pu.accpt_history, acc)
 end
 #===============================================================================
                         Definition of an imputation step
