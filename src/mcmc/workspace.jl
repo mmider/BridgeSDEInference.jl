@@ -162,7 +162,7 @@ solver_type(::Workspace{O,B,ST}) where {O,B,ST} = ST
 
 
 next(ws::Workspace, ::Any) = ws
-function next(ws::Workspace, updt::Imputation{Block})
+function next(ws::Workspace, updt::Imputation{<:Block})
     XX, P, Pᵒ, bl = ws.XX, ws.P, ws.Pᵒ, updt.blocking
     θ = params(P[1].Target)
     vs = find_end_pts(bl, XX)

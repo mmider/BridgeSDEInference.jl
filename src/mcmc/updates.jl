@@ -226,8 +226,8 @@ Imputation step of the MCMC scheme (without blocking).
 - `headstart`: flag for whether to 'ease into' fpt conditions
 ...
 """
-function update!(updt::Imputation{<:Block}, ws::Workspace{OS},
-                 θ, ll, step, ::Any, headstart=false) where OS
+function update!(updt::Imputation{<:Block}, ws::Workspace{OS}, θ, ll, step,
+                 ::Any, headstart=false) where OS
     P, XXᵒ, XX = ws.P, ws.XXᵒ, ws.XX
 
     recompute_accepted_law!(updt, ws)
@@ -238,8 +238,10 @@ function update!(updt::Imputation{<:Block}, ws::Workspace{OS},
     acc = fill(false, length(updt.blocking.blocks))
     for (block_idx, block) in enumerate(updt.blocking.blocks)
         block_flag = Val{block[1]}()
+
         # previously accepted starting point
         y = XX[block[1]].yy[1]
+
         # proposal starting point for the block (can be non-y only for the first block)
         yᵒ = choose_start_pt(block_flag, y, y_prop)
 
@@ -252,13 +254,14 @@ function update!(updt::Imputation{<:Block}, ws::Workspace{OS},
                          path_log_likhd(OS(), XXᵒ, P, block, ws.fpt) +
                          lobslikelihood(P[block[1]], yᵒ)) : -Inf
 
+
         ll_prev = start_pt_log_pdf(block_flag, ws.x0_prior, y)
         ll_prev += path_log_likhd(OS(), XX, P, block, ws.fpt; skipFPT=true)
         ll_prev += lobslikelihood(P[block[1]], y)
 
-        print_info(step, value(ll), value(llᵒ), "impute")
+        print_info(step, value(ll_prev), value(llᵒ), "impute")
         if accept_sample(llᵒ-ll_prev, step.verbose)
-            swap!(XX, XXᵒ, block)
+            swap!(XX, XXᵒ, ws.WW, ws.WWᵒ, block)
             set_z!(block_flag, ws, z_prop)
             acc[block_idx] = true
             ll_total += llᵒ
@@ -305,7 +308,7 @@ end
 Solve backward recursion to find H, Hν and c, which together define r̃(t,x)
 and p̃(x, 𝓓) under the auxiliary law, when blocking is done
 """
-function solve_back_rec!(blocks, solver, P)
+function solve_back_rec!(blocks::Vector, solver, P)
     for block in reverse(blocks)
         gpupdate!(P[block[end]]; solver=solver)
         for i in reverse(block[1:end-1])

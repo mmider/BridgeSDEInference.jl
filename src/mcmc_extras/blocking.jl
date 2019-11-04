@@ -35,8 +35,8 @@ particular, on each block with interval indices [a₁,…,aₙ], observations v�
 i∈{1,…,n-1} are made, whereas the last obesrvation is an exactly observed
 process Xₜ at the terminal time t of the aₙ-th interval.
 """
-function find_end_pts(bl::Block, XX, idx)
-    [( k in bl.knots[idx] ? X.yy[end] : bl.vs[k]) for (k,X) in enumerate(XX)]
+function find_end_pts(bl::Block, XX)
+    [( k in bl.knots ? X.yy[end] : bl.vs[k]) for (k,X) in enumerate(XX)]
 end
 
 
