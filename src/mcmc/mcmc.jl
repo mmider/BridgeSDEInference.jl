@@ -32,15 +32,3 @@ end
 display_summary(::Any, ::Any) = print("nothing to display...\n")
 adaptation_object(::Any, ::Any) = nothing
 adaptation!(::Any, ::Nothing, ::Any, ll) = ll
-#=
-
-foo = MCMCSchedule(10, [[1,2,3],[3,4],[5,6,7,8]], (1,2,3,x->(x%5==0),true, x->(x%4==0)))
-
-
-for (i,f) in enumerate(foo)
-    if i == 5
-        foo.updt_idx[1][1]=10000
-    end
-    print(f, "\n")
-end
-=#

@@ -159,16 +159,5 @@ get_aux_flag(::Any) = nothing
 clone(A, B, C, D) = clone(A, B, C)
 
 
-
-
-
-
-
-
-
-
-
-
-
 abstract type MCMCUpdate end
 abstract type ModelSetup end

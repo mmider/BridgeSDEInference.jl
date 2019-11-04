@@ -18,25 +18,41 @@ import Base: last, getindex, length, display, eltype
                         Workspace for the MCMC chain
 ===============================================================================#
 
-struct MCMCWorkspace{T,S}
+struct MCMCWorkspace{T,S,V}
     θ_chain::Vector{T}
     updates::S
-    adjust_param
+    mean::Vector{V}
+    cov::Matrix{V}
+
     function MCMCWorkspace(setup::MCMCSetup, schedule, θ::T) where T
         # TODO create an object that pre-allocates the memory based on schedule
         # this is difficult due to potential fusing of kernels which results
         # in a random overall number of updates
         θ_chain = [θ]
         S = typeof(setup.updates)
-        new{T,S}(θ_chain, setup.updates)
+        V = eltype(θ)
+        new{T,S,V}(θ_chain, setup.updates, copy(θ), zero(θ*θ'))
     end
 end
 
 
 function update!(ws::MCMCWorkspace, acc, θ, i)
-    typeof(ws.updates[i]) != Imputation && push!(ws.θ_chain, θ)
+    not_imputation = typeof(ws.updates[i]) != Imputation
+    not_imputation && push!(ws.θ_chain, θ)
+    not_imputation && update_mean_cov!(ws.mean, ws.cov, θ, length(ws.θ_chain))
     register_accpt!(ws.updates[i], acc)
 end
+
+function update_mean_cov!(θ_mean, θ_cov, θ, θ_len)
+    prev_mean = copy(θ_mean)
+    θ_mean .*= θ_len/(θ_len+1)
+    θ_mean .+= (θ./(θ_len+1))
+    old_sum_sq = (θ_len-1)/θ_len * θ_cov + prev_mean * prev_mean'
+    new_sum_sq = old_sum_sq + (θ * θ')/(θ_len)
+    θ_cov .= new_sum_sq - (θ_len+1)/θ_len * (θ_mean * θ_mean')
+end
+
+
 
 function readjust!(ws::MCMCWorkspace, mcmc_iter)
     for i in 1:length(ws.updates)
@@ -173,16 +189,6 @@ function next(ws::Workspace, updt::Imputation{<:Block})
                              θ, bl.aux_flags[i]) for (i,Pᵒi) in enumerate(Pᵒ)]
     Workspace(ws, P_new, Pᵒ_new)
 end
-
-#prepare_mem_param(ρ::Number, ::NoBlocking) = [[ρ]]
-
-#function prepare_mem_param(ρ::Number, blocking::ChequeredBlocking)
-#    [[ρ for _ in block_seq] for block_seq in blocking.accpt_tracker.accpt]
-#end
-
-
-#NOTE deprecated
-#act(action::Readjust, ws::Workspace, i) = (typeof(ws.blocking) <:ChequeredBlocking) && act(action, ws.action_tracker, i)
 
 
 """
