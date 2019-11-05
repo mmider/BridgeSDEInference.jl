@@ -29,7 +29,7 @@ scheduled to be introduced to a package are:
 - GPU support for efficient treatment of high-dimensional examples
 - see [issue #18 (TODOs)](https://github.com/mmider/BridgeSDEInference.jl/issues/18) for an up-to-date list of planned tasks
 
-## Example results
+<!---## Example results
 Results of running an inference algorithm for estimating four parameters of the
 FitzHugh-Nagumo model (with observational scheme defined in
 [this file](scripts/FHN_no_blocking.jl)).
@@ -51,7 +51,7 @@ parameter γ:
 
 and parameter σ:
 
-![temp](assets/param5.js.svg)
+![temp](assets/param5.js.svg)-->
 
 ## Contributing
 
