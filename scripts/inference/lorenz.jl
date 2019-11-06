@@ -72,12 +72,12 @@ schedule = MCMCSchedule(4*10^3, [[1,2]],
 Random.seed!(4)
 out = mcmc(mcmc_setup, schedule, model_setup)
 #out, elapsed = @timeit mcmc(mcmc_setup, schedule, model_setup)
-display(out.accpt_tracker)
-
+#display(out.accpt_tracker)
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
+plot_acceptance([out[2].updates[3]])
+plot_acceptance([out[2].updates[1]], [500, 500, 500, 500, 500])
 plot_chains(out[2]; truth=[10.0, 28.0, 8.0/3.0, 3.0],
             ylims=[nothing, (25,30), (2,5), (0,10)])
 plot_paths(out[1], out[2], schedule; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
-ws.accpt_tracker

@@ -84,6 +84,7 @@ struct ParamUpdate{UpdtType,S,T,U,V} <: MCMCUpdate
     accpt_history::Vector{Bool}
     aux::V
     readjust_param::ReadjustT
+    readjust_history::Vector{Float64}
 
 
     function ParamUpdate(::UpdtType, updt_coord, θ, t_kernel::T, priors,
@@ -93,9 +94,12 @@ struct ParamUpdate{UpdtType,S,T,U,V} <: MCMCUpdate
         priors = Priors(priors, updt_coord)
         S, U = typeof(updt_coord), typeof(priors)
         new{UpdtType,S,T,U,V}(updt_coord, t_kernel, priors, AccptTracker(0),
-                              Bool[], aux, named_readjust(readjust_param))
+                              Bool[], aux, named_readjust(readjust_param),
+                              [get_dispersion(t_kernel)])
     end
 end
+
+get_dispersion(::Any) = 0.0
 
 """
     reformat_updt_coord(updt_coord::Nothing, θ)
@@ -124,14 +128,15 @@ appropriate Val{(...)}() object is passed and nothing is done, use at your own r
 """
 reformat_updt_coord(updt_coord, θ) = updt_coord
 
-function readjust!(pu::ParamUpdate, corr_mat, mcmc_iter)
+function readjust!(pu::ParamUpdate, cov_mat, mcmc_iter)
     at = pu.accpt_tracker
     p = pu.readjust_param
-    readjust!(pu.t_kernel, at, p, corr_mat, mcmc_iter, pu.updt_coord)
+    disp = readjust!(pu.t_kernel, at, p, cov_mat, mcmc_iter, pu.updt_coord)
+    push!(pu.readjust_history, disp)
     reset!(at)
 end
 
-readjust!(::Nothing, params...) = nothing
+readjust!(::Nothing, params...) = 0.0
 
 aux_params(::Any, aux) = aux
 
@@ -149,6 +154,7 @@ struct Imputation{B,ST,T} <: MCMCUpdate
     blocking::B
     solver::ST
     readjust_param::ReadjustT
+    ρs_history::Vector{Vector{Float64}}
 
     function Imputation(blocking::B, ρ::S, solver::ST=Ralston3(),
                             readjust_param=(100, 0.1, 0.00001, 0.99999, 0.234, 50)
@@ -159,7 +165,7 @@ struct Imputation{B,ST,T} <: MCMCUpdate
         readjust_param = named_readjust(readjust_param)
         ρs = fill(ρ, length(blocking))
         new{B,ST,T}(accpt_tracker, accpt_history, ρs, blocking, solver,
-                    readjust_param)
+                    readjust_param, [copy(ρs)])
     end
 end
 
@@ -171,6 +177,7 @@ function readjust!(pu::Imputation, ::Any, mcmc_iter)
     for i in 1:length(pu.ρs)
         pu.ρs[i] = compute_ϵ(pu.ρs[i], p, ar[i], δ, -1.0, logit, sigmoid)
     end
+    push!(pu.ρs_history, copy(pu.ρs))
     display_new_ρ(ar, pu.ρs)
     reset!(at)
 end

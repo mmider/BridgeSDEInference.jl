@@ -20,52 +20,42 @@ include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
 #=============================================================================
                 Routines for setting up the MCMC sampler
 =============================================================================#
-function _prepare_setup(ρ=0.96, σ_RW_step=0.5, num_mcmc_steps=4*10^3,
+function _prepare_setup(updt_order, ρ=0.96, num_mcmc_steps=4*10^3,
                         do_blocking=false, b_step=2, num_steps_for_change_pt=10,
-                        thin_path=10^0, save_path_every=1*10^3, update_σ=false)
-    t_kernel = ( update_σ ? [RandomWalk([], []),
-                             RandomWalk([2.0, 1.0, 0.64, σ_RW_step], 4)] :
-                            [RandomWalk([], [])] )
-    updt_type = ( update_σ ? (ConjugateUpdt(), MetropolisHastingsUpdt()) :
-                             (ConjugateUpdt(),) )
-    prior_list = ( update_σ ? (MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
-                               ImproperPrior()) :
-                              (MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),) )
-    updt_coord = (update_σ ? [[1,2,3],[4]] : [[1,2,3]])
-    setup = MCMCSetup(Pˣ, P̃, PartObs())
-    set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs_vals, obs_time) # uses default fpt
-    set_imputation_grid!(setup, 1/2000)
-    set_transition_kernels!(setup,
-                            t_kernel,
-                            ρ, true, updt_coord,
-                            updt_type,                           # update types
-                            Adaptation(x0,
-                                       [0.7, 0.4, 0.2, 0.2, 0.2],
-                                       [500, 500, 500, 500, 500],
-                                       1)
-                            )
-    set_priors!(setup,
-                Priors(prior_list),               # priors over parameters
-                GsnStartingPt(x0, @SMatrix [400.0 0.0 0.0;
-                                            0.0 20.0 0.0;
-                                            0.0 0.0 20.0]), # prior over starting point
-                x0
-                )
-    set_mcmc_params!(setup,
-                     num_mcmc_steps,    # number of mcmc steps
-                     save_path_every,   # save path every ... iteration
-                     10^2,              # print progress message every ... iteration
-                     thin_path,         # thin the path imputatation points for save
-                     0                # number of first iterations without param update
-                     )
+                        thin_path=10^0, save_path_every=1*10^3)
+    model_setup = DiffusionSetup(Pˣ, P̃, PartObs())
+    set_observations!(model_setup, [L for _ in P̃], [Σ for _ in P̃], obs_vals,
+                      obs_time)
+    set_imputation_grid!(model_setup, 1/2000)
+    set_x0_prior!(model_setup,
+                  GsnStartingPt(x0, @SMatrix [400.0 0.0 0.0;
+                                                0.0 20.0 0.0;
+                                                0.0 0.0 20.0]), # prior over starting point
+                  x0)
+    set_auxiliary!(model_setup; skip_for_save=thin_path,
+                   adaptive_prop=Adaptation(x0, [0.7, 0.4, 0.2, 0.2, 0.2],
+                                                [500, 500, 500, 500, 500],
+                                            1))
+    initialise!(eltype(x0), model_setup, Vern7(), false, NoChangePt(num_steps_for_change_pt))
+
+    blocks = (NoBlocking(), NoBlocking())
     if do_blocking
-        set_blocking!(setup, ChequeredBlocking(),
-                      (collect(1:length(obs_vals)-2)[1:b_step:end], 10^(-10),
-                       SimpleChangePt(num_steps_for_change_pt)))
+        blocks = create_blocks( ChequeredBlocking(), model_setup.P,
+                                (knots=collect(1:length(obs_vals)-2)[1:b_step:end],
+                                ϵ=10^(-10),
+                                change_pt=SimpleChangePt(num_steps_for_change_pt)))
     end
-    set_solver!(setup, Vern7(), NoChangePt())
-    initialise!(eltype(x0), setup)
-    setup
+    mcmc_setup = MCMCSetup(
+        Imputation(blocks[1], ρ, Vern7()),
+        Imputation(blocks[2], ρ, Vern7()),
+        ParamUpdate(ConjugateUpdt(), [1,2,3], fill(0.0, 4), nothing,
+                    MvNormal(fill(0.0, 3), diagm(0=>fill(1000.0, 3))),
+                    UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [1,2,3])))
+    )
+    schedule = MCMCSchedule(num_mcmc_steps, updt_order,
+                            (save=save_path_every, verbose=10^2, warm_up=0,
+                             readjust=(x->x%100==0), fuse=(x->false)) )
+    mcmc_setup, schedule, model_setup
 end
 
 
@@ -83,6 +73,7 @@ function save_paths(tt, paths, filename)
     end
     CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx))
 end
+
 
 function save_marginals(tt, paths, filename, indices)
     d = length(paths[1][1])
@@ -121,6 +112,14 @@ function save_obs(tt, paths, filename)
     CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx))
 end
 
+function save_history(to_save, filename)
+    n, k = length(to_save), length(to_save[1])
+    xx = zeros(n, k)
+    for i in 1:n
+        xx[i,1:end] .= to_save[i]
+    end
+    CSV.write(joinpath(OUT_DIR, filename), DataFrame(xx))
+end
 
 #==============================================================================
                         Generate densely observed process
@@ -157,72 +156,80 @@ save_paths(obs_time, [obs_vals], "many_obs_data.csv")
 #==============================================================================
                     Run the expriment: very large number of blocks
 ==============================================================================#
-setup = _prepare_setup(0.1, 0.3, 1*10^4, true, 1, 15, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.1, 1*10^4, true, 1, 15, 1, 10^2)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
+out, elapsed = @timeit mcmc(setup...)
 
-plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
+#plot_acceptance([out[2].updates[1],out[2].updates[2]], [500, 500, 500, 500, 500])
+plot_chains(out[2]; truth=[10.0, 28.0, 8.0/3.0, 3.0],
             ylims=[nothing, (25,30), (2,5), (0,10)])
-plot_paths(out; obs=(times=obs_time[2:end],
+plot_paths(out[1], out[2], setup[2]; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
 
-save_paths(out.time, out.paths, "many_obs_many_blocks_paths.csv")
-save_param_chain(out.θ_chain.θ_chain, "many_obs_many_blocks_chain.csv")
+save_paths(out[1].time, out[1].paths, "many_obs_many_blocks_paths.csv")
+save_param_chain(out[2].θ_chain, "many_obs_many_blocks_chain.csv")
+save_history(out[2].updates[1].accpt_history, "many_obs_many_blocks_accpt_hist_1.csv")
+save_history(out[2].updates[2].accpt_history, "many_obs_many_blocks_accpt_hist_2.csv")
+save_history(out[2].updates[1].ρs_history, "many_obs_many_blocks_rho_hist_1.csv")
+save_history(out[2].updates[2].ρs_history, "many_obs_many_blocks_rho_hist_2.csv")
 
 # repeat, this time save marginals
-setup = _prepare_setup(0.1, 0.3, 1*10^4, true, 1, 15, 1000, 1)
+setup = _prepare_setup([[1,3],[2,3]], 0.1, 1*10^4, true, 1, 15, 1000, 1)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
+out, elapsed = @timeit mcmc(setup...)
 display(out.accpt_tracker)
-save_marginals(out.time, out.paths, "many_obs_many_blocks_marginals.csv", [1,50,100,150,200])
+save_marginals(out[1].time, out[1].paths, "many_obs_many_blocks_marginals.csv", [1,50,100,150,200])
 
 #==============================================================================
                     Run the expriment: longer blocks (less of them)
 ==============================================================================#
-setup = _prepare_setup(0.5, 0.8, 1*10^4, true, 4, 15, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.5, 1*10^4, true, 4, 15, 1, 10^2)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
+out, elapsed = @timeit mcmc(setup...)
 
-plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
+plot_chains(out[2]; truth=[10.0, 28.0, 8.0/3.0, 3.0],
             ylims=[nothing, (25,30), (2,5), (0,10)])
-plot_paths(out; obs=(times=obs_time[2:end],
+plot_paths(out[1], out[2], setup[2]; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
 
-save_paths(out.time, out.paths, "many_obs_medium_blocks_paths.csv")
-save_param_chain(out.θ_chain.θ_chain, "many_obs_medium_blocks_chain.csv")
+save_paths(out[1].time, out[1].paths, "many_obs_medium_blocks_paths.csv")
+save_param_chain(out[2].θ_chain, "many_obs_medium_blocks_chain.csv")
+save_history(out[2].updates[1].accpt_history, "many_obs_medium_blocks_accpt_hist_1.csv")
+save_history(out[2].updates[2].accpt_history, "many_obs_medium_blocks_accpt_hist_2.csv")
+save_history(out[2].updates[1].ρs_history, "many_obs_medium_blocks_rho_hist_1.csv")
+save_history(out[2].updates[2].ρs_history, "many_obs_medium_blocks_rho_hist_2.csv")
 
-setup = _prepare_setup(0.5, 0.8, 1*10^4, true, 4, 15, 1000, 1)
+
+setup = _prepare_setup([[1,3],[2,3]], 0.5, 1*10^4, true, 4, 15, 1000, 1)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
-save_marginals(out.time, out.paths, "many_obs_medium_blocks_marginals.csv", [1,50,100,150,200])
+out, elapsed = @timeit mcmc(setup...)
+save_marginals(out[1].time, out[1].paths, "many_obs_medium_blocks_marginals.csv", [1,50,100,150,200])
 
 #==============================================================================
                     Run the expriment: very long blocks
 ==============================================================================#
-setup = _prepare_setup(0.2, 0.8, 1*10^4, false, 40, 15, 1, 10^2)
+setup = _prepare_setup([[1,3]], 0.5, 1*10^4, false, 40, 15, 1, 10^2)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
+out, elapsed = @timeit mcmc(setup...)
 display(out.accpt_tracker)
 
-plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
+plot_chains(out[2]; truth=[10.0, 28.0, 8.0/3.0, 3.0],
             ylims=[nothing, (25,30), (2,5), (0,10)])
-plot_paths(out; obs=(times=obs_time[2:end],
+plot_paths(out[1], out[2], setup[2]; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
 
-save_paths(out.time, out.paths, "many_obs_long_blocks_paths.csv")
-save_param_chain(out.θ_chain.θ_chain, "many_obs_long_blocks_chain.csv")
+save_paths(out[1].time, out[1].paths, "many_obs_long_blocks_paths.csv")
+save_param_chain(out[2].θ_chain, "many_obs_long_blocks_chain.csv")
+save_history(out[2].updates[1].accpt_history, "many_obs_long_blocks_accpt_hist_1.csv")
+save_history(out[2].updates[1].ρs_history, "many_obs_long_blocks_rho_hist_1.csv")
 
-setup = _prepare_setup(0.2, 0.8, 1*10^4, false, 4, 15, 1000, 1)
+setup = _prepare_setup([[1,3]], 0.5, 1*10^4, false, 40, 15, 1000, 1)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
-save_marginals(out.time, out.paths, "many_obs_long_blocks_marginals.csv", [1,50,100,150,200])
+out, elapsed = @timeit mcmc(setup...)
+save_marginals(out[1].time, out[1].paths, "many_obs_long_blocks_marginals.csv", [1,50,100,150,200])
 
 
 
@@ -266,49 +273,55 @@ save_paths(obs_time, [obs_vals], "few_obs_data.csv")
 #==============================================================================
                     Run the expriment: very long blocks
 ==============================================================================#
-setup = _prepare_setup(0.96, 0.1, 1*10^4, false, 40, 15, 1, 10^2, false)
+setup = _prepare_setup([[1,3]], 0.96, 1*10^4, false, 40, 15, 1, 10^2)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
+out, elapsed = @timeit mcmc(setup...)
 
-plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
+plot_chains(out[2]; truth=[10.0, 28.0, 8.0/3.0, 3.0],
             ylims=[nothing, nothing, nothing, (0,10)])
-plot_paths(out; obs=(times=obs_time[2:end],
+plot_paths(out[1], out[2], setup[2]; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
 
-save_paths(out.time, out.paths, "few_obs_long_blocks_paths.csv")
-save_param_chain(out.θ_chain.θ_chain, "few_obs_long_blocks_chain.csv")
+save_paths(out[1].time, out[1].paths, "few_obs_long_blocks_paths.csv")
+save_param_chain(out[2].θ_chain, "few_obs_long_blocks_chain.csv")
+save_history(out[2].updates[1].accpt_history, "few_obs_long_blocks_accpt_hist_1.csv")
+save_history(out[2].updates[1].ρs_history, "few_obs_long_blocks_rho_hist_1.csv")
 
-setup = _prepare_setup(0.96, 0.8, 1*10^3, false, 4, 15, 1000, 1)
+setup = _prepare_setup([[1,3]], 0.96, 1*10^4, false, 4, 15, 1000, 1)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
-save_marginals(out.time, out.paths, "few_obs_long_blocks_marginals.csv", [1,3,6,9,10])
+out, elapsed = @timeit mcmc(setup...)
+save_marginals(out[1].time, out[1].paths, "few_obs_long_blocks_marginals.csv", [1,3,6,9,10])
+
+
+
 
 #==============================================================================
                     Run the expriment: very large number of blocks
 ==============================================================================#
-setup = _prepare_setup(0.7, 0.3, 1*10^4, true, 1, 100, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.3, 1*10^4, true, 1, 100, 1, 10^2)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
+out, elapsed = @timeit mcmc(setup...)
 
-plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
+plot_chains(out[2]; truth=[10.0, 28.0, 8.0/3.0, 3.0],
             ylims=[nothing, (25,30), (2,5), (0,10)])
-plot_paths(out; obs=(times=obs_time[2:end],
+plot_paths(out[1], out[2], setup[2]; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
 
-save_paths(out.time, out.paths, "few_obs_many_blocks_paths.csv")
-save_param_chain(out.θ_chain.θ_chain, "few_obs_many_blocks_chain.csv")
+save_paths(out[1].time, out[1].paths, "few_obs_many_blocks_paths.csv")
+save_param_chain(out[2].θ_chain, "few_obs_many_blocks_chain.csv")
+save_history(out[2].updates[1].accpt_history, "few_obs_many_blocks_accpt_hist_1.csv")
+save_history(out[2].updates[2].accpt_history, "few_obs_many_blocks_accpt_hist_2.csv")
+save_history(out[2].updates[1].ρs_history, "few_obs_many_blocks_rho_hist_1.csv")
+save_history(out[2].updates[2].ρs_history, "few_obs_many_blocks_rho_hist_2.csv")
+
 
 # repeat, this time save marginals
-setup = _prepare_setup(0.7, 0.3, 1*10^4, true, 1, 100, 1000, 1)
+setup = _prepare_setup([[1,3],[2,3]], 0.3, 1*10^4, true, 1, 100, 1000, 1)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
-save_marginals(out.time, out.paths, "few_obs_many_blocks_marginals.csv", [1,3,6,9,10])
+out, elapsed = @timeit mcmc(setup...)
+save_marginals(out[1].time, out[1].paths, "few_obs_many_blocks_marginals.csv", [1,3,6,9,10])
 
 #==============================================================================
             Run the expriment: very large number of blocks and adaptive
@@ -318,19 +331,24 @@ save_marginals(out.time, out.paths, "few_obs_many_blocks_marginals.csv", [1,3,6,
 # `src/examples/lorenz_system_const_vola.jl` in line 104--105. Run the code
 # below and comment it out again.
 ==============================================================================#
-setup = _prepare_setup(0.7, 0.3, 1*10^4, true, 1, 100, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.3, 1*10^4, true, 1, 100, 1, 10^2)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
+out, elapsed = @timeit mcmc(setup...)
 
-plot_chains(out; truth=[10.0, 28.0, 8.0/3.0, 3.0],
+plot_chains(out[2]; truth=[10.0, 28.0, 8.0/3.0, 3.0],
             ylims=[nothing, (25,30), (2,5), (0,10)])
-plot_paths(out; obs=(times=obs_time[2:end],
+plot_paths(out[1], out[2], setup[2]; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
                            [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
 
-save_paths(out.time, out.paths, "few_obs_many_blocks_and_adpt_paths.csv")
-save_param_chain(out.θ_chain.θ_chain, "few_obs_many_blocks_and_adpt_chain.csv")
+save_paths(out[1].time, out[1].paths, "few_obs_many_blocks_and_adpt_paths.csv")
+save_param_chain(out[2].θ_chain, "few_obs_many_blocks_and_adpt_chain.csv")
+save_history(out[2].updates[1].accpt_history, "few_obs_many_blocks_accpt_hist_1.csv")
+save_history(out[2].updates[2].accpt_history, "few_obs_many_blocks_accpt_hist_2.csv")
+save_history(out[2].updates[1].ρs_history, "few_obs_many_blocks_rho_hist_1.csv")
+save_history(out[2].updates[2].ρs_history, "few_obs_many_blocks_rho_hist_2.csv")
+
+
 
 setup = _prepare_setup(0.7, 0.3, 1*10^4, true, 1, 100, 1000, 1)
 Random.seed!(4)

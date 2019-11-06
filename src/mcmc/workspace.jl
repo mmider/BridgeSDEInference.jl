@@ -21,8 +21,10 @@ import Base: last, getindex, length, display, eltype
 struct MCMCWorkspace{T,S,V}
     θ_chain::Vector{T}
     updates::S
+    pos::Vector{Bool}
     mean::Vector{V}
     cov::Matrix{V}
+    updates_hist::Vector
 
     function MCMCWorkspace(setup::MCMCSetup, schedule, θ::T) where T
         # TODO create an object that pre-allocates the memory based on schedule
@@ -30,34 +32,59 @@ struct MCMCWorkspace{T,S,V}
         # in a random overall number of updates
         θ_chain = [θ]
         S = typeof(setup.updates)
+        pos = list_of_pos_params(setup.updates, θ)
         V = eltype(θ)
-        new{T,S,V}(θ_chain, setup.updates, copy(θ), zero(θ*θ'))
+        new{T,S,V}(θ_chain, setup.updates, pos, copy(θ), zero(θ*θ'), [])
     end
 end
 
+function list_of_pos_params(updates, θ)
+    pos = fill(false, length(θ))
+    for updt in updates
+        if typeof(updt) <: ParamUpdate{MetropolisHastingsUpdt}
+            ind_pos = indices_of_pos(updt.updt_coord, updt.t_kernel.pos)
+            for (c,p) in ind_pos
+                if p
+                    pos[c] = true
+                end
+            end
+        end
+    end
+    pos
+end
+
+function indices_of_pos(coords, pos)
+    coord_indices = indices(coords)
+    @assert length(coord_indices) == length(pos)
+    zip(coord_indices, pos)
+end
 
 function update!(ws::MCMCWorkspace, acc, θ, i)
     not_imputation = typeof(ws.updates[i]) != Imputation
     not_imputation && push!(ws.θ_chain, θ)
-    not_imputation && update_mean_cov!(ws.mean, ws.cov, θ, length(ws.θ_chain))
+    not_imputation && update_mean_cov!(ws.mean, ws.cov, θ, length(ws.θ_chain), ws.pos)
     register_accpt!(ws.updates[i], acc)
 end
 
-function update_mean_cov!(θ_mean, θ_cov, θ, θ_len)
+function update_mean_cov!(θ_mean, θ_cov, θ, θ_len, pos)
+    ϑ = neutralise_domain(θ, pos)
     prev_mean = copy(θ_mean)
     θ_mean .*= θ_len/(θ_len+1)
-    θ_mean .+= (θ./(θ_len+1))
+    θ_mean .+= (ϑ./(θ_len+1))
     old_sum_sq = (θ_len-1)/θ_len * θ_cov + prev_mean * prev_mean'
-    new_sum_sq = old_sum_sq + (θ * θ')/(θ_len)
+    new_sum_sq = old_sum_sq + (ϑ * ϑ')/(θ_len)
     θ_cov .= new_sum_sq - (θ_len+1)/θ_len * (θ_mean * θ_mean')
 end
 
-
+function neutralise_domain(θ, pos)
+    ϑ = copy(θ)
+    ϑ[pos] = log.(ϑ[pos])
+    ϑ
+end
 
 function readjust!(ws::MCMCWorkspace, mcmc_iter)
     for i in 1:length(ws.updates)
-        # `nothing` will be a correlation matrix
-        readjust!(ws.updates[i], nothing, mcmc_iter)
+        readjust!(ws.updates[i], ws.cov, mcmc_iter)
     end
 end
 

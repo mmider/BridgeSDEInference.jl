@@ -1,4 +1,52 @@
 using PyPlot
+using RollingFunctions
+
+
+function plot_acceptance(updts::Vector{<:ParamUpdate{MetropolisHastingsUpdt}})
+    fig, ax = plt.subplots(2, length(updts), figsize=(3*length(updts), 5))
+    for (i,updt) in enumerate(updts)
+        ax[1,i].plot(updt.readjust_history, color="steelblue", linewidth=1.0)
+        ax[2,i].plot(rollmean(updt.accpt_history, 100), color="steelblue", linewidth=1.0)
+        coord = indices(updt.updt_coord)[1]
+        print(coord)
+        ax[1,i].set_title(string("Parameter ", string(coord)))
+    end
+    ax[1,1].set_ylabel("dispersion")
+    ax[2,1].set_ylabel("acceptance rate")
+    plt.tight_layout()
+    ax
+end
+
+function plot_acceptance(updts::Vector{<:Imputation}, adaptations=nothing, adpt_intv=100)
+    max_num_segm = maximum([length(updt.ρs) for updt in updts])
+    fig, ax = plt.subplots(2*length(updts), max_num_segm, figsize=(3*max_num_segm, 5*length(updts)))
+    if adaptations !== nothing
+        adaptations = cumsum(adaptations)
+    end
+    for (i,updt) in enumerate(updts)
+        for j in 1:length(updt.ρs_history)
+            ρ = [ρs[j] for ρs in updt.ρs_history]
+            ah = [a[j] for a in updt.accpt_history]
+            ax[2*(i-1)+1,j].plot(ρ, color="steelblue", linewidth=1.0)
+            ax[2*(i-1)+2,j].plot(rollmean(ah, adpt_intv), color="steelblue", linewidth=1.0)
+            ylimA = ax[2*(i-1)+1,j].get_ylim()
+            ylimB = ax[2*(i-1)+2,j].get_ylim()
+            if adaptations !== nothing
+                for adpt in adaptations
+                    ax[2*(i-1)+1,j].plot([adpt/adpt_intv, adpt/adpt_intv], ylimA, color="red", linestyle="dashed", linewidth=1.0)
+                    ax[2*(i-1)+2,j].plot([adpt, adpt], ylimB, color="red", linestyle="dashed", linewidth=1.0)
+                end
+            end
+        end
+        ax[2*(i-1)+1,1].set_ylabel("dispersion")
+        ax[2*(i-1)+2,1].set_ylabel("acceptance rate")
+    end
+    plt.tight_layout()
+    ax
+end
+
+
+
 
 function plot_chains(ws::MCMCWorkspace,indices=nothing;truth=nothing,figsize=(15,10),
                      ylims=nothing)

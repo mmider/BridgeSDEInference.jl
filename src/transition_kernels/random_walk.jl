@@ -56,10 +56,12 @@ function readjust!(rw::UniformRandomWalk, accpt_track, param, ::Any, mcmc_iter, 
           ", previous ϵ: ", round(rw.ϵ, digits=3),
           ", new ϵ: ", round(ϵ, digits=3), "\n")
     rw.ϵ = ϵ
+    ϵ
 end
 
+get_dispersion(rw::UniformRandomWalk) = copy(rw.ϵ)
 #===============================================================================
-                        Multidimensional random walk
+                    Multidimensional Gaussian random walk
 ===============================================================================#
 mutable struct GaussianRandomWalk{T} <: RandomWalk
     Σ::Array{T,2}
@@ -81,7 +83,7 @@ function _rand(rw::GaussianRandomWalk, θ, coord_idx)
     ϑ = [thetainc(coord_idx, θ)...]
     remove_constraints!(rw, ϑ)
     ϑᵒ = rand(Gaussian(ϑ, rw.Σ))
-    reimpose_constraints!(rw, ϑ)
+    reimpose_constraints!(rw, ϑᵒ)
     ϑᵒ
 end
 
@@ -115,6 +117,47 @@ function readjust!(rw::GaussianRandomWalk, ::Any, ::Any, corr, ::Any, coord_idx)
           ", previous Σ: ", round.(rw.Σ, digits=3),
           ", new ϵ: ", round.(Σ, digits=3), "\n")
     rw.Σ = Σ
+end
+
+#===============================================================================
+            Multidimensional mixture of Gaussian random walks
+===============================================================================#
+
+struct GaussianRandomWalkMix{T} <: RandomWalk
+    gsn_A::GaussianRandomWalk{T}
+    gsn_B::GaussianRandomWalk{T}
+    pos::Vector{Bool}
+    λ::Float64
+
+    function GaussianRandomWalkMix(Σ_A::Array{T,2}, Σ_B::Array{T,2}, λ=0.5,
+                                   pos=nothing) where T
+        @assert 0.0 <= λ <= 1.0
+        gsn_A = GaussianRandomWalk(Σ_A, pos)
+        gsn_B = GaussianRandomWalk(Σ_B, pos)
+        new{T}(gsn_A, gsn_B, pos, λ)
+    end
+end
+
+eltype(::GaussianRandomWalkMix{T}) where T = T
+length(rw::GaussianRandomWalkMix) = length(rw.pos)
+
+function rand(rw::GaussianRandomWalkMix, θ, coord_idx)
+    rw_i = pick_kernel(rw)
+    rand(rw_i, θ, coord_idx)
+end
+
+function rand!(rw::GaussianRandomWalkMix, θ, coord_idx)
+    rw_i = pick_kernel(rw)
+    rand!(rw_i, θ, coord_idx)
+end
+
+function logpdf(rw::GaussianRandomWalk, coord_idx, θ, θᵒ)
+    log( (1-rw.λ)*exp(logpdf(rw.gsn_A, coord_idx, θ, θᵒ))
+          + rw.λ *exp(logpdf(rw.gsn_B, coord_idx, θ, θᵒ)) )
+end
+
+function readjust!(rw::GaussianRandomWalkMix, ::Any, ::Any, cov_mat, ::Any, coord_idx)
+    readjust!(rw.gsn_A, nothing, nothing, cov_mat, nothing, coord_idx)
 end
 
 

@@ -14,6 +14,7 @@ export ImproperPrior, ImproperPosPrior, NoChangePt, SimpleChangePt
 
 # mcmc.jl
 export mcmc, PartObs, FPT, FPTInfo, ConjugateUpdt, MetropolisHastingsUpdt
+export ParamUpdate, Imputation, MCMCWorkspace, UpdtAuxiliary
 
 # ODE solvers:
 export Ralston3, RK4, Tsit5, Vern7
@@ -56,6 +57,8 @@ export MCMCSchedule
 
 export Workspace
 
+
+export check_if_recompute_ODEs
 _DIR = "general"
 include(joinpath(_DIR, "types.jl"))
 include(joinpath(_DIR, "coordinate_access.jl"))
