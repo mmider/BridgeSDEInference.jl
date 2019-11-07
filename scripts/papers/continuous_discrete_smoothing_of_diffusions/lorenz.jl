@@ -2,9 +2,9 @@ SRC_DIR = joinpath(Base.source_dir(), "..", "..", "..", "src")
 OUT_DIR = joinpath(Base.source_dir(), "..", "..", "..", "output")
 mkpath(OUT_DIR)
 
-include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
-using Main.BridgeSDEInference
-#include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
+#include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
+#using Main.BridgeSDEInference
+include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
 
 
 using StaticArrays, LinearAlgebra, GaussianDistributions
@@ -26,7 +26,7 @@ function _prepare_setup(updt_order, ρ=0.96, num_mcmc_steps=4*10^3,
     model_setup = DiffusionSetup(Pˣ, P̃, PartObs())
     set_observations!(model_setup, [L for _ in P̃], [Σ for _ in P̃], obs_vals,
                       obs_time)
-    set_imputation_grid!(model_setup, 1/2000)
+    set_imputation_grid!(model_setup, 1/500)
     set_x0_prior!(model_setup,
                   GsnStartingPt(x0, @SMatrix [400.0 0.0 0.0;
                                                 0.0 20.0 0.0;
@@ -299,7 +299,7 @@ save_marginals(out[1].time, out[1].paths, "few_obs_long_blocks_marginals.csv", [
 #==============================================================================
                     Run the expriment: very large number of blocks
 ==============================================================================#
-setup = _prepare_setup([[1,3],[2,3]], 0.3, 1*10^4, true, 1, 100, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^4, true, 1, 100, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 
@@ -318,7 +318,7 @@ save_history(out[2].updates[2].ρs_history, "few_obs_many_blocks_rho_hist_2.csv"
 
 
 # repeat, this time save marginals
-setup = _prepare_setup([[1,3],[2,3]], 0.3, 1*10^4, true, 1, 100, 1000, 1)
+setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^4, true, 1, 100, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 save_marginals(out[1].time, out[1].paths, "few_obs_many_blocks_marginals.csv", [1,3,6,9,10])
@@ -331,7 +331,7 @@ save_marginals(out[1].time, out[1].paths, "few_obs_many_blocks_marginals.csv", [
 # `src/examples/lorenz_system_const_vola.jl` in line 104--105. Run the code
 # below and comment it out again.
 ==============================================================================#
-setup = _prepare_setup([[1,3],[2,3]], 0.3, 1*10^4, true, 1, 100, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^4, true, 1, 100, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 
@@ -343,15 +343,45 @@ plot_paths(out[1], out[2], setup[2]; obs=(times=obs_time[2:end],
 
 save_paths(out[1].time, out[1].paths, "few_obs_many_blocks_and_adpt_paths.csv")
 save_param_chain(out[2].θ_chain, "few_obs_many_blocks_and_adpt_chain.csv")
-save_history(out[2].updates[1].accpt_history, "few_obs_many_blocks_accpt_hist_1.csv")
-save_history(out[2].updates[2].accpt_history, "few_obs_many_blocks_accpt_hist_2.csv")
-save_history(out[2].updates[1].ρs_history, "few_obs_many_blocks_rho_hist_1.csv")
-save_history(out[2].updates[2].ρs_history, "few_obs_many_blocks_rho_hist_2.csv")
+save_history(out[2].updates[1].accpt_history, "few_obs_many_blocks_and_adpt_accpt_hist_1.csv")
+save_history(out[2].updates[2].accpt_history, "few_obs_many_blocks_and_adpt_accpt_hist_2.csv")
+save_history(out[2].updates[1].ρs_history, "few_obs_many_blocks_and_adpt_rho_hist_1.csv")
+save_history(out[2].updates[2].ρs_history, "few_obs_many_blocks_and_adpt_rho_hist_2.csv")
 
 
 
-setup = _prepare_setup(0.7, 0.3, 1*10^4, true, 1, 100, 1000, 1)
+setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^4, true, 1, 100, 1000, 1)
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
-save_marginals(out.time, out.paths, "few_obs_many_blocks_and_adpt_marginals.csv", [1,3,6,9,10])
+out, elapsed = @timeit mcmc(setup...)
+save_marginals(out[1].time, out[1].paths, "few_obs_many_blocks_and_adpt_marginals.csv", [1,3,6,9,10])
+
+
+
+
+
+
+
+
+#==============================================================================
+            Run the expriment: very large number of blocks and adaptive
+#NOTE needs to be done by manually uncommenting the definitions of B₀ and β₀
+==============================================================================#
+setup = _prepare_setup([[1,3]], 0.96, 1*10^4, false, 40, 15, 1, 10^2)
+Random.seed!(4)
+out, elapsed = @timeit mcmc(setup...)
+
+plot_chains(out[2]; truth=[10.0, 28.0, 8.0/3.0, 3.0],
+            ylims=[nothing, nothing, nothing, (0,10)])
+plot_paths(out[1], out[2], setup[2]; obs=(times=obs_time[2:end],
+                     vals=[[v[1] for v in obs_vals[2:end]],
+                           [v[2] for v in obs_vals[2:end]]], indices=[2,3]))
+
+save_paths(out[1].time, out[1].paths, "few_obs_long_blocks_zero_drift_paths.csv")
+save_param_chain(out[2].θ_chain, "few_obs_long_blocks_zero_drift_chain.csv")
+save_history(out[2].updates[1].accpt_history, "few_obs_long_blocks_zero_drift_accpt_hist_1.csv")
+save_history(out[2].updates[1].ρs_history, "few_obs_long_blocks_zero_drift_rho_hist_1.csv")
+
+setup = _prepare_setup([[1,3]], 0.96, 1*10^4, false, 4, 15, 1000, 1)
+Random.seed!(4)
+out, elapsed = @timeit mcmc(setup...)
+save_marginals(out[1].time, out[1].paths, "few_obs_long_blocks_zero_drift_marginals.csv", [1,3,6,9,10])

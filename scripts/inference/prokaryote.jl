@@ -47,9 +47,20 @@ P̃ = [ProkaryoteAux(θ_init..., K, t₀, u, T, v, auxFlag, start_v) for (t₀, 
 L = @SMatrix[1.0 0.0 0.0 0.0;
              0.0 1.0 2.0 0.0]
 
-setup = MCMCSetup(P˟, P̃, PartObs())
-set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time)
-set_imputation_grid!(setup, 1/100)
+model_setup = DiffusionSetup(Pˣ, P̃, PartObs())
+set_observations!(model_setup, [L for _ in P̃], [Σ for _ in P̃], obs_vals,
+                  obs_time)
+set_imputation_grid!(model_setup, 1/100)
+set_x0_prior!(model_setup,
+              GsnStartingPt(x0, SArray{Tuple{4,4}, Float64}(I)), # prior over starting point
+              x0)
+set_auxiliary!(model_setup; skip_for_save=thin_path,
+               adaptive_prop=Adaptation(x0, [0.7, 0.4, 0.2, 0.2, 0.2],
+                                            [500, 500, 500, 500, 500],
+                                        1))
+initialise!(eltype(x0), model_setup, Vern7(), false, NoChangePt(num_steps_for_change_pt))
+
+
 set_transition_kernels!(setup,
                         [ RandomWalk(fill(1.0, 8), collect(1:8)) for i in 1:7],
                         0.9, true, [[1], [2], [3], [4], [5], [7], [8]],

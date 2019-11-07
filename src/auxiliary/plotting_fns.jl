@@ -81,7 +81,7 @@ end
 
 function plot_paths(ws::Workspace, ws_mcmc::MCMCWorkspace, schedule, coords=nothing; transf=nothing,
                     figsize=(12,8), alpha=0.5, obs=nothing,
-                    path_indices=1:length(ws.paths), ylims=nothing)
+                    path_indices=1:length(ws.paths), ylims=nothing, θ_fixed=nothing)
     yy, tt = ws.paths, ws.time
     if coords === nothing
         coords = 1:length(yy[1][1])
@@ -90,7 +90,11 @@ function plot_paths(ws::Workspace, ws_mcmc::MCMCWorkspace, schedule, coords=noth
         transf = [(x,θ)->x for _ in coords]
     end
     n_coords = length(coords)
-    θs = θs_for_transform(ws_mcmc, schedule)
+    if θ_fixed !== nothing
+        θs = fill(θ_fixed, length(yy))
+    else
+        θs = θs_for_transform(ws_mcmc, schedule)
+    end
 
     fig, ax = plt.subplots(n_coords, 1, figsize=figsize, sharex=true)
     M = min(length(yy), length(path_indices))
