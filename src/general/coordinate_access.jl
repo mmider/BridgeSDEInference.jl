@@ -77,10 +77,7 @@ end
 
 function matinc(mat, coord_idx)
     idx = [indices(coord_idx)...]
-    n = size(mat)[1]
-    mat_idx = [(n*i).+idx for i in 0:(n-1)]
-    mat_idx = reshape(collect(Iterators.flatten(mat_idx)), (n,n))
-    mat[mat_idx]
+    Matrix(view(mat, idx, idx))
 end
 
 """

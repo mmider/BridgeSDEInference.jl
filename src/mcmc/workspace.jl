@@ -60,7 +60,7 @@ function indices_of_pos(coords, pos)
 end
 
 function update!(ws::MCMCWorkspace, acc, θ, i)
-    not_imputation = typeof(ws.updates[i]) != Imputation
+    not_imputation = !(typeof(ws.updates[i]) <: Imputation)
     not_imputation && push!(ws.θ_chain, θ)
     not_imputation && update_mean_cov!(ws.mean, ws.cov, θ, length(ws.θ_chain), ws.pos)
     register_accpt!(ws.updates[i], acc)

@@ -51,7 +51,7 @@ function _prepare_setup(updt_order, ρ=0.96, num_mcmc_steps=4*10^3,
     )
     schedule = MCMCSchedule(num_mcmc_steps, updt_order,
                             (save=save_path_every, verbose=10^2, warm_up=0,
-                             readjust=(x->x%100==0), fuse=(x->false)) )
+                             readjust=(x->x%100==0), fuse=(x->x==2000)) )
     mcmc_setup, schedule, model_setup
 end
 
@@ -169,7 +169,7 @@ mcmc_setup = MCMCSetup(
                 UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [2]))),
     ParamUpdate(MetropolisHastingsUpdt(), [3], fill(0.0, 8),
                 UniformRandomWalk(0.5, true), ImproperPosPrior(),
-                UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [3]))),
+                UpdtAuxiliary(Vern7(), check_if_rec->falseompute_ODEs(P̃, [3]))),
     ParamUpdate(MetropolisHastingsUpdt(), [7], fill(0.0, 8),
                 UniformRandomWalk(0.5, true), ImproperPosPrior(),
                 UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [7]))))

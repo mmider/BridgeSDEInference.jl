@@ -109,11 +109,11 @@ function logpdf(rw::GaussianRandomWalk, coord_idx, θ, θᵒ)
     logpdf(Gaussian(ϑ, rw.Σ), ϑᵒ) + logJ
 end
 
-function readjust!(rw::GaussianRandomWalk, ::Any, ::Any, corr, ::Any, coord_idx)
-    ρ = matinc(corr, coord_idx)
+function readjust!(rw::GaussianRandomWalk, ::Any, ::Any, cov_mat, ::Any, coord_idx)
+    ρ = matinc(cov_mat, coord_idx)
     Σ = 2.38^2/length(rw)*ρ
     print("Updating multivariate random walker...\n")
-    print("correlation: ", round.(ρ, digits=2),
+    print("covariance: ", round.(ρ, digits=2),
           ", previous Σ: ", round.(rw.Σ, digits=3),
           ", new ϵ: ", round.(Σ, digits=3), "\n")
     rw.Σ = Σ
@@ -151,11 +151,16 @@ function rand!(rw::GaussianRandomWalkMix, θ, coord_idx)
     rand!(rw_i, θ, coord_idx)
 end
 
-function logpdf(rw::GaussianRandomWalk, coord_idx, θ, θᵒ)
+function pick_kernel(rw::GaussianRandomWalkMix)
+    rand(Bernoulli(rw.λ)) ? rw.gsn_B : rw.gsn_A
+end
+
+function logpdf(rw::GaussianRandomWalkMix, coord_idx, θ, θᵒ)
     log( (1-rw.λ)*exp(logpdf(rw.gsn_A, coord_idx, θ, θᵒ))
           + rw.λ *exp(logpdf(rw.gsn_B, coord_idx, θ, θᵒ)) )
 end
 
 function readjust!(rw::GaussianRandomWalkMix, ::Any, ::Any, cov_mat, ::Any, coord_idx)
     readjust!(rw.gsn_A, nothing, nothing, cov_mat, nothing, coord_idx)
+    0.0 # this is just a temporary solution to prevent some unnecessary errors
 end
