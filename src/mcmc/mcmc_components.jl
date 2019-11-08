@@ -97,6 +97,16 @@ struct ParamUpdate{UpdtType,S,T,U,V} <: MCMCUpdate
                               Bool[], aux, named_readjust(readjust_param),
                               [get_dispersion(t_kernel)])
     end
+
+    function ParamUpdate(::UpdtType, updt_coord, θ, t_kernel::T, priors::U,
+                         aux::V, readjust_param=(100, 0.1, 0.0, 999.9, 0.234, 50)
+                         ) where {UpdtType<:ParamUpdateType,T,U<:Priors,V<:AuxiliaryInfo}
+        updt_coord = reformat_updt_coord(updt_coord, θ)
+        S = typeof(updt_coord)
+        new{UpdtType,S,T,U,V}(updt_coord, t_kernel, priors, AccptTracker(0),
+                              Bool[], aux, named_readjust(readjust_param),
+                              [get_dispersion(t_kernel)])
+    end
 end
 
 get_dispersion(::Any) = 0.0
@@ -260,3 +270,20 @@ function Base.eltype(iter::MCMCSchedule)
                Tuple{Array{Int64,1},Bool,Bool,Bool,Bool,Bool,Int64}}
 end
 transition(schedule::MCMCSchedule, elem) = mod1(elem + 1, length(schedule.updt_idx))
+
+function reschedule!(schedule::MCMCSchedule, idx_to_remove, new_idx)
+    for updt_indices in schedule.updt_idx
+        updated = false
+        N = length(updt_indices)
+        for i in N:-1:1
+            if updt_indices[i] in idx_to_remove
+                if !updated
+                    updt_indices[i] = new_idx
+                    updated = true
+                else
+                    splice!(updt_indices, i)
+                end
+            end
+        end
+    end
+end

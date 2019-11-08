@@ -159,8 +159,3 @@ end
 function readjust!(rw::GaussianRandomWalkMix, ::Any, ::Any, cov_mat, ::Any, coord_idx)
     readjust!(rw.gsn_A, nothing, nothing, cov_mat, nothing, coord_idx)
 end
-
-
-#===============================================================================
-                            Fusions of random walkers
-===============================================================================#

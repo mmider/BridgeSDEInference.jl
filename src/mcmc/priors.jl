@@ -39,6 +39,10 @@ struct Priors{S,T}
         S, T = typeof(priors), typeof(coord_idx)
         new{S,T}(priors, coord_idx)
     end
+    function Priors(priors::T1, coord_idx::T2) where {T1<:Tuple, T2<:Tuple}
+        S, T = typeof(priors), typeof(coord_idx)
+        new{S,T}(priors, coord_idx)
+    end
 end
 
 """

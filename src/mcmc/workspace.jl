@@ -89,9 +89,25 @@ function readjust!(ws::MCMCWorkspace, mcmc_iter)
 end
 
 function fuse!(ws::MCMCWorkspace, schedule)
-    corr_mat = find_correlation(ws.θ_chain)
-    idx1, idx2 = find_fuse_indices(corr_mat, ws.updates)
-    # fuse
+    # NOTE for now, the `fuse!` function is quite restricted and will fuse all
+    # Metropolis-Hastings transition kernels into a single one
+    MH_updates = [u for u in ws.updates
+                  if typeof(u) <: ParamUpdate{<:MetropolisHastingsUpdt}]
+    order_updates!(MH_updates)
+    fusion_updt_coord = fuse_coord(MH_updates)
+    fusion_cov = Matrix(view(ws.cov, fusion_updt_coord, fusion_updt_coord))
+    fusion_kernel = fuse_kernels(MH_updates, fusion_cov)
+    fusion_priors = fuse_priors(MH_updates)
+    fusion_aux = fuse_aux(MH_updates)
+    fusion_param_updt = ParamUpdate(MetropolisHastingsUpdt(), fusion_updt_coord,
+                                    ws.θ_chain[end], fusion_kernel,
+                                    fusion_priors, fusion_aux)
+    push!(ws.updates, fusion_param_updt)
+
+    MH_updt_idx = [i for (i,u) in enumerate(ws.updates)
+                   if typeof(u) <: ParamUpdate{<:MetropolisHastingsUpdt}]
+
+    reschedule!(schedule, MH_updt_idx, length(ws.updates))
 end
 
 
