@@ -393,6 +393,7 @@ function update!(pu::ParamUpdate{MetropolisHastingsUpdt}, ws::Workspace{OS}, θ,
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(WW)
     θᵒ = rand(pu.t_kernel, θ, pu.updt_coord)               # sample new parameter
+    (logpdf(pu.priors, θᵒ) === -Inf) ? (return ll, false, θ) : nothing
     update_laws!(Pᵒ, θᵒ)
     pu.aux.recompute_ODEs && solve_back_rec!(blocking, pu.aux.solver, Pᵒ) # compute (H, Hν, c)
 
@@ -474,6 +475,7 @@ function update!(pu::ParamUpdate{MetropolisHastingsUpdt}, ws::Workspace{OS}, θ,
     WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
     m = length(P)
     θᵒ = rand(pu.t_kernel, θ, pu.updt_coord)
+    (logpdf(pu.priors, θᵒ) === -Inf) ? (return ll, false, θ) : nothing
     update_laws!(Pᵒ, θᵒ)                   # update law `Pᵒ` accordingly
     solve_back_rec!(blocking.blocks, pu.aux.solver, Pᵒ)   # compute (H, Hν, c)
 

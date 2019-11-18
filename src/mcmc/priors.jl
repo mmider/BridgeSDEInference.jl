@@ -83,7 +83,16 @@ function iterate(iter::Priors, i=1)
     return ((iter.priors[i], iter.coord_idx[i]), i + 1)
 end
 
+struct ExpUnif
+    low::Float64 # lower bound on a log scale
+    up::Float64 # upper bound on a log scale
 
-#===============================================================================
-                            Fusion of priors
-===============================================================================#
+    ExpUnif(low_bd, up_bd) = new(low_bd, up_bd)
+end
+
+function logpdf(p::ExpUnif, coord_idx, θ)
+    θi = θ[[indices(coord_idx)...]]
+    @assert length(θi) == 1
+    lθi = log(θi[1])
+    p.low <= lθi <= p.up ? -log(p.up-p.low) - lθi : -Inf
+end

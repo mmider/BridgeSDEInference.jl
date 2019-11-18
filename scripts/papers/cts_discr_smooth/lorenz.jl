@@ -1,5 +1,5 @@
 SRC_DIR = joinpath(Base.source_dir(), "..", "..", "..", "src")
-OUT_DIR = joinpath(Base.source_dir(), "..", "..", "..", "output")
+OUT_DIR = joinpath(Base.source_dir(), "..", "..", "..", "output4")
 mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
@@ -138,8 +138,8 @@ XX, _ = simulateSegment(ℝ{3}(0.0, 0.0, 0.0), x0, Pˣ, tt)
 L = @SMatrix[0.0 1.0 0.0;
              0.0 0.0 1.0]
 
-skip = 50
-obs_time, obs_vals = XX.tt[1:skip:end], [rand(Gaussian(L*x, Σ)) for x in XX.yy[1:skip:end]]
+skip_me = 50
+obs_time, obs_vals = XX.tt[1:skip_me:end], [rand(Gaussian(L*x, Σ)) for x in XX.yy[1:skip_me:end]]
 
 θ_init = [5.0, 15.0, 6.0, 3.0]
 aux_flag = Val{(false,true,true)}()
@@ -156,7 +156,7 @@ save_paths(obs_time, [obs_vals], "many_obs_data.csv")
 #==============================================================================
                     Run the expriment: very large number of blocks
 ==============================================================================#
-setup = _prepare_setup([[1,3],[2,3]], 0.1, 1*10^4, true, 1, 15, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.1, 1*10^5, true, 1, 6, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 
@@ -175,16 +175,20 @@ save_history(out[2].updates[1].ρs_history, "many_obs_many_blocks_rho_hist_1.csv
 save_history(out[2].updates[2].ρs_history, "many_obs_many_blocks_rho_hist_2.csv")
 
 # repeat, this time save marginals
-setup = _prepare_setup([[1,3],[2,3]], 0.1, 1*10^4, true, 1, 15, 1000, 1)
+setup = _prepare_setup([[1,3],[2,3]], 0.1, 1*10^5, true, 1, 6, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 display(out.accpt_tracker)
-save_marginals(out[1].time, out[1].paths, "many_obs_many_blocks_marginals.csv", [1,50,100,150,200])
-
+#_temp = 0
+#save_marginals(out[1].time, out[1].paths[1+_temp*10^4:(_temp+1)*10^4],
+#               join(["many_obs_many_blocks_marginals_", string(_temp), ".csv"]),
+#               [1,50,100,150,200])
+save_marginals(out[1].time, out[1].paths, "many_obs_many_blocks_marginals.csv"),
+               [1,50,100,150,200])
 #==============================================================================
                     Run the expriment: longer blocks (less of them)
 ==============================================================================#
-setup = _prepare_setup([[1,3],[2,3]], 0.5, 1*10^4, true, 4, 15, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.5, 1*10^5, true, 4, 6, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 
@@ -202,15 +206,18 @@ save_history(out[2].updates[1].ρs_history, "many_obs_medium_blocks_rho_hist_1.c
 save_history(out[2].updates[2].ρs_history, "many_obs_medium_blocks_rho_hist_2.csv")
 
 
-setup = _prepare_setup([[1,3],[2,3]], 0.5, 1*10^4, true, 4, 15, 1000, 1)
+setup = _prepare_setup([[1,3],[2,3]], 0.5, 1*10^5, true, 4, 6, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 save_marginals(out[1].time, out[1].paths, "many_obs_medium_blocks_marginals.csv", [1,50,100,150,200])
-
+#_temp = 9
+#save_marginals(out[1].time, out[1].paths[1+_temp*10^4:(_temp+1)*10^4],
+#               join(["many_obs_medium_blocks_marginals_", string(_temp), ".csv"]),
+#               [1,50,100,150,200])
 #==============================================================================
                     Run the expriment: very long blocks
 ==============================================================================#
-setup = _prepare_setup([[1,3]], 0.5, 1*10^4, false, 40, 15, 1, 10^2)
+setup = _prepare_setup([[1,3]], 0.5, 1*10^5, false, 40, 6, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 display(out.accpt_tracker)
@@ -226,11 +233,14 @@ save_param_chain(out[2].θ_chain, "many_obs_long_blocks_chain.csv")
 save_history(out[2].updates[1].accpt_history, "many_obs_long_blocks_accpt_hist_1.csv")
 save_history(out[2].updates[1].ρs_history, "many_obs_long_blocks_rho_hist_1.csv")
 
-setup = _prepare_setup([[1,3]], 0.5, 1*10^4, false, 40, 15, 1000, 1)
+setup = _prepare_setup([[1,3]], 0.5, 1*10^5, false, 40, 6, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 save_marginals(out[1].time, out[1].paths, "many_obs_long_blocks_marginals.csv", [1,50,100,150,200])
-
+#_temp = 9
+#save_marginals(out[1].time, out[1].paths[1+_temp*10^4:(_temp+1)*10^4],
+#               join(["many_obs_long_blocks_marginals_", string(_temp), ".csv"]),
+#               [1,50,100,150,200])
 
 
 
@@ -251,13 +261,13 @@ x0, dt, T = ℝ{3}(1.5, -1.5, 25.0), 1/5000, 2.0
 tt = 0.0:dt:T
 XX, _ = simulateSegment(ℝ{3}(0.0, 0.0, 0.0), x0, Pˣ, tt)
 
-Σdiagel = 5*10^(-1)
+Σdiagel = 5*10^(-2)
 Σ = SMatrix{2,2}(1.0I)*Σdiagel
 L = @SMatrix[0.0 1.0 0.0;
              0.0 0.0 1.0]
 
-skip = 1000
-obs_time, obs_vals = XX.tt[1:skip:end], [rand(Gaussian(L*x, Σ)) for x in XX.yy[1:skip:end]]
+skip_me = 1000
+obs_time, obs_vals = XX.tt[1:skip_me:end], [rand(Gaussian(L*x, Σ)) for x in XX.yy[1:skip_me:end]]
 
 θ_init = [5.0, 15.0, 6.0, 3.0]
 aux_flag = Val{(false,true,true)}()
@@ -273,7 +283,7 @@ save_paths(obs_time, [obs_vals], "few_obs_data.csv")
 #==============================================================================
                     Run the expriment: very long blocks
 ==============================================================================#
-setup = _prepare_setup([[1,3]], 0.96, 1*10^4, false, 40, 15, 1, 10^2)
+setup = _prepare_setup([[1,3]], 0.96, 1*10^5, false, 40, 15, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 
@@ -288,18 +298,21 @@ save_param_chain(out[2].θ_chain, "few_obs_long_blocks_chain.csv")
 save_history(out[2].updates[1].accpt_history, "few_obs_long_blocks_accpt_hist_1.csv")
 save_history(out[2].updates[1].ρs_history, "few_obs_long_blocks_rho_hist_1.csv")
 
-setup = _prepare_setup([[1,3]], 0.96, 1*10^4, false, 4, 15, 1000, 1)
+setup = _prepare_setup([[1,3]], 0.96, 1*10^5, false, 4, 15, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 save_marginals(out[1].time, out[1].paths, "few_obs_long_blocks_marginals.csv", [1,3,6,9,10])
-
+_temp = 9
+save_marginals(out[1].time, out[1].paths[1+_temp*10^4:(_temp+1)*10^4],
+               join(["few_obs_long_blocks_marginals_", string(_temp), ".csv"]),
+               [1,3,6,9,10])
 
 
 
 #==============================================================================
                     Run the expriment: very large number of blocks
 ==============================================================================#
-setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^4, true, 1, 100, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^5, true, 1, 100, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 
@@ -318,11 +331,14 @@ save_history(out[2].updates[2].ρs_history, "few_obs_many_blocks_rho_hist_2.csv"
 
 
 # repeat, this time save marginals
-setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^4, true, 1, 100, 1000, 1)
+setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^5, true, 1, 100, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 save_marginals(out[1].time, out[1].paths, "few_obs_many_blocks_marginals.csv", [1,3,6,9,10])
-
+_temp = 9
+save_marginals(out[1].time, out[1].paths[1+_temp*10^4:(_temp+1)*10^4],
+               join(["few_obs_many_blocks_marginals_", string(_temp), ".csv"]),
+               [1,3,6,9,10])
 #==============================================================================
             Run the expriment: very large number of blocks and adaptive
 #NOTE because adaptation is currently implemented in a rather inefficient way
@@ -331,7 +347,7 @@ save_marginals(out[1].time, out[1].paths, "few_obs_many_blocks_marginals.csv", [
 # `src/examples/lorenz_system_const_vola.jl` in line 104--105. Run the code
 # below and comment it out again.
 ==============================================================================#
-setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^4, true, 1, 100, 1, 10^2)
+setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^5, true, 1, 100, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 
@@ -350,11 +366,14 @@ save_history(out[2].updates[2].ρs_history, "few_obs_many_blocks_and_adpt_rho_hi
 
 
 
-setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^4, true, 1, 100, 1000, 1)
+setup = _prepare_setup([[1,3],[2,3]], 0.9, 1*10^5, true, 1, 100, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 save_marginals(out[1].time, out[1].paths, "few_obs_many_blocks_and_adpt_marginals.csv", [1,3,6,9,10])
-
+_temp = 9
+save_marginals(out[1].time, out[1].paths[1+_temp*10^4:(_temp+1)*10^4],
+               join(["few_obs_many_blocks_and_adpt_marginals_", string(_temp), ".csv"]),
+               [1,3,6,9,10])
 
 
 
@@ -366,7 +385,7 @@ save_marginals(out[1].time, out[1].paths, "few_obs_many_blocks_and_adpt_marginal
             Run the expriment: very large number of blocks and adaptive
 #NOTE needs to be done by manually uncommenting the definitions of B₀ and β₀
 ==============================================================================#
-setup = _prepare_setup([[1,3]], 0.96, 1*10^4, false, 40, 15, 1, 10^2)
+setup = _prepare_setup([[1,3]], 0.96, 1*10^5, false, 40, 15, 1, 10^2)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 
@@ -381,7 +400,11 @@ save_param_chain(out[2].θ_chain, "few_obs_long_blocks_zero_drift_chain.csv")
 save_history(out[2].updates[1].accpt_history, "few_obs_long_blocks_zero_drift_accpt_hist_1.csv")
 save_history(out[2].updates[1].ρs_history, "few_obs_long_blocks_zero_drift_rho_hist_1.csv")
 
-setup = _prepare_setup([[1,3]], 0.96, 1*10^4, false, 4, 15, 1000, 1)
+setup = _prepare_setup([[1,3]], 0.96, 1*10^5, false, 4, 15, 1000, 1)
 Random.seed!(4)
 out, elapsed = @timeit mcmc(setup...)
 save_marginals(out[1].time, out[1].paths, "few_obs_long_blocks_zero_drift_marginals.csv", [1,3,6,9,10])
+_temp = 9
+save_marginals(out[1].time, out[1].paths[1+_temp*10^4:(_temp+1)*10^4],
+               join(["few_obs_long_blocks_zero_drift_marginals_", string(_temp), ".csv"]),
+               [1,3,6,9,10])

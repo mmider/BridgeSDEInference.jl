@@ -26,7 +26,7 @@ export forcedSolve!, forcedSolve
 export UniformRandomWalk, GaussianRandomWalk
 
 # priors.jl
-export Priors
+export Priors, ExpUnif
 
 # blocking_schedule.jl
 export NoBlocking, ChequeredBlocking, create_blocks
