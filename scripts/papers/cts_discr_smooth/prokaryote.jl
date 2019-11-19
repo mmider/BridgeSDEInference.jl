@@ -1,5 +1,5 @@
 SRC_DIR = joinpath(Base.source_dir(), "..", "..", "..", "src")
-OUT_DIR = joinpath(Base.source_dir(), "..", "..", "..", "output6")
+OUT_DIR = joinpath(Base.source_dir(), "..", "..", "..", "output7")
 mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
@@ -41,12 +41,15 @@ function _prepare_setup(updt_order, ρ=0.96, num_mcmc_steps=4*10^3,
         ParamUpdate(MetropolisHastingsUpdt(), [2], fill(0.0, 8),
                     UniformRandomWalk(0.5, true), ExpUnif(-7.0, 2.0),
                     UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [2]))),
-        #ParamUpdate(MetropolisHastingsUpdt(), [3], fill(0.0, 8),
-        #            UniformRandomWalk(0.5, true), ExpUnif(-7.0, 2.0),
-        #            UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [3]))),
+        ParamUpdate(MetropolisHastingsUpdt(), [3], fill(0.0, 8),
+                    UniformRandomWalk(0.5, true), ExpUnif(-7.0, 2.0),
+                    UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [3]))),
         ParamUpdate(MetropolisHastingsUpdt(), [4], fill(0.0, 8),
                     UniformRandomWalk(0.5, true), ExpUnif(-7.0, 2.0),
                     UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [4]))),
+        #ParamUpdate(MetropolisHastingsUpdt(), [6], fill(0.0, 8),
+        #            UniformRandomWalk(0.5, true), ExpUnif(-7.0, 2.0),
+        #            UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [6]))),
         ParamUpdate(MetropolisHastingsUpdt(), [7], fill(0.0, 8),
                     UniformRandomWalk(0.5, true), ExpUnif(-7.0, 2.0),
                     UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [7]))),
@@ -129,7 +132,7 @@ end
                             Generate the process
 ==============================================================================#
 
-_obs = open(joinpath(OUT_DIR, "../output/prokaryote_custom.dat")) do f
+_obs = open(joinpath(OUT_DIR, "prokaryote_custom.dat")) do f
     [map(x->parse(Float64, x), split(l, ' '))[[2,3]] for (i,l) in enumerate(eachline(f)) if i != 1]
 end
 _obs_time = collect(range(1.0, length(_obs), step=1))
@@ -138,7 +141,7 @@ obs_vals = vcat([0.0],[o[2] for o in _obs])
 obs_time = vcat(0.0, _obs_time)
 
 # let's start from the true values that generated the data
-θ_init = [0.05, 0.05, 0.35, 0.05, 0.1, 0.9, 0.3, 0.05]
+θ_init = [0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1]#[0.05, 0.05, 0.35, 0.05, 0.1, 0.9, 0.3, 0.05]
 K = 10.0
 P˟ = Prokaryote(θ_init..., K)
 x0 = ℝ{4}([8.0,8.0,8.0,5.0])
@@ -148,7 +151,7 @@ start_v = @SVector[5.0, 5.0, 5.0, 5.0]
 P̃ = [ProkaryoteAux(θ_init..., K, t₀, u, T, v, auxFlag, start_v) for (t₀, T, u, v)
      in zip(obs_time[1:end-1], obs_time[2:end], obs_vals[1:end-1], obs_vals[2:end])]
 
-Σ = @SMatrix[2.0]
+Σ = @SMatrix[4.0]
 L = @SMatrix[0.0 1.0 2.0 0.0]
 
 #=
@@ -184,7 +187,7 @@ schedule = MCMCSchedule(1*10^4, [[1,2,3,4,5]],
                          readjust=(x->x%100==0), fuse=(x->false)) )
 out = mcmc(mcmc_setup, schedule, model_setup)
 =#
-setup = _prepare_setup([[1,2,3,4,5,6]], 0.9, 5*10^4, 1, 10^3)
+setup = _prepare_setup([[1,2,3,4,5,6,7]], 0.9, 2*10^4, 1, 10^3)
 Random.seed!(6)
 out, elapsed = @timeit mcmc(setup...)
 plot_chains(out[2]; truth=[0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1])

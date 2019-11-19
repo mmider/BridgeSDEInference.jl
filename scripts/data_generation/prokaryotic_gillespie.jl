@@ -24,7 +24,7 @@ end
 
 u0 = [5,8,5,8,8]
 θ = [0.1, 0.7, 0.35, 0.2, 0.1, 0.9, 0.3, 0.1]
-tt = (0.0, 100.0)
+tt = (0.0, 300.0)
 
 Random.seed!(4)
 sol = simulate_data(u0, tt, θ)
@@ -38,7 +38,7 @@ XX = map(x->x[[4,5,2,1,3]], sol.(obs_time))
 obs = [[o[1] + rand(Normal(0.0, 1.0)), o[2] + 2*o[3]+rand(Normal(0.0, 2.0))] for o in XX[2:end]]
 
 # save the data
-OUT_DIR = joinpath(Base.source_dir(), "..", "..", "output")
+OUT_DIR = joinpath(Base.source_dir(), "..", "..", "output7")
 
 # save the process
 open(joinpath(OUT_DIR, "prokaryote_custom.dat"), "w") do f

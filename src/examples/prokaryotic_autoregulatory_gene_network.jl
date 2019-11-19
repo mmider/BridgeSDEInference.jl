@@ -154,21 +154,21 @@ function β(t, P::ProkaryoteAux{Val{:custom}})
               k₁]
 end
 
+#=
+function B(t, P::ProkaryoteAux{Val{:custom}})
+    @SMatrix [0.0  0.0  0.0  0.0;
+              0.0  0.0  0.0  0.0;
+              0.0  0.0  0.0  0.0;
+              0.0  0.0  0.0 0.0]
+end
 
-#function B(t, P::ProkaryoteAux{Val{:custom}})
-#    @SMatrix [0.0  0.0  0.0  0.0;
-#              0.0  0.0  0.0  0.0;
-#              0.0  0.0  0.0  0.0;
-#              0.0  0.0  0.0 0.0]
-#end
-
-#function β(t, P::ProkaryoteAux{Val{:custom}})
-#    @SVector [0.0,
-#              0.0,
-#              0.0,
-#              0.0]
-#end
-
+function β(t, P::ProkaryoteAux{Val{:custom}})
+    @SVector [0.0,
+              0.0,
+              0.0,
+              0.0]
+end
+=#
 
 σ(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _σ_prokaryote(P.v, P)
 a(t, P::ProkaryoteAux{Val{(true,true,true,true)}}) = _a_prokaryote(P.v, P)
