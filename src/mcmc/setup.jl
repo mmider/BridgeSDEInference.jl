@@ -319,7 +319,8 @@ function find_proposal_law!(::Type{K}, setup::DiffusionSetup, solver, change_pt
     P = GuidPropBridge(K, t, P˟, P̃[m], Ls[m], xx[m+1], Σs[m];
                        change_pt=change_pt, solver=solver)
     #P = Array{ContinuousTimeProcess,1}(undef,m)
-    Ps = [deepcopy(P)]
+    Ps = []
+    push!(Ps, deepcopy(P))
 
     for i in m-1:-1:1
         t = _build_time_grid(τ, dt, tt[i], tt[i+1])
@@ -327,6 +328,7 @@ function find_proposal_law!(::Type{K}, setup::DiffusionSetup, solver, change_pt
                            P.Hν[1], P.c[1]; change_pt=change_pt, solver=solver)
         push!(Ps, deepcopy(P))
     end
+    Ps = [P for P in Ps]
     setup.P = reverse(Ps)
 end
 
