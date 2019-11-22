@@ -1,5 +1,5 @@
 SRC_DIR = joinpath(Base.source_dir(), "..", "..", "..", "src")
-OUT_DIR = joinpath(Base.source_dir(), "..", "..", "..", "output4")
+OUT_DIR = joinpath(Base.source_dir(), "..", "..", "..", "output10")
 mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
@@ -127,11 +127,12 @@ end
 
 Random.seed!(4)
 θˣ = [10.0, 28.0, 8.0/3.0, 3.0]
-Pˣ = LorenzCV(θˣ...)
+#Pˣ = LorenzCV(θˣ...)
+Pˣ = LorenzHypo(θˣ...)
 
 x0, dt, T = ℝ{3}(1.5, -1.5, 25.0), 1/5000, 2.0
 tt = 0.0:dt:T
-XX, _ = simulateSegment(ℝ{3}(0.0, 0.0, 0.0), x0, Pˣ, tt)
+XX, _ = simulateSegment(ℝ{2}(0.0, 0.0), x0, Pˣ, tt)
 
 Σdiagel = 5*10^0
 Σ = SMatrix{2,2}(1.0I)*Σdiagel
@@ -146,6 +147,12 @@ aux_flag = Val{(false,true,true)}()
 P̃ = [LorenzCVAux(θ_init..., t₀, u, T, v, aux_flag, x0[3]) for (t₀, T, u, v)
      in zip(obs_time[1:end-1], obs_time[2:end], obs_vals[1:end-1], obs_vals[2:end])]
 Pˣ = LorenzCV(θ_init...)
+
+P̃ = [LorenzHypoAux(θ_init..., t₀, u, T, v, aux_flag, x0[3]) for (t₀, T, u, v)
+     in zip(obs_time[1:end-1], obs_time[2:end], obs_vals[1:end-1], obs_vals[2:end])]
+Pˣ = LorenzHypo(θ_init...)
+
+
 print("mid-point time: ", XX.tt[div(length(XX.yy),2)+1], ", mid-point value: ",
       XX.yy[div(length(XX.yy),2)+1], "\n")
 print("three-quarters time: ", XX.tt[3*div(length(XX.yy),4)+1], ", three-quarters value: ",
