@@ -83,6 +83,13 @@ function iterate(iter::Priors, i=1)
     return ((iter.priors[i], iter.coord_idx[i]), i + 1)
 end
 
+
+"""
+    ExpUnif
+
+Distribution of an exponential of a uniform random variable U,
+where U ~ Unif([low, up])
+"""
 struct ExpUnif
     low::Float64 # lower bound on a log scale
     up::Float64 # upper bound on a log scale
