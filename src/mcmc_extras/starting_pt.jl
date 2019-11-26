@@ -111,6 +111,11 @@ function inv_start_pt(y, G::GsnStartingPt, P::GuidPropBridge)
     μ_post = (P.H[1] + G.Λ) \ (P.Hν[1] + G.Λ * G.μ)
     Σ_post = inv(P.H[1] + G.Λ)
     Σ_post = 0.5 * (Σ_post + Σ_post')
+    try
+        whiten(Σ_post, y-μ_post)
+    catch e
+        print("incorrect matrix: ", Σ_post, "\n\n")
+    end
     whiten(Σ_post, y-μ_post)
 end
 

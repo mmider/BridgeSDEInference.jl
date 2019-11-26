@@ -45,7 +45,7 @@ function forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath{S},
         increm = _b((i,tt[i]), y, P)*(tt[i+1]-tt[i]) + _scale(dWt, σ(tt[i], y, P))
         y_new = y + increm
         offset_addon = zero(S)
-        while !boundSatisfied(d, y_new)
+        while !bound_satisfied(d, y_new)
             rootdt = √(tt[i+1]-tt[i])
             dWt = rootdt*randn(S)
             increm = _b((i,tt[i]), y, P)*(tt[i+1]-tt[i]) + _scale(dWt, σ(tt[i], y, P))
@@ -77,7 +77,26 @@ function forcedSolve(::EulerMaruyama, u::T, W::SamplePath,
     WW, XX
 end
 
+import Bridge.solve!
+function solve!(::EulerMaruyama, Y, u::T, W::SamplePath, P::ProcessOrCoefficients) where {T}
+    N = length(W)
+    N != length(Y) && error("Y and W differ in length.")
 
+    ww = W.yy
+    tt = Y.tt
+    yy = Y.yy
+    tt[:] = W.tt
+
+    y::T = u
+    dom = domain(P)
+    for i in 1:N-1
+        yy[.., i] = y
+        y = y + _b((i,tt[i]), y, P)*(tt[i+1]-tt[i]) + _scale((ww[.., i+1]-ww[..,i]), σ(tt[i], y, P))
+        !bound_satisfied(dom, y) && return false, nothing
+    end
+    yy[.., N] = endpoint(y, P)
+    true, Y
+end
 
 #NOTE ↓↓↓↓↓↓↓↓↓↓↓ not the right way to go for now ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓
 

@@ -14,7 +14,7 @@ computed, as well as the scheme according to which the adaptation is supposed
 to be performed. `TV` indicates whether any adaptation should be done at all.
 `TV` set to `Val{False}` acts as an indicator that no adaptation is to be done.
 """
-struct Adaptation{TV,T}
+struct Adaptation{TV,T,ST}
     X::Vector{Vector{Vector{T}}} # history of paths
     λs::Vector{Float64}          # ladder of weights that balance initial
                                  # auxiliary law and the adaptive law based on
@@ -24,6 +24,7 @@ struct Adaptation{TV,T}
     skip::Int64                  # save 1 in every ... many sampled paths
     N::Vector{Int64}             # counter #1-current position on the ladder
                                  # #2-current index of the last saved path
+    solver::ST
 
     """
         Adaptation(::T, λs, sizes_of_path_coll, skip=1)
@@ -40,12 +41,13 @@ struct Adaptation{TV,T}
     - `skip`: save 1 in every ... many sampled paths
     ...
     """
-    function Adaptation(::T, λs, sizes_of_path_coll, skip=1) where T
+    function Adaptation(::T, λs, sizes_of_path_coll, skip=1, solver::ST=Vern7()
+                        ) where {T,ST}
         TV = Val{true}
         M = maximum(sizes_of_path_coll)
         X = [[zeros(T,0)] for i in 1:M]
         N = [1,1]
-        new{TV,T}(X, λs, sizes_of_path_coll, skip, N)
+        new{TV,T,ST}(X, λs, sizes_of_path_coll, skip, N, solver)
     end
 
     """
@@ -53,7 +55,7 @@ struct Adaptation{TV,T}
 
     Empty constructor.
     """
-    Adaptation{TV,T}() where {TV,T} = new{TV,T}()
+    Adaptation{TV,T,ST}() where {TV,T,ST} = new{TV,T,ST}()
 end
 
 """
@@ -61,31 +63,8 @@ end
 
 Helper function for constructing a flag saying that no adaptation is to be done
 """
-NoAdaptation() = Adaptation{Val{false},Nothing}()
+NoAdaptation() = Adaptation{Val{false},Nothing,Nothing}()
 
-"""
-    check_if_adapt(::Adaptation{Val{T}})
-
-Check if any adaptation needs to be done
-"""
-check_if_adapt(::Adaptation{Val{T}}) where T = T
-
-"""
-    still_adapting(adpt::Adaptation{Val{true}})
-
-If the adaptation has not been completed then do nothing, else return a flag
-that no further adaptation is to be done
-"""
-function still_adapting(adpt::Adaptation{Val{true}})
-    adpt.N[1] > length(adpt.sizes) ? NoAdaptation() : adpt
-end
-
-"""
-    still_adapting(adpt::Adaptation{Val{false}})
-
-There is nothing to be done for a flag indicating no adaptation
-"""
-still_adapting(adpt::Adaptation{Val{false}}) = adpt
 
 """
     resize!(adpt::Adaptation{TV,T}, m, ns::Vector{Int64})
@@ -100,28 +79,59 @@ function resize!(adpt::Adaptation{TV,T}, m, ns::Vector{Int64}) where {TV,T}
     end
 end
 
-"""
-    add_path!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i)
 
-Save path `X` into the history stored by `adpt` object. Do so only if the index
-`i` of the current update step is not supposed to be skipped.
-"""
-function add_path!(adpt::Adaptation{Val{true},T}, X::Vector{SamplePath{T}}, i) where T
-    if i % adpt.skip == 0
-        m = length(X)
-        for j in 1:m
-            adpt.X[adpt.N[2]][j] .= X[j].yy
-        end
+function adaptation!(ws, adpt::Adaptation, mcmc_iter, ll)
+    if still_adapting(adpt) && mcmc_iter % adpt.skip == 0
+        add_path!(ws, adpt)
+        ll = update!(ws, adpt, ll)
+    end
+    ll
+end
+
+still_adapting(::Adaptation{Val{false}}) = false
+still_adapting(adpt::Adaptation{Val{true}}) = adpt.N[1] <= length(adpt.sizes)
+
+
+function add_path!(ws, adpt::Adaptation)
+    m = length(ws.XX)
+    for j in 1:m
+        adpt.X[adpt.N[2]][j] .= ws.XX[j].yy
     end
 end
 
+function update!(ws, adpt::Adaptation, ll)
+    if adpt.N[2] == adpt.sizes[adpt.N[1]]
+        X_bar = mean_trajectory(adpt)
+        m = length(ws.P)
+        for j in 1:m
+            Pt = recentre(ws.P[j].Pt, ws.XX[j].tt, X_bar[j])
+            update_λ!(Pt, adpt.λs[adpt.N[1]])
+            ws.P[j] = GuidPropBridge(ws.P[j], Pt)
 
-"""
-    add_path!(adpt::Adaptation{Val{false}}, ::Any, ::Any)
+            Ptᵒ = recentre(ws.Pᵒ[j].Pt, ws.XX[j].tt, X_bar[j])
+            update_λ!(Ptᵒ, adpt.λs[adpt.N[1]])
+            ws.Pᵒ[j] = GuidPropBridge(ws.Pᵒ[j], Ptᵒ)
+        end
 
-Nothing to be done when no adaptation is to be performed
-"""
-add_path!(adpt::Adaptation{Val{false}}, ::Any, ::Any) = false
+        solve_back_rec!(NoBlocking(), adpt.solver, ws.P)
+        #solveBackRec!(NoBlocking(), ws.Pᵒ, ST())
+        y = ws.XX[1].yy[1]
+        z = inv_start_pt(y, ws.x0_prior, ws.P[1])
+        set!(ws.z, z)
+
+        for j in 1:m
+            inv_solve!(Euler(), ws.XX[j], ws.WW[j], ws.P[j])
+        end
+        ll = logpdf(ws.x0_prior, y)
+        ll += path_log_likhd(obs_scheme(ws), ws.XX, ws.P, 1:m, ws.fpt)
+        ll += lobslikelihood(ws.P[1], y)
+        adpt.N[2] = 1
+        adpt.N[1] += 1
+    else
+        adpt.N[2] += 1
+    end
+    ll
+end
 
 
 """

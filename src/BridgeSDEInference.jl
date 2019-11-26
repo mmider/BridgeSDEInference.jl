@@ -10,10 +10,11 @@ export FitzhughDiffusion, FitzhughDiffusionAux, ℝ
 export regularToAlter, alterToRegular, regularToConjug, conjugToRegular, display
 
 # types.jl
-export ImproperPrior, NoChangePt, SimpleChangePt
+export ImproperPrior, ImproperPosPrior, NoChangePt, SimpleChangePt
 
 # mcmc.jl
 export mcmc, PartObs, FPT, FPTInfo, ConjugateUpdt, MetropolisHastingsUpdt
+export ParamUpdate, Imputation, MCMCWorkspace, UpdtAuxiliary
 
 # ODE solvers:
 export Ralston3, RK4, Tsit5, Vern7
@@ -22,13 +23,13 @@ export Ralston3, RK4, Tsit5, Vern7
 export forcedSolve!, forcedSolve
 
 # random_walk.jl
-export RandomWalk
+export UniformRandomWalk, GaussianRandomWalk
 
 # priors.jl
-export Priors
+export Priors, ExpUnif
 
 # blocking_schedule.jl
-export NoBlocking, ChequeredBlocking
+export NoBlocking, ChequeredBlocking, create_blocks
 
 # starting_pt.jl
 export KnownStartingPt, GsnStartingPt
@@ -42,16 +43,26 @@ export Lorenz, LorenzAux
 # lorenz_system_const_vola.jl
 export LorenzCV, LorenzCVAux
 
+# prokaryotic_autoregulatory_gene_network.jl
+export Prokaryote, ProkaryoteAux
+
 # adaptation.jl
 export Adaptation, NoAdaptation
 
 # setup.jl
-export MCMCSetup, set_observations!, set_imputation_grid!, set_transition_kernels!
-export set_priors!, set_mcmc_params!, set_blocking!, set_solver!, initialise!
+export MCMCSetup, DiffusionSetup, set_observations!, set_imputation_grid!
+export set_x0_prior!, initialise!, set_auxiliary!
+
+export MCMCSchedule
 
 export Workspace
 
-include("types.jl")
+
+export check_if_recompute_ODEs
+_DIR = "general"
+include(joinpath(_DIR, "types.jl"))
+include(joinpath(_DIR, "coordinate_access.jl"))
+include(joinpath(_DIR, "readjustments.jl"))
 
 _DIR = "stochastic_process"
 include(joinpath(_DIR, "bounded_diffusion_domain.jl"))
@@ -67,10 +78,11 @@ include(joinpath(_DIR, "euler_maruyama_dom_restr.jl"))
 
 _DIR = "transition_kernels"
 include(joinpath(_DIR, "random_walk.jl"))
+include(joinpath(_DIR, "pseudo_conjugate.jl"))
 
 _DIR = "mcmc_extras"
 include(joinpath(_DIR, "adaptation.jl"))
-include(joinpath(_DIR, "blocking_schedule.jl"))
+include(joinpath(_DIR, "blocking.jl"))
 include(joinpath(_DIR, "first_passage_times.jl"))
 include(joinpath(_DIR, "starting_pt.jl"))
 
@@ -79,13 +91,17 @@ include(joinpath(_DIR, "fitzhugh_nagumo.jl"))
 include(joinpath(_DIR, "radial_ornstein_uhlenbeck.jl"))
 include(joinpath(_DIR, "lorenz_system.jl"))
 include(joinpath(_DIR, "lorenz_system_const_vola.jl"))
+include(joinpath(_DIR, "prokaryotic_autoregulatory_gene_network.jl"))
 
 _DIR = "mcmc"
 include(joinpath(_DIR, "priors.jl"))
+include(joinpath(_DIR, "mcmc_components.jl"))
 include(joinpath(_DIR, "setup.jl"))
 include(joinpath(_DIR, "workspace.jl"))
+include(joinpath(_DIR, "fusion.jl"))
 include(joinpath(_DIR, "conjugate_updt.jl"))
+include(joinpath(_DIR, "updates.jl"))
 include(joinpath(_DIR, "mcmc.jl"))
-include(joinpath(_DIR, "repeated.jl"))
+#include(joinpath(_DIR, "repeated.jl"))
 
 end

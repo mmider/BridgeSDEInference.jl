@@ -1,6 +1,6 @@
 # Overview of the workflow
 
-A typical workflow consists of four stages (or five if the data also needs to be
+A typical workflow consists of five stages (or six if the data also needs to be
 generated).
 
 ## Stage 1 (a)
@@ -17,26 +17,26 @@ methods that allow for simulation of observations can be found in folders (...).
 See also [Data Generation](./generate_data.md).
 
 ## Stage 2
-Define the observational `setup`, together with the parametrisation of the
-Markov chain Monte Carlo sampler. There are a lot of elements that can be
-tailored by the user at this step; however, much of the heavy work of code
-writing is taken care of by the internal routines of the package and the amount
-of code that needs to be written by the user is conveniently kept to a minimum.
-This comes at a cost of having to familiarise oneself with the syntax used to
-define the observational scheme and the MCMC; please see [Setup](@ref)
-to view available options regarding the `setup`.
+Define the model `setup`. This includes the type of a model together with
+all the necessary parametrisations is needed to fully spedcfor  of the
 
 ## Stage 3
-Run the `mcmc` function. This is a one-liner:
-```julia
-out = mcmc(setup)
-```
-where `setup` is an appropriately defined observational setup and definition
-of the Markov chain.
+Define the MCMC chain. This amounts to specifying the range of possible
+transition steps (together with their transition kernels and priors) and the
+MCMC schedule which lists the order of steps and actions that need to be
+undertaken by the MCMC sampler.
 
 ## Stage 4
+Run the `mcmc` function. This is a one-liner:
+```julia
+out = mcmc(mcmc_setup, schedule, model_setup)
+```
+where `mcmc_setup`, `schedule`, `model_setup` are defined in the stages 2 &
+3 above.
+
+## Stage 5
 Query the results. This step is mostly left to a user. There are a couple of
 generic plotting functions defined in (...), which are not part of the package.
-The output is an object `Workspace`, please see [Query](@ref) for an
-overview of its members and some auxiliary functions that can be used to
-visualise the results.
+The output are two objects: `Workspace` and `MCMCWorkspace`, please see
+[Querying the inference results](@ref) for an overview of their members and
+some auxiliary functions that can be used to visualise the results.

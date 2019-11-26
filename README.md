@@ -1,5 +1,7 @@
-# BridgeSDEInference.jl
+[![Build Status](https://travis-ci.com/mmider/BridgeSDEInference.jl.svg?branch=master)](https://travis-ci.com/mmider/BridgeSDEInference.jl)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3446185.svg)](https://doi.org/10.5281/zenodo.3446185)
 
+# BridgeSDEInference.jl
 MCMC sampler for inference for diffusion processes with the use of Guided
 Proposals using the package [Bridge.jl](https://github.com/mschauer/Bridge.jl).
 Currently under development.

@@ -98,11 +98,11 @@ function update_λ!(P::LorenzCVAux, λ)
 end
 
 
-#B(t, P::LorenzCVAux) = B₀(t, P)
-#β(t, P::LorenzCVAux) = β₀(t, P)
+B(t, P::LorenzCVAux) = B₀(t, P)
+β(t, P::LorenzCVAux) = β₀(t, P)
 # NOTE uncomment if adaptation is to be used, currently commented out, because it is slow
-B(t, P::LorenzCVAux) = P.λ[1] * B₀(t, P) + (1.0-P.λ[1]) * B_bar(t, P)
-β(t, P::LorenzCVAux) = P.λ[1] * β₀(t, P) + (1.0-P.λ[1]) * β_bar(t, P)
+#B(t, P::LorenzCVAux) = P.λ[1] * B₀(t, P) + (1.0-P.λ[1]) * B_bar(t, P)
+#β(t, P::LorenzCVAux) = P.λ[1] * β₀(t, P) + (1.0-P.λ[1]) * β_bar(t, P)
 
 
 function β_bar(t, P::LorenzCVAux)
@@ -149,7 +149,7 @@ function clone(P::LorenzCVAux, θ, v, aux_flag)
 end
 
 params(P::LorenzCVAux) = [P.θ₁, P.θ₂, P.θ₃, P.σ]
-depends_on_params(::LorenzCVAux) = (1,2,3,4,5,6)
+depends_on_params(::LorenzCVAux) = (1,2,3,4)
 
 
 # Auxiliary diffusion when coordinates [1,2,3] are observed
@@ -165,6 +165,7 @@ function β₀(t, P::LorenzCVAux{Val{(true,true,true)}})
               P.v[1]*P.v[3],
               -P.v[1]*P.v[2]]
 end
+
 
 # Auxiliary diffusion when coordinates [1,2] are observed
 # ---------------------------------------------------------
@@ -194,3 +195,47 @@ function β₀(t, P::LorenzCVAux{Val{(false,true,true)}})
               P.aux*P.v[2],
               -P.aux*P.v[1]]
 end
+
+
+
+
+#=
+
+function B₀(t, P::LorenzCVAux{Val{(true,true,true)}})
+    @SMatrix [ 0.0  0.0  0.0;
+               0.0  0.0  0.0;
+               0.0  0.0  0.0]
+end
+
+function β₀(t, P::LorenzCVAux{Val{(true,true,true)}})
+    @SVector [0.0,
+              0.0,
+              0.0]
+end
+
+function B₀(t, P::LorenzCVAux{Val{(true,true,false)}})
+    @SMatrix [ 0.0  0.0  0.0;
+               0.0  0.0  0.0;
+               0.0  0.0  0.0]
+end
+
+function β₀(t, P::LorenzCVAux{Val{(true,true,false)}})
+    @SVector [0.0,
+              0.0,
+              0.0]
+end
+
+function B₀(t, P::LorenzCVAux{Val{(false,true,true)}})
+    @SMatrix [ 0.0  0.0  0.0;
+               0.0  0.0  0.0;
+               0.0  0.0  0.0]
+end
+
+function β₀(t, P::LorenzCVAux{Val{(false,true,true)}})
+    @SVector [0.0,
+              0.0,
+              0.0]
+end
+
+depends_on_params(::LorenzCVAux) = (4,)
+=#

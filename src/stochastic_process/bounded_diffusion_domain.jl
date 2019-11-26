@@ -5,7 +5,7 @@ abstract type DiffusionDomain end
 
 struct UnboundedDomain <: DiffusionDomain end
 
-boundSatisfied(::UnboundedDomain, x) = true
+bound_satisfied(::UnboundedDomain, x) = true
 
 struct LowerBoundedDomain{T,N} <: DiffusionDomain
     bounds::NTuple{N,T}
@@ -30,7 +30,7 @@ struct LowerBoundedDomain{T,N} <: DiffusionDomain
     end
 end
 
-function boundSatisfied(d::LowerBoundedDomain{T,N}, x) where {T,N}
+function bound_satisfied(d::LowerBoundedDomain{T,N}, x) where {T,N}
     for i in 1:N
         (x[d.coords[i]] < d.bounds[i]) && return false
     end
@@ -60,7 +60,7 @@ struct UpperBoundedDomain{T,N} <: DiffusionDomain
     end
 end
 
-function boundSatisfied(d::UpperBoundedDomain{T,N}, x) where {T,N}
+function bound_satisfied(d::UpperBoundedDomain{T,N}, x) where {T,N}
     for i in 1:N
         (x[d.coords[i]] > d.bounds[i]) && return false
     end
@@ -86,7 +86,7 @@ struct BoundedDomain{T,N1,N2} <: DiffusionDomain
     end
 end
 
-boundSatisfied(d, x) = boundSatisfied(d.lowBds, x) && boundSatisfied(d.upBds, x)
+bound_satisfied(d, x) = bound_satisfied(d.lowBds, x) && bound_satisfied(d.upBds, x)
 
 valtype(::LowerBoundedDomain{T,N}) where {T,N} = T,N
 valtype(::UpperBoundedDomain{T,N}) where {T,N} = T,N
@@ -134,7 +134,7 @@ function check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
                               d::DiffusionDomain=domain(P.Target))
     N = length(XX)
     for i in 1:N
-        !boundSatisfied(d, XX.yy[i]) && false
+        !bound_satisfied(d, XX.yy[i]) && false
     end
     true
 end

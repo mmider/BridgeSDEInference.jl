@@ -68,8 +68,8 @@ function conjugate_draw(θ, XX, PT, prior, updtIdx)
     move_to_proper_place(ϑ, θ, updtIdx)     # align so that dimensions agree
 end
 
-
 mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
+#NOTE already defined in coordinate_access.jl
 @generated function thetaex(::Val{T}, θ) where T
     z = Expr(:tuple, 1.0, (:(θ[$i]) for i in 1:length(T) if  !T[i])...)
     return z
@@ -96,7 +96,7 @@ end
 Base definition, assumes no hypoellipticity and no closed form expression for
 the inverse of `a`
 """
-hypo_a_inv(P, t, x) = inv(a(P, t, x))
+hypo_a_inv(P, t, x) = inv(a(t, x, P))
 nonhypo(::Any, x) = x
 
 function _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)

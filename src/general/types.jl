@@ -92,6 +92,8 @@ Type acting as a flag for update from full conditional (conjugate to a prior)
 """
 struct ConjugateUpdt <: ParamUpdateType end
 
+struct PseudoConjugateUpdt <: ParamUpdateType end
+
 """
     MetropolisHastingsUpdt <: ParamUpdateType
 
@@ -121,16 +123,6 @@ Regular updates with no blocking
 struct NoBlocking <: BlockingSchedule end
 
 
-
-abstract type ActionType end
-
-struct Verbose <: ActionType end
-struct SavePath <: ActionType end
-struct Imputation <: ActionType end
-struct ParamUpdate <: ActionType end
-struct Readjust <: ActionType end
-
-
 #TODO implement Jeffrey's priors
 """
     ImproperPrior
@@ -138,8 +130,10 @@ struct Readjust <: ActionType end
 Flat prior
 """
 struct ImproperPrior end
-logpdf(::ImproperPrior, θ) = 0.0
+logpdf(::ImproperPrior, coord_idx, θ) = 0.0
 
+struct ImproperPosPrior end
+logpdf(::ImproperPosPrior, coord_idx, θ) = -sum(log.(θ[[indices(coord_idx)...]]))
 
 valtype(::Val{T}) where T = T
 
@@ -158,35 +152,12 @@ function idx(::Val{T}) where T
     tuple((i for i in 1:length(T) if T[i])...)
 end
 
-
-"""
-    moveToProperPlace(ϑ, θ, ::Val{T}) where {T}
-
-Update parameter vector `θ` at indices specified by `Val{T}` with the
-values collected in `ϑ`.
-
-# Examples
-```julia-repl
-julia> moveToProperPlace([10,20,30], [1,2,3,4,5],
-                         Val((true, false, true, false, true)))
-5-element Array{Float64,1}:
- 10.0
-  2.0
- 20.0
-  4.0
- 30.0
-```
-"""
-function move_to_proper_place(ϑ, θ, ::Val{v}) where {v}
-    θᵒ = copy(θ)
-    idxNew = [i for i in 1:length(v) if v[i]]
-    θᵒ[idxNew] = ϑ
-    θᵒ
-end
-
-
 get_aux_flag(::Any) = nothing
 
 # NOTE quick, but potentially dangerous way to generically handle the new
 # cloning functionality, change later!
 clone(A, B, C, D) = clone(A, B, C)
+
+
+abstract type MCMCUpdate end
+abstract type ModelSetup end

@@ -6,8 +6,8 @@ mkpath(OUT_DIR)
 #using Main.BridgeSDEInference
 include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
 
-using Distributions
-using Random
+using Distributions # to define priors
+using Random        # to seed the random number generator
 using DataFrames
 using CSV
 
@@ -25,7 +25,6 @@ filename = "path_part_obs_conj.csv"
 # fetch the data
 (df, x0, obs, obs_time, fpt,
       fptOrPartObs) = readData(Val(fptObsFlag), joinpath(OUT_DIR, filename))
-
 param = :complexConjug
 θ_init = [10.0, -8.0, 15.0, 0.0, 3.0]
 P˟ = FitzhughDiffusion(param, θ_init...)
@@ -33,35 +32,32 @@ P̃ = std_aux_laws(FitzhughDiffusionAux, param, θ_init, obs, obs_time, 1)
 L = @SMatrix [1. 0.]
 Σ = @SMatrix [10^(-10)]
 
-setup = MCMCSetup(P˟, P̃, fptOrPartObs)
-set_observations!(setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time, fpt)
-set_imputation_grid!(setup, 1/1000)
-set_transition_kernels!(setup,
-                        [RandomWalk([],[]),
-                         RandomWalk([0.0, 0.0, 0.0, 0.0, 0.5], 5)],
-                        0.975, true, ((1,2,3),(5,)), # the first is memory param for pCN
-                        (ConjugateUpdt(),
-                         MetropolisHastingsUpdt(),
-                         ))
-set_priors!(setup,
-            Priors((MvNormal([0.0,0.0,0.0], diagm(0=>[1000.0, 1000.0, 1000.0])),
-                    ImproperPrior(),
-                    )),
-            GsnStartingPt(x0, @SMatrix [20. 0; 0 20.]),
-            x0)
-# 1*10^3, 3*10^2, 10^2, 10^0, 0
-# num_mcmc_steps, save_iter, verb_iter, skip_for_save, warm_up
-set_mcmc_params!(setup, 1*10^4, 3*10^2, 10^2, 10^0, 100) #1*10^4, 3*10^2, 10^2, 10^0, 100
-set_blocking!(setup)
-set_solver!(setup, Vern7(), NoChangePt())
-initialise!(eltype(x0), setup)
+model_setup = DiffusionSetup(P˟, P̃, fptOrPartObs)
+set_observations!(model_setup, [L for _ in P̃], [Σ for _ in P̃], obs, obs_time, fpt)
+set_imputation_grid!(model_setup, 1/1000)
+set_x0_prior!(model_setup, KnownStartingPt(x0))
+initialise!(eltype(x0), model_setup, Vern7(), false, NoChangePt(100))
+set_auxiliary!(model_setup; skip_for_save=10^0, adaptive_prop=NoAdaptation())
+
+mcmc_setup = MCMCSetup(
+      Imputation(NoBlocking(), 0.975, Vern7()),
+      ParamUpdate(MetropolisHastingsUpdt(), 5, θ_init,
+                  UniformRandomWalk(0.5, true), ImproperPosPrior(),
+                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 5))
+                  ),
+      ParamUpdate(ConjugateUpdt(), [1,2,3], θ_init, nothing,
+                  MvNormal(fill(0.0, 3), diagm(0=>fill(1000.0, 3))),
+                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [1,2,3]))
+                  ))
+
+schedule = MCMCSchedule(1*10^4, [[1,2,3]],
+                        (save=3*10^2, verbose=10^2, warm_up=100,
+                         readjust=(x->x%100==0), fuse=(x->false)))
 
 Random.seed!(4)
-out, elapsed = @timeit mcmc(setup)
-display(out.accpt_tracker)
+out, elapsed = @timeit mcmc(mcmc_setup, schedule, model_setup)
 
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
-plot_chains(out; truth=[10.0, -8.0, 15.0, 0.0, 3.0])
-
-plot_paths(out; transf=[(x,θ)->x, (x,θ)->conjugToRegular(x, θ[1], 0)],
+plot_chains(out[2]; truth=[10.0, -8.0, 15.0, 0.0, 3.0])
+plot_paths(out[1], out[2], schedule; transf=[(x,θ)->x, (x,θ)->conjugToRegular(x, θ[1], 0)],
            obs=(times=obs_time[2:end], vals=obs[2:end], indices=1))

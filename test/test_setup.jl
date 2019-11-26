@@ -1,4 +1,4 @@
-@testset "setup object" begin
+@testset "diffusion setup object" begin
     param = :complexConjug
     θ₀ = [10.0, -5.0, 5.0, 0.0, 3.0]
     P˟ = BSI.FitzhughDiffusion(param, θ₀...)
@@ -6,20 +6,17 @@
     tt = [0.0, 1.0, 1.5]
     P̃ = [BSI.FitzhughDiffusionAux(param, θ₀..., tt[1], obs[1], tt[2], obs[2]),
          BSI.FitzhughDiffusionAux(param, θ₀..., tt[2], obs[2], tt[3], obs[3])]
-    setup = BSI.MCMCSetup(P˟, P̃, PartObs())
+    setup = BSI.DiffusionSetup(P˟, P̃, PartObs())
 
     @testset "initialisation" begin
         @test setup.P˟ == P˟
         @test setup.P̃ == P̃
-        @test setup.blocking == BSI.NoBlocking()
-        @test setup.blocking_params == ([], 0.1, BSI.NoChangePt())
+        @test typeof(setup.adaptive_prop) <: Adaptation{Val{false}}
+        @test setup.skip_for_save == 1
         @test !any(values(setup.setup_completion))
         @test @suppress !BSI.check_if_complete(setup, [:obs])
         @test @suppress !BSI.check_if_complete(setup, [:imput])
-        @test @suppress !BSI.check_if_complete(setup, [:tkern])
         @test @suppress !BSI.check_if_complete(setup, [:prior])
-        @test @suppress !BSI.check_if_complete(setup, [:mcmc])
-        @test @suppress !BSI.check_if_complete(setup, [:solv])
     end
 
     L = [1. 0.; 0. 1.]
@@ -33,10 +30,7 @@
         @test setup.obs_times == tt
         @test setup.fpt == [nothing, nothing]
         @test @suppress !BSI.check_if_complete(setup, [:imput])
-        @test @suppress !BSI.check_if_complete(setup, [:tkern])
         @test @suppress !BSI.check_if_complete(setup, [:prior])
-        @test @suppress !BSI.check_if_complete(setup, [:mcmc])
-        @test @suppress !BSI.check_if_complete(setup, [:solv])
         @test @suppress BSI.check_if_complete(setup, [:obs])
     end
 
@@ -47,73 +41,15 @@
     @testset "setting imputation grid" begin
         @test setup.dt == dt
         @test setup.τ(tt[1], tt[2])(0.5*(tt[1]+tt[2])) == τ(tt[1], tt[2])(0.5*(tt[1]+tt[2]))
-        @test @suppress !BSI.check_if_complete(setup, [:tkern])
         @test @suppress !BSI.check_if_complete(setup, [:prior])
-        @test @suppress !BSI.check_if_complete(setup, [:mcmc])
-        @test @suppress !BSI.check_if_complete(setup, [:solv])
         @test @suppress BSI.check_if_complete(setup, [:obs, :imput])
     end
 
-    t_kernels = [BSI.RandomWalk([0.002, 0.1], [true, true]),
-                 BSI.RandomWalk([0.2, 1.0], 2)]
-    ρ = 0.5
-    param_updt = true
-    updt_coord_true = (Val((true,true,false,false,false)),
-                       Val((false,true,true,false,false)))
-    updt_coord = ((1,2),(2,3))
-    updt_type=(BSI.MetropolisHastingsUpdt(),
-               BSI.ConjugateUpdt())
-    set_transition_kernels!(setup, t_kernels, ρ, param_updt, updt_coord,
-                            updt_type)
-    @testset "setting transition kernels" begin
-        @test setup.t_kernel == t_kernels
-        @test setup.ρ == ρ
-        @test setup.param_updt == param_updt
-        @test setup.updt_coord == updt_coord_true
-        @test setup.updt_type == updt_type
-        @test !BSI.check_if_adapt(setup.adaptive_prop)
-        @test @suppress !BSI.check_if_complete(setup, [:prior])
-        @test @suppress !BSI.check_if_complete(setup, [:mcmc])
-        @test @suppress !BSI.check_if_complete(setup, [:solv])
-        @test @suppress BSI.check_if_complete(setup, [:obs, :imput, :tkern])
-    end
-
-    @testset "reformat updt_coord object" begin
-        @test BSI.reformat_updt_coord((1,3),[1,2,3]) == (Val((true,false,true)),)
-        @test BSI.reformat_updt_coord(nothing,[1,2,3]) == (Val((true,)),)
-        @test BSI.reformat_updt_coord([(1,2),(2,3)],[1,2,3]) == (Val{(true, true, false)}(), Val{(false, true, true)}())
-        @test_throws AssertionError BSI.reformat_updt_coord([4],[1,2,3])
-    end
-
-    priors = BSI.Priors((BSI.ImproperPrior(), BSI.ImproperPrior()))
     x0_prior = BSI.KnownStartingPt(obs[1])
-    set_priors!(setup, priors, x0_prior)
+    BSI.set_x0_prior!(setup, x0_prior)
     @testset "setting priors" begin
-        @test setup.priors == priors
         @test setup.x0_prior == x0_prior
-        @test @suppress !BSI.check_if_complete(setup, [:mcmc])
-        @test @suppress !BSI.check_if_complete(setup, [:solv])
-        @test @suppress BSI.check_if_complete(setup, [:obs, :imput, :tkern, :prior])
-    end
-
-    num_mcmc_steps = 100
-    BSI.set_mcmc_params!(setup, num_mcmc_steps)
-    @testset "setting  mcmc parameters" begin
-        @test setup.num_mcmc_steps == num_mcmc_steps
-        @test isnan(setup.save_iter)
-        @test isnan(setup.verb_iter)
-        @test setup.skip_for_save == 1
-        @test setup.warm_up == 0
-        @test @suppress !BSI.check_if_complete(setup, [:solv])
-        @test @suppress BSI.check_if_complete(setup, [:obs, :imput, :tkern, :prior,
-                                                  :mcmc])
-    end
-
-    BSI.set_solver!(setup)
-    @testset "setting solver" begin
-        @test setup.solver == BSI.Ralston3()
-        @test setup.change_pt == BSI.NoChangePt()
-        @test @suppress BSI.check_if_complete(setup)
+        @test @suppress BSI.check_if_complete(setup, [:obs, :imput, :prior])
     end
 
     @testset "determining data type" begin
@@ -133,7 +69,7 @@
         @test setup.obs == map(x->SVector{2}(x), obs)
     end
 
-    BSI.initialise!(Float64, setup)
+    BSI.initialise!(Float64, setup, BSI.Vern7(), false, BSI.NoChangePt())
     @testset "initialisation of proposal law" begin
         @test length(setup.P) == 2
         @test typeof(setup.P[1].Pt) == typeof(setup.P̃[1])

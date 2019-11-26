@@ -27,10 +27,8 @@ function blocking_test_prep(obs=ℝ.([1.0, 1.2, 0.8, 1.3, 2.0]),
                                          change_pt=BSI.NoChangePt(change_pt_buffer),
                                          solver=BSI.Vern7()) )
     end
-
-    T = SArray{Tuple{2},Float64,1,2}
-    blocking_params = (knots, 10^(-7), BSI.SimpleChangePt(change_pt_buffer))
-    BSI.ChequeredBlocking(blocking_params..., P)
+    create_blocks(BSI.ChequeredBlocking(), P,
+                  (knots, 10^(-7), BSI.SimpleChangePt(change_pt_buffer)))
 end
 
 @testset "blocking object" begin
@@ -40,24 +38,22 @@ end
     ϵ = 10^(-7)
     Σ = @SMatrix [10^(-10)]
 
-    𝔅 = blocking_test_prep(obs, tt)
+    blocks = blocking_test_prep(obs, tt)
 
     @testset "validity of initial set-up" begin
-        @test 𝔅.idx == 1
-        @test 𝔅.knots[1] == [1, 3]
-        @test 𝔅.knots[2] == [2]
-        @test 𝔅.blocks[1] == [[1], [2, 3], [4]]
-        @test 𝔅.blocks[2] == [[1, 2], [3, 4]]
-        @test 𝔅.change_pts[1] == [BSI.SimpleChangePt(100), BSI.NoChangePt(100), BSI.SimpleChangePt(100), BSI.NoChangePt(100)]
-        @test 𝔅.change_pts[2] == [BSI.NoChangePt(100), BSI.SimpleChangePt(100), BSI.NoChangePt(100), BSI.NoChangePt(100)]
-        @test 𝔅.vs == obs[2:end]
-        @test 𝔅.Ls[1] == [I, L, I, L]
-        @test 𝔅.Ls[2] == [L, I, L, L]
-        @test 𝔅.Σs[1] == [I*ϵ, Σ, I*ϵ, Σ]
-        @test 𝔅.Σs[2] == [Σ, I*ϵ, Σ, Σ]
+        @test blocks[1].knots == [1, 3]
+        @test blocks[2].knots == [2]
+        @test blocks[1].blocks == [[1], [2, 3], [4]]
+        @test blocks[2].blocks == [[1, 2], [3, 4]]
+        @test blocks[1].change_pts == [BSI.SimpleChangePt(100), BSI.NoChangePt(100), BSI.SimpleChangePt(100), BSI.NoChangePt(100)]
+        @test blocks[2].change_pts == [BSI.NoChangePt(100), BSI.SimpleChangePt(100), BSI.NoChangePt(100), BSI.NoChangePt(100)]
+        @test blocks[1].vs == blocks[2].vs == obs[2:end]
+        @test blocks[1].Ls == [I, L, I, L]
+        @test blocks[2].Ls == [L, I, L, L]
+        @test blocks[1].Σs == [I*ϵ, Σ, I*ϵ, Σ]
+        @test blocks[2].Σs == [Σ, I*ϵ, Σ, Σ]
+        @test length(blocks[1]) == 3
+        @test length(blocks[2]) == 2
+        @test length(NoBlocking()) == 1
     end
-
-    θ = [10.0, -8.0, 15.0, 0.0, 3.0]
-    # check function `next_set_of_blocks` (requires setting up Workspace)
-    # NOTE it doesn't really check blocking object, it's more about Workspace
 end
