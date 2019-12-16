@@ -1,4 +1,4 @@
-import Bridge: _scale, endpoint, samplepath, EulerMaruyama, ProcessOrCoefficients, _b#, SamplePath
+import Bridge: _scale, endpoint, samplepath, ProcessOrCoefficients, _b#, SamplePath
 using StaticArrays
 
 
@@ -8,7 +8,7 @@ function forcedSolve!(em, Y, u, W::SamplePath,
 end
 
 """
-    forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath,
+    forcedSolve!(em, Y, u::T, W::SamplePath,
                  P::ProcessOrCoefficients, ::DiffusionDomain=domain(P))
 
 Solve stochastic differential equation ``dX_t = b(t,X_t)dt + σ(t,X_t)dW_t``
@@ -16,13 +16,13 @@ using the Euler-Maruyama scheme in place. `forcedSolve!` as opposed to `solve!`
 enforces adherence to the diffusion's domain (which numerical schemes are prone
 to violate). By default, no restrictions are made, so calls `solve!`.
 """
-function forcedSolve!(em, Y, u::T, W::SamplePath,
+function forcedSolve!(em::EulerMaruyamaBounded, Y, u::T, W::SamplePath,
                       P::ProcessOrCoefficients, ::UnboundedDomain) where {T}
     solve!(em, Y, u, W, P)
 end
 
 """
-    forcedSolve!(::EulerMaruyama, Y, u::T,
+    forcedSolve!(::EulerMaruyamaBounded, Y, u::T,
                  W::Union{SamplePath{SVector{D,S}},SamplePath{S}},
                  P::ProcessOrCoefficients, d::LowerBoundedDomain=domain(P))
 
@@ -110,7 +110,7 @@ function solveAndll(::EulerMaruyama, u::T, W::SamplePath, P::GuidPropBridge, θ
                     ) where T
     WW = deepcopy(W)
     XX = samplepath(W.tt, zero(T))
-    ll = solveAndll!(Euler(), XX, u, WW, P, domain(P.Target), θ)
+    ll = solveAndll!(EulerMaruyamaBounded(), XX, u, WW, P, domain(P.Target), θ)
     WW, XX, ll
 end
 

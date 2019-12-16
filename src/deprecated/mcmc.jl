@@ -171,7 +171,7 @@ Sample the `i`th path segment using preconditioned Crank-Nicolson scheme
 function sample_segment!(i, ws, y, ρ)
     sample!(ws.WWᵒ[i], ws.Wnr)
     crank_nicolson!(ws.WWᵒ[i].yy, ws.WW[i].yy, ρ)
-    success, _ = solve!(Euler(), ws.XXᵒ[i], y, ws.WWᵒ[i], ws.P[i]) # always according to trgt law
+    success, _ = solve!(EulerMaruyamaBounded(), ws.XXᵒ[i], y, ws.WWᵒ[i], ws.P[i]) # always according to trgt law
     success, ws.XXᵒ[i].yy[end]
 end
 
@@ -387,7 +387,7 @@ function noise_from_path!(ws::Workspace, XX, WW, P)
     𝔅 = ws.blocking
     for block in 𝔅.blocks[ws.blidx]
         for i in block
-            inv_solve!(Euler(), XX[i], WW[i], P[i])
+            inv_solve!(EulerMaruyamaBounded(), XX[i], WW[i], P[i])
         end
     end
 end
@@ -505,7 +505,7 @@ Wiener process `WW`. Only segments with indices in range `iRange` are considered
 """
 function find_path_from_wiener!(XX, y, WW, P, iRange)
     for i in iRange
-        success, _ = solve!(Euler(), XX[i], y, WW[i], P[i])
+        success, _ = solve!(EulerMaruyamaBounded(), XX[i], y, WW[i], P[i])
         !success && return false
         y = XX[i].yy[end]
     end
@@ -611,7 +611,7 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
     pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws, P) # compute (H, Hν, c)
 
     for i in 1:m    # compute wiener path WW that generates XX
-        inv_solve!(Euler(), XX[i], WW[i], P[i])
+        inv_solve!(EulerMaruyamaBounded(), XX[i], WW[i], P[i])
     end
     # compute white noise that generates starting point
     y = XX[1].yy[1]
@@ -706,7 +706,7 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
     update_laws!(P, θᵒ)
     pu.recompute_ODEs && solve_back_rec!(ws, P)
     for i in 1:m    # compute wiener path WW that generates XX
-        inv_solve!(Euler(), XX[i], WW[i], P[i])
+        inv_solve!(EulerMaruyamaBounded(), XX[i], WW[i], P[i])
     end
     # compute white noise that generates starting point
     y = XX[1].yy[1]

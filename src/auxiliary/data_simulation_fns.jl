@@ -8,7 +8,7 @@ function simulateSegment(::S, x0, P, tt) where S
     WW = Bridge.samplepath(tt, zero(S))
     sample!(WW, Wnr)
     # forcedSolve will allow sampling of domain-restricted diffusions
-    WW, XX = forcedSolve(Euler(), x0, WW, P)
+    WW, XX = forcedSolve(EulerMaruyamaBounded(), x0, WW, P)
     XX, XX.yy[end]
 end
 

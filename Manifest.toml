@@ -33,6 +33,12 @@ git-tree-sha1 = "6c98db6041340b32d883d8bea9900e862f9f56ac"
 uuid = "2d3116d5-4b8f-5680-861c-71f149790274"
 version = "0.10.0"
 
+[[CSV]]
+deps = ["CategoricalArrays", "DataFrames", "Dates", "FilePathsBase", "Mmap", "Parsers", "PooledArrays", "Tables", "Unicode", "WeakRefStrings"]
+git-tree-sha1 = "82789dfbc6494b83c00adf69fdedd9115caf52c2"
+uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+version = "0.5.20"
+
 [[CategoricalArrays]]
 deps = ["Compat", "DataAPI", "Future", "JSON", "Missings", "Printf", "Reexport", "Unicode"]
 git-tree-sha1 = "9c3fd1ebb503d271943c4ea94332d55ea900c9cb"
@@ -114,6 +120,12 @@ deps = ["FillArrays", "LinearAlgebra", "PDMats", "Printf", "QuadGK", "Random", "
 git-tree-sha1 = "860962bb355c97afdd7f9529cee7f26333401231"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
 version = "0.21.11"
+
+[[FilePathsBase]]
+deps = ["Dates", "LinearAlgebra", "Printf", "Test", "UUIDs"]
+git-tree-sha1 = "2cd6e2e7965934f72cb80251f760228e2264bab3"
+uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
+version = "0.7.0"
 
 [[FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays"]
@@ -386,6 +398,12 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [[Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
+
+[[WeakRefStrings]]
+deps = ["Random", "Test"]
+git-tree-sha1 = "9a0bb82eede528debe631b642eeb48a631a69bc2"
+uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
+version = "0.6.1"
 
 [[WoodburyMatrices]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Test"]

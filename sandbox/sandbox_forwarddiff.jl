@@ -68,7 +68,7 @@ function ll(θ)
     Σ = @SMatrix [Dual{CT}(10^(-4),0.0)]
     P = GuidPropBridge(Dual{CT,Float64,1}, tt, P˟, P̃, L, ℝ(Dual{CT}(0.5,0.0)), Σ;
                        changePt=NoChangePt(), solver=Vern7())
-    solve!(Euler(), X, y_dual, W, P)
+    solve!(EulerMaruyamaBounded(), X, y_dual, W, P)
     loglik = llikelihood(LeftRule(), X, P)
     loglik
 end

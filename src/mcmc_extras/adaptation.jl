@@ -120,7 +120,7 @@ function update!(ws, adpt::Adaptation, ll)
         set!(ws.z, z)
 
         for j in 1:m
-            inv_solve!(Euler(), ws.XX[j], ws.WW[j], ws.P[j])
+            inv_solve!(EulerMaruyamaBounded(), ws.XX[j], ws.WW[j], ws.P[j])
         end
         ll = logpdf(ws.x0_prior, y)
         ll += path_log_likhd(obs_scheme(ws), ws.XX, ws.P, 1:m, ws.fpt)
