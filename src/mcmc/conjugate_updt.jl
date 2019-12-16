@@ -70,10 +70,10 @@ end
 
 mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
 #NOTE already defined in coordinate_access.jl
-@generated function thetaex(::Val{T}, θ) where T
-    z = Expr(:tuple, 1.0, (:(θ[$i]) for i in 1:length(T) if  !T[i])...)
-    return z
-end
+#@generated function thetaex(::Val{T}, θ) where T
+#    z = Expr(:tuple, 1.0, (:(θ[$i]) for i in 1:length(T) if  !T[i])...)
+#    return z
+#end
 
 
 function _conjugate_draw_old(ϑ, μ, 𝓦, XX, PT, updtIdx)

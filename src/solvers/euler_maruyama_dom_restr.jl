@@ -1,5 +1,12 @@
 import Bridge: _scale, endpoint, samplepath, EulerMaruyama, ProcessOrCoefficients, _b#, SamplePath
 using StaticArrays
+
+
+function forcedSolve!(em, Y, u, W::SamplePath,
+                      P::ProcessOrCoefficients)
+    forcedSolve!(em, Y, u, W, P, domain(P))
+end
+
 """
     forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath,
                  P::ProcessOrCoefficients, ::DiffusionDomain=domain(P))
@@ -9,10 +16,9 @@ using the Euler-Maruyama scheme in place. `forcedSolve!` as opposed to `solve!`
 enforces adherence to the diffusion's domain (which numerical schemes are prone
 to violate). By default, no restrictions are made, so calls `solve!`.
 """
-function forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath,
-                      P::ProcessOrCoefficients, ::UnboundedDomain=domain(P)
-                      ) where {T}
-    solve!(Euler(), Y, u, W, P)
+function forcedSolve!(em, Y, u::T, W::SamplePath,
+                      P::ProcessOrCoefficients, ::UnboundedDomain) where {T}
+    solve!(em, Y, u, W, P)
 end
 
 """
@@ -25,9 +31,8 @@ using the Euler-Maruyama scheme in place. `forcedSolve!` as opposed to `solve!`
 enforces adherence to the diffusion's domain (which numerical schemes are prone
 to violate). This function enforces lower bounds by modifying `W` in place.
 """
-function forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath{S},
-                      P::ProcessOrCoefficients, d::DiffusionDomain=domain(P)
-                      ) where {S,T}
+function forcedSolve!(::EulerMaruyamaBounded, Y, u::T, W::SamplePath{S},
+                      P::ProcessOrCoefficients, d::DiffusionDomain) where {S,T}
     N = length(W)
     N != length(Y) && error("Y and W differ in length.")
 
@@ -41,7 +46,7 @@ function forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath{S},
     for i in 1:N-1
         ww[..,i+1] += offset
         yy[.., i] = y
-        dWt = ww[.., i+1]-ww[.., i]
+        dWt = ww[.., i+1]-ww[.., i]em
         increm = _b((i,tt[i]), y, P)*(tt[i+1]-tt[i]) + _scale(dWt, σ(tt[i], y, P))
         y_new = y + increm
         offset_addon = zero(S)
@@ -61,24 +66,25 @@ function forcedSolve!(::EulerMaruyama, Y, u::T, W::SamplePath{S},
 end
 
 
-function forcedSolve(::EulerMaruyama, u::T, W::SamplePath,
+function forcedSolve(em, u::T, W::SamplePath,
                      P::ProcessOrCoefficients) where T
     WW = deepcopy(W)
     XX = samplepath(W.tt, zero(T))
-    forcedSolve!(Euler(), XX, u, WW, P)
+    forcedSolve!(em, XX, u, WW, P)
     WW, XX
 end
 
-function forcedSolve(::EulerMaruyama, u::T, W::SamplePath,
+function forcedSolve(em, u::T, W::SamplePath,
                      P::GuidPropBridge) where T
     WW = deepcopy(W)
     XX = samplepath(W.tt, zero(T))
-    forcedSolve!(Euler(), XX, u, WW, P, domain(P.Target))
+    forcedSolve!(em, XX, u, WW, P, domain(P.Target))
     WW, XX
 end
 
 import Bridge.solve!
-function solve!(::EulerMaruyama, Y, u::T, W::SamplePath, P::ProcessOrCoefficients) where {T}
+
+function solve!(::Union{EulerMaruyamaBounded,Bridge.EulerMaruyama}, Y, u::T, W::SamplePath, P::ProcessOrCoefficients) where {T}
     N = length(W)
     N != length(Y) && error("Y and W differ in length.")
 

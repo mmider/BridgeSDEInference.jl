@@ -11,7 +11,7 @@ end
 struct LinearSDE{T}  <: Bridge.ContinuousTimeProcess{Float64}
     σ::T
 end
-Bridge.b(s, x, P::TargetSDE) = -0.1x + .5sin(x[1]) + 0.5sin(s/4)
+Bridge.b(s, x, P::TargetSDE) = -0.1x .+ .5sin(x[1]) .+ 0.5sin(s/4)
 Bridge.b(s, x, P::LinearSDE) = Bridge.B(s, P)*x + Bridge.β(s, P)
 Bridge.B(s, P::LinearSDE) = SMatrix{1}(-0.1)
 Bridge.β(s, P::LinearSDE) = 𝕏(0.5sin(s/4))
@@ -26,6 +26,7 @@ Bridge.constdiff(::LinearSDE) = true
 
 binind(r, x) = searchsortedfirst(r, x) - 1
 
+_euler = BridgeSDEInference.EulerMaruyamaBounded()
 
 function test_measchange()
     Random.seed!(1)
@@ -48,10 +49,10 @@ function test_measchange()
     Noise = Gaussian(𝕏(0.0), Σ)
 
     sample!(W, Wnr)
-    _, X = solve(Euler(), x0, W, P)
+    _, X = solve(_euler, x0, W, P)
     v1 = X.yy[end]
     X.yy[end] = zero(v1)
-    solve!(Euler(), X, x0, W, P)
+    solve!(_euler, X, x0, W, P)
     @test v1 ≈ X.yy[end]
 
 
@@ -68,7 +69,7 @@ function test_measchange()
     vs = Float64[]
     for i in 1:N
         sample!(W, Wnr)
-        solve!(Euler(), X, x0, W, P)
+        solve!(_euler, X, x0, W, P)
         v = L*X.yy[end] + rand(Noise)
         push!(vs, v[1])
     end
@@ -99,7 +100,7 @@ function test_measchange()
         Pᵒ = BSI.GuidPropBridge(eltype(x0), t, P, P̃, L, v, Σ)
 
         sample!(W, Wnr)
-        solve!(Euler(), X, x0, W, Pᵒ)
+        solve!(_euler, X, x0, W, Pᵒ)
         ll = BSI.path_log_likhd(BSI.PartObs(), [X], [Pᵒ], 1:1, fpt, skipFPT=true)
         ll += BSI.lobslikelihood(Pᵒ, x0)
         ll -= logpdf(VProp, v[1])

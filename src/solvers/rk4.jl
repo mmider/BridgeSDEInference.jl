@@ -9,13 +9,15 @@ end
 
 struct Rk4 <: ODESolverType end
 
+
+
 #=
         FOUR components
 =#
-function update(::Rk4, fs, t, A, B, C, D, dt, P, tableau=NaN)
+function update(::Rk4, fs, t, A, B, C, D, dt, P, tableau::Nothing=nothing)
     kA1 = update(fs[1], t, A, B, C, D, P)
     kB1 = update(fs[2], t, A, B, C, D, P)
-    kC1 = update(fs[3], t, A, B, C, D, P)
+    kC1 = update(fs[3], NaNt, A, B, C, D, P)
     kD1 = update(fs[4], t, A, B, C, D, P)
 
     Ai = A + 1/2*dt*kA1
@@ -55,7 +57,7 @@ end
 #=
         THREE components
 =#
-function update(::Rk4, fs, t, A, B, C, dt, P, tableau=NaN)
+function update(::Rk4, fs, t, A, B, C, dt, P, tableau::Nothing=nothing)
     kA1 = update(fs[1], t, A, B, C, P)
     kB1 = update(fs[2], t, A, B, C, P)
     kC1 = update(fs[3], t, A, B, C, P)
@@ -92,7 +94,7 @@ end
 #=
         TWO components
 =#
-function update(::Rk4, fs, t, A, B, dt, P, tableau=NaN)
+function update(::Rk4, fs, t, A, B, dt, P, tableau::Nothing=nothing)
     kA1 = update(fs[1], t, A, B, P)
     kB1 = update(fs[2], t, A, B, P)
 
@@ -116,3 +118,33 @@ function update(::Rk4, fs, t, A, B, dt, P, tableau=NaN)
 
     (A + dt*(kA1 + 2*kA2 + 2*kA3 + kA4)/6, B + dt*(kB1 + 2*kB2 + 2*kB3 + kB4)/6)
 end
+
+#=
+# generic version
+function update(::Rk4, fs::NTuple{N}, t, As, dt, P, tableau::Nothing) where {N}
+
+    k1 = ntuple(N) do i
+        update(fs[i], t, As..., P)
+    end
+
+    Ai = A + 1/2*dt*kA1
+    Bi = B + 1/2*dt*kB1
+
+    kA2 = update(fs[1], t + 1/2*dt, Ai, Bi, P)
+    kB2 = update(fs[2], t + 1/2*dt, Ai, Bi, P)
+
+    Ai = A + 1/2*dt*kA2
+    Bi = B + 1/2*dt*kB2
+
+    kA3 = update(fs[1], t + 1/2*dt, Ai, Bi, P)
+    kB3 = update(fs[2], t + 1/2*dt, Ai, Bi, P)
+
+    Ai = A + dt*kA3
+    Bi = B + dt*kB3
+
+    kA4 = update(fs[1], t + dt, Ai, Bi, P)
+    kB4 = update(fs[2], t + dt, Ai, Bi, P)
+
+    (A + dt*(kA1 + 2*kA2 + 2*kA3 + kA4)/6, B + dt*(kB1 + 2*kB2 + 2*kB3 + kB4)/6)
+end
+=#

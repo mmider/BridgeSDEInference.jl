@@ -86,8 +86,14 @@ Crank-Nicolson scheme
 - `headstart`: whether to ease into first-passage time sampling
 ...
 """
-function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
-                          headstart::Val{false}=Val{false}()) where OS
+function sample_segments!(iRange, ws::Workspace, y, ρ,
+                          headstart=Val{false}())
+    _sample_segments!(iRange, ws, y, ρ, headstart)
+end
+
+
+function _sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
+                          headstart::Val{false}) where OS
     for i in iRange
         success, y = sample_segment!(i, ws, y, ρ)
         !success && return false
@@ -95,8 +101,8 @@ function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
     true
 end
 
-function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
-                          headstart::Val{true}=Val{false}()) where OS
+function _sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
+                          headstart::Val{true}) where OS
     for i in iRange
         success, _ = sample_segment!(i, ws, y, ρ)
         while !success && !checkFpt(OS(), ws.XXᵒ[i], ws.fpt[i])
