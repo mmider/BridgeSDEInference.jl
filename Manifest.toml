@@ -33,18 +33,6 @@ git-tree-sha1 = "6c98db6041340b32d883d8bea9900e862f9f56ac"
 uuid = "2d3116d5-4b8f-5680-861c-71f149790274"
 version = "0.10.0"
 
-[[CSV]]
-deps = ["CategoricalArrays", "DataFrames", "Dates", "FilePathsBase", "Mmap", "Parsers", "PooledArrays", "Tables", "Unicode", "WeakRefStrings"]
-git-tree-sha1 = "82789dfbc6494b83c00adf69fdedd9115caf52c2"
-uuid = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
-version = "0.5.20"
-
-[[CategoricalArrays]]
-deps = ["Compat", "DataAPI", "Future", "JSON", "Missings", "Printf", "Reexport", "Unicode"]
-git-tree-sha1 = "9c3fd1ebb503d271943c4ea94332d55ea900c9cb"
-uuid = "324d7699-5711-5eae-9e2f-1d82baa6b597"
-version = "0.7.4"
-
 [[ColorTypes]]
 deps = ["FixedPointNumbers", "Random"]
 git-tree-sha1 = "10050a24b09e8e41b951e9976b109871ce98d965"
@@ -73,12 +61,6 @@ version = "2.2.0"
 git-tree-sha1 = "674b67f344687a88310213ddfa8a2b3c76cc4252"
 uuid = "9a962f9c-6df0-11e9-0e5d-c546b8b5ee8a"
 version = "1.1.0"
-
-[[DataFrames]]
-deps = ["CategoricalArrays", "Compat", "DataAPI", "Future", "InvertedIndices", "IteratorInterfaceExtensions", "Missings", "PooledArrays", "Printf", "REPL", "Reexport", "SortingAlgorithms", "Statistics", "TableTraits", "Tables", "Unicode"]
-git-tree-sha1 = "00136fcd39d503e66ab1b2eab800c47deaf7ca04"
-uuid = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
-version = "0.20.0"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "OrderedCollections"]
@@ -121,12 +103,6 @@ git-tree-sha1 = "860962bb355c97afdd7f9529cee7f26333401231"
 uuid = "31c24e10-a181-5473-b8eb-7969acd0382f"
 version = "0.21.11"
 
-[[FilePathsBase]]
-deps = ["Dates", "LinearAlgebra", "Printf", "Test", "UUIDs"]
-git-tree-sha1 = "2cd6e2e7965934f72cb80251f760228e2264bab3"
-uuid = "48062228-2e41-5def-b9a4-89aafe57970f"
-version = "0.7.0"
-
 [[FillArrays]]
 deps = ["LinearAlgebra", "Random", "SparseArrays"]
 git-tree-sha1 = "1a9fe4e1323f38de0ba4da49eafd15b25ec62298"
@@ -144,10 +120,6 @@ git-tree-sha1 = "da46ac97b17793eba44ff366dc6cb70f1238a738"
 uuid = "f6369f11-7733-5829-9624-2563aa707210"
 version = "0.10.7"
 
-[[Future]]
-deps = ["Random"]
-uuid = "9fa8497b-333b-5362-9e8d-4d0656e87820"
-
 [[GaussianDistributions]]
 deps = ["Distributions", "LinearAlgebra", "Random", "Statistics"]
 git-tree-sha1 = "a27229dbccc06d52a1f97b3d54a6b56b976c13a9"
@@ -164,22 +136,10 @@ git-tree-sha1 = "f5bf159a7705e2a705b0effa1be0c3d18e288fe1"
 uuid = "a98d9a8b-a2ab-59e6-89dd-64a1c18fca59"
 version = "0.12.5"
 
-[[InvertedIndices]]
-deps = ["Test"]
-git-tree-sha1 = "15732c475062348b0165684ffe28e85ea8396afc"
-uuid = "41ab1584-1d38-5bbf-9106-f11c6c58b48f"
-version = "1.0.0"
-
 [[IteratorInterfaceExtensions]]
 git-tree-sha1 = "a3f24677c21f5bbe9d2a714f95dcd58337fb2856"
 uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
-
-[[JSON]]
-deps = ["Dates", "Mmap", "Parsers", "Unicode"]
-git-tree-sha1 = "b34d7cef7b337321e97d22242c3c2b91f476748e"
-uuid = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
-version = "0.21.0"
 
 [[LibGit2]]
 uuid = "76f85450-5226-5b5a-8eaa-529ad045b433"
@@ -247,12 +207,6 @@ git-tree-sha1 = "b62b2558efb1eef1fa44e4be5ff58a515c287e38"
 uuid = "d96e819e-fc66-5662-9728-84c9c7592b0a"
 version = "0.12.0"
 
-[[Parsers]]
-deps = ["Dates", "Test"]
-git-tree-sha1 = "0139ba59ce9bc680e2925aec5b7db79065d60556"
-uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "0.3.10"
-
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Libdl", "Logging", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
@@ -262,11 +216,6 @@ deps = ["LinearAlgebra", "RecipesBase"]
 git-tree-sha1 = "ae71c2329790af97b7682b11241b3609e4d48626"
 uuid = "f27b6e38-b328-58d1-80ce-0feddd5e7a45"
 version = "0.6.0"
-
-[[PooledArrays]]
-git-tree-sha1 = "6e8c38927cb6e9ae144f7277c753714861b27d14"
-uuid = "2dfb63ee-cc39-5dd5-95bd-886bf059d720"
-version = "0.5.2"
 
 [[Printf]]
 deps = ["Unicode"]
@@ -364,12 +313,6 @@ version = "0.9.2"
 deps = ["Libdl", "LinearAlgebra", "Serialization", "SparseArrays"]
 uuid = "4607b0f0-06f3-5cda-b6b1-a6196a1729e9"
 
-[[Suppressor]]
-deps = ["Compat"]
-git-tree-sha1 = "a39342763981e766a72938b59032dc02a2d74da5"
-uuid = "fd094767-a336-5f1f-9728-57cf17d0bbfb"
-version = "0.1.1"
-
 [[TableTraits]]
 deps = ["IteratorInterfaceExtensions"]
 git-tree-sha1 = "b1ad568ba658d8cbb3b892ed5380a6f3e781a81e"
@@ -398,12 +341,6 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 
 [[Unicode]]
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
-
-[[WeakRefStrings]]
-deps = ["Random", "Test"]
-git-tree-sha1 = "9a0bb82eede528debe631b642eeb48a631a69bc2"
-uuid = "ea10d353-3f73-51f8-a26c-33c1cb351aa5"
-version = "0.6.1"
 
 [[WoodburyMatrices]]
 deps = ["LinearAlgebra", "Random", "SparseArrays", "Test"]
