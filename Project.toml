@@ -1,7 +1,7 @@
 name = "BridgeSDEInference"
 uuid = "46d747a0-b9e1-11e9-14b5-615c73e45078"
 authors = ["Marcin Mider <marcin.mider@gmail.com>", "mschauer <moritzschauer@web.de>"]
-version = "0.2.0"
+version = "0.3.0"
 
 [deps]
 Bridge = "2d3116d5-4b8f-5680-861c-71f149790274"
