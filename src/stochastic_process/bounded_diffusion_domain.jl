@@ -96,6 +96,13 @@ DomainSomehowBounded = Union{LowerBoundedDomain,UpperBoundedDomain,BoundedDomain
 domain(::Any) = UnboundedDomain() # by default no restrictions
 
 
+"""
+    check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath)
+
+Check domain calling `domain`
+"""
+check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath) =
+    check_domain_adherence(P, XX , domain(P.Target))
 
 
 """
@@ -115,23 +122,23 @@ end
 
 """
     check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
-                         d::UnboundedDomain=domain(P))
+                         d::UnboundedDomain)
 
 For unrestricted domains there is nothing to check
 """
 function check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
-                              d::UnboundedDomain=domain(P.Target))
+                              d::UnboundedDomain)
     true
 end
 
 """
     check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
-                         d::DiffusionDomain=domain(P))
+                         d::DiffusionDomain)
 
 Verify whether path `XX.yy` falls on the interior of the domain of diffusion `P`
 """
 function check_domain_adherence(P::ContinuousTimeProcess, XX::SamplePath,
-                              d::DiffusionDomain=domain(P.Target))
+                              d::DiffusionDomain)
     N = length(XX)
     for i in 1:N
         !bound_satisfied(d, XX.yy[i]) && false

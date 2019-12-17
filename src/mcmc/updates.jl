@@ -86,8 +86,14 @@ Crank-Nicolson scheme
 - `headstart`: whether to ease into first-passage time sampling
 ...
 """
-function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
-                          headstart::Val{false}=Val{false}()) where OS
+function sample_segments!(iRange, ws::Workspace, y, ρ,
+                          headstart=Val{false}())
+    _sample_segments!(iRange, ws, y, ρ, headstart)
+end
+
+
+function _sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
+                          headstart::Val{false}) where OS
     for i in iRange
         success, y = sample_segment!(i, ws, y, ρ)
         !success && return false
@@ -95,8 +101,8 @@ function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
     true
 end
 
-function sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
-                          headstart::Val{true}=Val{false}()) where OS
+function _sample_segments!(iRange, ws::Workspace{OS}, y, ρ,
+                          headstart::Val{true}) where OS
     for i in iRange
         success, _ = sample_segment!(i, ws, y, ρ)
         while !success && !checkFpt(OS(), ws.XXᵒ[i], ws.fpt[i])
@@ -122,7 +128,7 @@ Sample the `i`th path segment using preconditioned Crank-Nicolson scheme
 function sample_segment!(i, ws, y, ρ)
     sample!(ws.WWᵒ[i], ws.Wnr)
     crank_nicolson!(ws.WWᵒ[i].yy, ws.WW[i].yy, ρ)
-    success, _ = solve!(Euler(), ws.XXᵒ[i], y, ws.WWᵒ[i], ws.P[i]) # always according to trgt law
+    success, _ = solve!(EulerMaruyamaBounded(), ws.XXᵒ[i], y, ws.WWᵒ[i], ws.P[i]) # always according to trgt law
     success, ws.XXᵒ[i].yy[end]
 end
 
@@ -326,7 +332,7 @@ Compute driving Wiener noise `WW` from path `XX` drawn under law `P`
 function noise_from_path!(blocks, XX, WW, P)
     for block in blocks
         for i in block
-            inv_solve!(Euler(), XX[i], WW[i], P[i])
+            inv_solve!(EulerMaruyamaBounded(), XX[i], WW[i], P[i])
         end
     end
 end
@@ -442,7 +448,7 @@ Wiener process `WW`. Only segments with indices in range `iRange` are considered
 """
 function find_path_from_wiener!(XX, y, WW, P, iRange)
     for i in iRange
-        success, _ = solve!(Euler(), XX[i], y, WW[i], P[i])
+        success, _ = solve!(EulerMaruyamaBounded(), XX[i], y, WW[i], P[i])
         !success && return false
         y = XX[i].yy[end]
     end
@@ -532,7 +538,7 @@ function update!(pu::ParamUpdate{ConjugateUpdt}, ws::Workspace{OS}, θ, ll,
     pu.aux.recompute_ODEs && solve_back_rec!(blocking, pu.aux.solver, P) # compute (H, Hν, c)
 
     for i in 1:m    # compute wiener path WW that generates XX
-        inv_solve!(Euler(), XX[i], WW[i], P[i])
+        inv_solve!(EulerMaruyamaBounded(), XX[i], WW[i], P[i])
     end
     # compute white noise that generates starting point
     y = XX[1].yy[1]
@@ -564,7 +570,7 @@ function update!(pu::ParamUpdate{ConjugateUpdt}, ws::Workspace{OS}, θ, ll,
     update_laws!(P, θᵒ)
     pu.aux.recompute_ODEs && solve_back_rec!(blocking.blocks, pu.aux.solver, P)
     for i in 1:m    # compute wiener path WW that generates XX
-        inv_solve!(Euler(), XX[i], WW[i], P[i])
+        inv_solve!(EulerMaruyamaBounded(), XX[i], WW[i], P[i])
     end
     # compute white noise that generates starting point
     y = XX[1].yy[1]

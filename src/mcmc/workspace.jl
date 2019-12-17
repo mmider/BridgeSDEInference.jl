@@ -178,10 +178,10 @@ struct Workspace{ObsScheme,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
         for i in 1:m
             WW[i] = Bridge.samplepath(P[i].tt, zero(S))
             sample!(WW[i], Wnr)
-            WW[i], XX[i] = forcedSolve(Euler(), y, WW[i], P[i])    # this will enforce adherence to domain
+            WW[i], XX[i] = forcedSolve(EulerMaruyamaBounded(), y, WW[i], P[i])    # this will enforce adherence to domain
             while !checkFpt(ObsScheme(), XX[i], fpt[i])
                 sample!(WW[i], Wnr)
-                forcedSolve!(Euler(), XX[i], y, WW[i], P[i])    # this will enforce adherence to domain
+                forcedSolve!(EulerMaruyamaBounded(), XX[i], y, WW[i], P[i])    # this will enforce adherence to domain
             end
             y = XX[i].yy[end]
         end

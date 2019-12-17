@@ -116,7 +116,7 @@ get_dispersion(::Any) = 0.0
 
 Chosen not to update parameters, returned object is not important
 """
-reformat_updt_coord(updt_coord::Nothing, θ) = (Val((true,)),)
+#reformat_updt_coord(updt_coord::Nothing, θ) = (Val((true,)),)
 
 
 IntContainer = Union{Number,NTuple{N,<:Integer},Vector{<:Integer}} where N
@@ -129,6 +129,9 @@ function reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
     @assert all([1 <= uc <= length(θ) for uc in updt_coord])
     Val{Tuple([i in updt_coord for i in 1:length(θ)])}()
 end
+#WARNING the above might have been commented out whereas it is lines 27--29 in
+#the file coordinate_access that should have been commented out...
+
 
 """
     reformat_updt_coord(updt_coord::Nothing, θ)
@@ -136,7 +139,7 @@ end
 If the user does not use indices of coordinates to be updated it is assumed that
 appropriate Val{(...)}() object is passed and nothing is done, use at your own risk
 """
-reformat_updt_coord(updt_coord, θ) = updt_coord
+#reformat_updt_coord(updt_coord, θ) = updt_coord
 
 function readjust!(pu::ParamUpdate, cov_mat, mcmc_iter)
     at = pu.accpt_tracker

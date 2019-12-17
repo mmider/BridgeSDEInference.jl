@@ -1,15 +1,24 @@
 SRC_DIR = joinpath(Base.source_dir(), "..", "..", "src")
 OUT_DIR = joinpath(Base.source_dir(), "..", "..", "output")
 mkpath(OUT_DIR)
+#NOTE additional packages that need installing:
+#=
+    CSV, DataFrames, RollingFunctions
+
+=#
+
+
 
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
 #using Main.BridgeSDEInference
-include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
-
+#include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
+using BridgeSDEInference
+const BSI = BridgeSDEInference
 using Distributions # to define priors
 using Random        # to seed the random number generator
 using DataFrames
 using CSV
+using LinearAlgebra
 
 DIR = "auxiliary"
 include(joinpath(SRC_DIR, DIR, "read_and_write_data.jl"))
@@ -56,8 +65,10 @@ schedule = MCMCSchedule(1*10^4, [[1,2,3]],
 
 Random.seed!(4)
 out, elapsed = @timeit mcmc(mcmc_setup, schedule, model_setup)
+out = mcmc(mcmc_setup, schedule, model_setup)
 
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
 plot_chains(out[2]; truth=[10.0, -8.0, 15.0, 0.0, 3.0])
+plt.show()
 plot_paths(out[1], out[2], schedule; transf=[(x,θ)->x, (x,θ)->conjugToRegular(x, θ[1], 0)],
            obs=(times=obs_time[2:end], vals=obs[2:end], indices=1))

@@ -19,10 +19,10 @@ function initialise(::ObsScheme, P, m, yPr::StartingPtPrior{T}, ::S,
     for i in 1:m
         WWᵒ[i] = Bridge.samplepath(P[i].tt, zero(S))
         sample!(WWᵒ[i], Wnr)
-        WWᵒ[i], XXᵒ[i] = forcedSolve(Euler(), y, WWᵒ[i], P[i])    # this will enforce adherence to domain
+        WWᵒ[i], XXᵒ[i] = forcedSolve(EulerMaruyamaBounded(), y, WWᵒ[i], P[i])    # this will enforce adherence to domain
         while !checkFpt(ObsScheme(), XXᵒ[i], fpt[i])
             sample!(WWᵒ[i], Wnr)
-            forcedSolve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])    # this will enforce adherence to domain
+            forcedSolve!(EulerMaruyamaBounded(), XXᵒ[i], y, WWᵒ[i], P[i])    # this will enforce adherence to domain
         end
         y = XXᵒ[i].yy[end]
     end
@@ -172,10 +172,10 @@ struct Workspace{ObsScheme,S,TX,TW,R,Q}
         for i in 1:m
             WWᵒ[i] = Bridge.samplepath(P[i].tt, zero(S))
             sample!(WWᵒ[i], Wnr)
-            WWᵒ[i], XXᵒ[i] = forcedSolve(Euler(), y, WWᵒ[i], P[i])    # this will enforce adherence to domain
+            WWᵒ[i], XXᵒ[i] = forcedSolve(EulerMaruyamaBounded(), y, WWᵒ[i], P[i])    # this will enforce adherence to domain
             while !checkFpt(ObsScheme(), XXᵒ[i], fpt[i])
                 sample!(WWᵒ[i], Wnr)
-                forcedSolve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])    # this will enforce adherence to domain
+                forcedSolve!(EulerMaruyamaBounded(), XXᵒ[i], y, WWᵒ[i], P[i])    # this will enforce adherence to domain
             end
             y = XXᵒ[i].yy[end]
         end
@@ -323,7 +323,7 @@ end
 function sample_segment!(i, Wnr, WW, WWᵒ, P, y, XXᵒ, ρ)
     sample!(WWᵒ[i], Wnr)
     crank_nicolson!(WWᵒ[i].yy, WW[i].yy, ρ)
-    solve!(Euler(), XXᵒ[i], y, WWᵒ[i], P[i])
+    solve!(EulerMaruyamaBounded(), XXᵒ[i], y, WWᵒ[i], P[i])
     XXᵒ[i].yy[end]
 end
 

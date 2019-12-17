@@ -61,6 +61,10 @@ export Workspace
 
 
 export check_if_recompute_ODEs
+
+struct EulerMaruyamaBounded <: Bridge.SDESolver end
+const EulerMaruyama = EulerMaruyamaBounded
+
 _DIR = "general"
 include(joinpath(_DIR, "types.jl"))
 include(joinpath(_DIR, "coordinate_access.jl"))

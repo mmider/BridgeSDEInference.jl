@@ -87,7 +87,7 @@ depends_on_params(::LorenzAux) = (1,2,3,4,5,6)
 
 # Auxiliary diffusion when coordinates [1,2] are observed
 # ---------------------------------------------------------
-observables(::LorenzAux{O}) where O = O()
+#observables(::LorenzAux{O}) where O = O()
 
 function B(t, P::LorenzAux{Val{(true,true,false)}})
     @SMatrix [ -P.θ₁  P.θ₁  0.0;

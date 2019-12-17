@@ -1,8 +1,8 @@
 
-@generated function thetainc(::Val{T}, θ) where T
-    z = Expr(:tuple, (:(θ[$i]) for i in 1:length(T) if  T[i])...)
-    return z
-end
+#@generated function thetainc(::Val{T}, θ) where T
+#    z = Expr(:tuple, (:(θ[$i]) for i in 1:length(T) if  T[i])...)
+#    return z
+#end
 
 function pseudo_conjugate_draw(θ, XX, PT, prior, updtIdx, α = 1.0)
     𝓦 = mustart(updtIdx)*mustart(updtIdx)'

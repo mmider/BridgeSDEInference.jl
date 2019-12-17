@@ -102,7 +102,7 @@ function update_param!(pu::ParamUpdtDefn{ConjugateUpdt,UpdtIdx}, θ,
         pu.recompute_ODEs && solve_back_rec!(NoBlocking(), ws[k], P) # compute (H, Hν, c)
 
         for i in 1:m    # compute wiener path WW that generates XX
-            inv_solve!(Euler(), XX[i], WW[i], P[i])
+            inv_solve!(EulerMaruyamaBounded(), XX[i], WW[i], P[i])
         end
         # compute white noise that generates starting point
         y = XX[1].yy[1]

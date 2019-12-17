@@ -267,10 +267,10 @@ struct Workspace{ObsScheme,B,ST,S,TX,TW,R,TP,TZ,Tθ}# ,Q, where Q = eltype(resul
         for i in 1:m
             WW[i] = Bridge.samplepath(P[i].tt, zero(S))
             sample!(WW[i], Wnr)
-            WW[i], XX[i] = forcedSolve(Euler(), y, WW[i], P[i])    # this will enforce adherence to domain
+            WW[i], XX[i] = forcedSolve(EulerMaruyamaBounded(), y, WW[i], P[i])    # this will enforce adherence to domain
             while !checkFpt(ObsScheme(), XX[i], fpt[i])
                 sample!(WW[i], Wnr)
-                forcedSolve!(Euler(), XX[i], y, WW[i], P[i])    # this will enforce adherence to domain
+                forcedSolve!(EulerMaruyamaBounded(), XX[i], y, WW[i], P[i])    # this will enforce adherence to domain
             end
             y = XX[i].yy[end]
         end
@@ -603,7 +603,7 @@ function update!(adpt::Adaptation{Val{true}}, ws::Workspace{ObsScheme,B,ST},
             set!(ws.z, z)
 
             for j in 1:m
-                inv_solve!(Euler(), ws.XX[j], ws.WW[j], ws.P[j])
+                inv_solve!(EulerMaruyamaBounded(), ws.XX[j], ws.WW[j], ws.P[j])
             end
             ll = logpdf(ws.x0_prior, y)
             ll += path_log_likhd(ObsScheme(), ws.XX, ws.P, 1:m, ws.fpt)

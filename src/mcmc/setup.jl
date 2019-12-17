@@ -240,9 +240,10 @@ operators based on the passed data-type
 function prepare_obs_containers!(::Type{T}, setup::DiffusionSetup) where T <:SArray
     f(x) = SMatrix{_dim(x)...}(x)
 
-    g(x, ::Val{0}=Val{ndims(x)}()) = SVector{1}(x)
-    g(x, ::Val{1}=Val{ndims(x)}()) = SVector{size(x)...}(x)
-    g(x, ::Val{2}=Val{ndims(x)}()) = SMatrix{size(x)...}(x)
+    g(x) = g(x, Val{ndims(x)}())
+    g(x, ::Val{0}) = SVector{1}(x)
+    g(x, ::Val{1}) = SVector{size(x)...}(x)
+    g(x, ::Val{2}) = SMatrix{size(x)...}(x)
 
     correct_data_type!(setup, f, g)
 end

@@ -24,9 +24,11 @@ DoubleContainer = Union{Vector{<:IntLongContainer},NTuple{N,Tuple}} where N
 
 Single joint update of multiple parameters at once
 """
-function reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
-    (int_to_val(updt_coord, θ),)
-end
+#function reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
+#    (int_to_val(updt_coord, θ),)
+#end
+#WARNING the above might have been commented out whereas it is lines 128--131 in
+#the file mcmc_components that should have been commented out...
 
 """
     reformat_updt_coord(updt_coord::S, θ) where S<:DoubleContainer
