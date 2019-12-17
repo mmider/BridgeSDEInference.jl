@@ -62,6 +62,9 @@ export Workspace
 
 export check_if_recompute_ODEs
 
+export simulate_segment
+
+
 struct EulerMaruyamaBounded <: Bridge.SDESolver end
 const EulerMaruyama = EulerMaruyamaBounded
 
@@ -110,5 +113,8 @@ include(joinpath(_DIR, "conjugate_updt.jl"))
 include(joinpath(_DIR, "updates.jl"))
 include(joinpath(_DIR, "mcmc.jl"))
 #include(joinpath(_DIR, "repeated.jl"))
+
+_DIR = "auxiliary"
+include(joinpath(_DIR, "data_simulation_fns.jl"))
 
 end

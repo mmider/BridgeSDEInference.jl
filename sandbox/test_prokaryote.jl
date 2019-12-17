@@ -44,7 +44,7 @@ Pˣ = Prokaryote(θ₀..., K)
 
 x0, dt, T = ℝ{4}(7.0, 10.0, 4.0, 6.0), 1/5000, 50.0
 tt = 0.0:dt:T
-XX, _ = simulateSegment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, Pˣ, tt)
+XX, _ = simulate_segment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, Pˣ, tt)
 
 using Plots
 
@@ -70,7 +70,7 @@ P̃ = ProkaryoteAux(θ₀..., K, t0, x0, T, xT, Val{(true, true, true, true)}())
 tt = t0:dt:T
 
 
-XX2, _ = simulateSegment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, P̃, tt)
+XX2, _ = simulate_segment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, P̃, tt)
 
 [x[1] for x in XX2.yy]
 
@@ -92,10 +92,10 @@ L = SMatrix{4,4}(1I)
 
 Pᵒ = GuidPropBridge(eltype(x0), tt, Pˣ, P̃, L, xT, Σ; solver=Vern7())
 
-XX3, _ = simulateSegment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, Pᵒ, tt)
+XX3, _ = simulate_segment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, Pᵒ, tt)
 
 for i in 1:1000
-    XX3, _ = simulateSegment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, Pᵒ, tt)
+    XX3, _ = simulate_segment(ℝ{4}(0.0, 0.0, 0.0, 0.0), x0, Pᵒ, tt)
 end
 
 

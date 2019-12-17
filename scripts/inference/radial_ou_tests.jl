@@ -19,7 +19,7 @@ N = 100
 samples = Vector{Any}(undef, N)
 Random.seed!(4)
 for i in 1:N
-    XX, _ = simulateSegment(0.0, x0, Pˣ, tt)
+    XX, _ = simulate_segment(0.0, x0, Pˣ, tt)
     samples[i] = XX
 end
 

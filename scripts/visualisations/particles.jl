@@ -21,14 +21,14 @@ dt = 5e-4
 T = 30.0
 tt = 0.0:dt:T
 
-function simulateSegment(::S, tt, x0, P, W) where S
+function simulate_segment(::S, tt, x0, P, W) where S
     WW = Bridge.samplepath(tt, zero(S))
     sample!(WW, Wnr)
     X = Trajectory(solve(EulerMaruyamaBounded(), x0, WW, P))
     X, X.x[end]
 end
 
-X, _ = simulateSegment(0.0, tt, x0, P, Wnr)
+X, _ = simulate_segment(0.0, tt, x0, P, Wnr)
 
 k = 250
 n = 2500

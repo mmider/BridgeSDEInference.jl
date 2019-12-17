@@ -23,7 +23,7 @@ Pˣ = LorenzCV(θˣ...)
 
 x0, dt, T = ℝ{3}(1.5, -1.5, 25.0), 1/5000, 4.0
 tt = 0.0:dt:T
-XX, _ = simulateSegment(ℝ{3}(0.0, 0.0, 0.0), x0, Pˣ, tt)
+XX, _ = simulate_segment(ℝ{3}(0.0, 0.0, 0.0), x0, Pˣ, tt)
 
 
 θ_init = [5.0, 15.0, 6.0, 8.0]

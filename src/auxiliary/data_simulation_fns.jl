@@ -1,9 +1,9 @@
 """
-    simulateSegment(::S, x0, P, tt)
+    simulate_segment(::S, x0, P, tt)
 
 Simulate path of a target process `P`, started from `x0` on a time-grid `tt`
 """
-function simulateSegment(::S, x0, P, tt) where S
+function simulate_segment(::S, x0, P, tt) where S
     Wnr = Wiener{S}()
     WW = Bridge.samplepath(tt, zero(S))
     sample!(WW, Wnr)

@@ -65,10 +65,9 @@ schedule = MCMCSchedule(1*10^4, [[1,2,3]],
 
 Random.seed!(4)
 out, elapsed = @timeit mcmc(mcmc_setup, schedule, model_setup)
-out = mcmc(mcmc_setup, schedule, model_setup)
+#out = mcmc(mcmc_setup, schedule, model_setup)
 
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
 plot_chains(out[2]; truth=[10.0, -8.0, 15.0, 0.0, 3.0])
-plt.show()
 plot_paths(out[1], out[2], schedule; transf=[(x,θ)->x, (x,θ)->conjugToRegular(x, θ[1], 0)],
            obs=(times=obs_time[2:end], vals=obs[2:end], indices=1))
