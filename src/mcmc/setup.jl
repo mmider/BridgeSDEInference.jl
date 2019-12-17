@@ -11,7 +11,15 @@
 #===============================================================================
                                 MCMC setup
 ===============================================================================#
+"""
+    mutable struct MCMCSetup
 
+Implements functionalities for setting up the Markov chain Monte Carlo
+algorithm. The main object is `MCMCSetup` and its members comprise of
+all objects that need to be passed to the `mcmc` function from `mcmc.jl`.
+The remaining routines are used to populate instances of `MCMCSetup` and
+verify its fields in a structured manner.
+"""
 mutable struct MCMCSetup
     updates
     #readjust_params
@@ -33,10 +41,19 @@ end
 ===============================================================================#
 
 """
-    MCMCSetup
+    DiffusionSetup{ObsScheme} <: ModelSetup
 
-Groups together all objects that need to be passed to `mcmc` function from
+Setup choices relevant to the path augmentation step to be passed to `mcmc` function from
 `mcmc.jl`.
+
+
+# Example:
+```
+         DiffusionSetup(P, P̃)
+         DiffusionSetup(P, P̃, fptOrPartObs)
+```
+where P is the target process and P̃ is the linear approximation and possibly a vector of Booleans whether
+the observations are first passage times.
 """
 mutable struct DiffusionSetup{ObsScheme} <: ModelSetup
     setup_completion    # (internal) Indicates progress of setting-up DiffusionSetup
@@ -126,10 +143,9 @@ end
 
 
 """
-    set_priors!(setup::DiffusionSetup, priors, x0_prior, x0_guess=nothing)
+    set_x0_prior!(setup::DiffusionSetup, x0_prior, x0_guess=nothing)
 
-Store the priors over parameters (in `priors`) and over the starting point (in
-`x0_prior`) into the object `setup`.
+Store the priors over the starting point into the object `setup`.
 """
 function set_x0_prior!(setup::DiffusionSetup, x0_prior, x0_guess=nothing)
     setup.x0_prior = x0_prior
@@ -303,7 +319,8 @@ end
 
  #TODO remove this K, it's most likely not needed
 """
-    find_proposal_law!(::Type{K}, setup::DiffusionSetup) where K
+    find_proposal_law!(::Type{K}, setup::DiffusionSetup, solver, change_pt
+                            ) where K
 
 Initialise the object with proposal law and all the necessary containers needed
 for the simulation of the guided proposals

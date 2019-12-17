@@ -12,9 +12,9 @@ using GaussianDistributions
 
 
 """
-    φ(::Val{T}, args...)
+    φ_old(::Val{T}, args...)
 
-Compute the φ function appearing in the Girsanov formula and needed for
+Old way to compute the φ function appearing in the Girsanov formula and needed for
 sampling from the full conditional distribution of the parameters (whose
 indices are specified by the `Val`) conditional on the path,
 observations and other parameters.
@@ -24,6 +24,14 @@ observations and other parameters.
     return z
 end
 
+"""
+    φ(::Val{T}, args...)
+
+New way t0 compute the φ function appearing in the Girsanov formula and needed for
+sampling from the full conditional distribution of the parameters (whose
+indices are specified by the `Val`) conditional on the path,
+observations and other parameters.
+"""
 @generated function φ(::Val{T}, t, x, P::S) where {T,S}
     data = Expr(:call, :tuplejoin, (:(phi(Val($i), t, x, P)) for i in 1:length(T) if T[i])...)
     mat = Expr(:call, SMatrix{num_non_hypo(S),sum(T)}, data)
@@ -49,7 +57,7 @@ end
 
 
 """
-    conjugateDraw(θ, XX, PT, prior, ::updtIdx)
+    conjugate_draw(θ, XX, PT, prior, updtIdx)
 
 Draw from the full conditional distribution of the parameters whose indices are
 specified by the object `updtIdx`, conditionally on the path given in container
@@ -67,7 +75,11 @@ function conjugate_draw(θ, XX, PT, prior, updtIdx)
     ϑ = rand(Gaussian(μ_post, Σ))
     move_to_proper_place(ϑ, θ, updtIdx)     # align so that dimensions agree
 end
+"""
+    mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
 
+mustart initialize the vector μ used in the functions ϕ, ϕᶜ
+"""
 mustart(::Val{T}) where {T} = @SVector zeros(sum(T))
 #NOTE already defined in coordinate_access.jl
 #@generated function thetaex(::Val{T}, θ) where T
@@ -98,6 +110,7 @@ the inverse of `a`
 """
 hypo_a_inv(P, t, x) = inv(a(t, x, P))
 nonhypo(::Any, x) = x
+
 
 function _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)
     for X in XX

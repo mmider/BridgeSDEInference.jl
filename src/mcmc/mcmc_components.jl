@@ -6,29 +6,52 @@
 #===============================================================================
                         Trackers of acceptance probability
 ===============================================================================#
+"""
+    mutable struct AccptTracker{S}
 
+container to track the acceptance probability of the proposal
+"""
 mutable struct AccptTracker{S}
     accpt::S
     prop::S
     AccptTracker(::S) where {S <: Integer} = new{S}(zero(S), zero(S))
 end
 
+"""
+    reset!(at::AccptTracker{S}) where S
+
+Reset the acceptance probabliity of the proposal
+"""
 function reset!(at::AccptTracker{S}) where S
     at.accpt = zero(S)
     at.prop = zero(S)
 end
 
+"""
+    reset!(at::Vector{<:AccptTracker})
+
+Reset the acceptance probabliities
+"""
 function reset!(at::Vector{<:AccptTracker})
     for a in at
         reset!(a)
     end
 end
 
+"""
+    acceptance_rate(at::AccptTracker{S}) where S
+
+Compute the acceptance rate
+"""
 function acceptance_rate(at::AccptTracker{S}) where S
     at.prop == zero(S) && return 0.0
     at.accpt/at.prop
 end
+"""
+    register_accpt!(at::AccptTracker, accepted)
 
+Update acceptance probability tracker. `accepted` can be a vector
+"""
 function register_accpt!(at::AccptTracker{S}, accepted) where S
     at.prop += one(S)
     at.accpt += one(S)*accepted
@@ -60,7 +83,11 @@ end
 ===============================================================================#
 
 abstract type AuxiliaryInfo end
+"""
+    struct UpdtAuxiliary{ST} <: AuxiliaryInfo
 
+Info for auxiliary process. Tells which solver you use and whether to recompute the odes
+"""
 struct UpdtAuxiliary{ST} <: AuxiliaryInfo
     solver::ST
     recompute_ODEs::Bool
@@ -71,6 +98,7 @@ end
 
 
 """
+    struct ParamUpdate{UpdtType,...} <: MCMCUpdate
 
 Needs to have a prior, transition kernel, acceptance rate tracker, information
 about the which coordinates are being updated and an object with auxiliary,
@@ -111,17 +139,12 @@ end
 
 get_dispersion(::Any) = 0.0
 
-"""
-    reformat_updt_coord(updt_coord::Nothing, θ)
-
-Chosen not to update parameters, returned object is not important
-"""
-#reformat_updt_coord(updt_coord::Nothing, θ) = (Val((true,)),)
 
 
 IntContainer = Union{Number,NTuple{N,<:Integer},Vector{<:Integer}} where N
+
 """
-    reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
+    reformat_updt_coord(updt_coord, θ) <:IntContainer
 
 Single joint update of multiple parameters at once
 """
@@ -129,18 +152,16 @@ function reformat_updt_coord(updt_coord::S, θ) where S<:IntContainer
     @assert all([1 <= uc <= length(θ) for uc in updt_coord])
     Val{Tuple([i in updt_coord for i in 1:length(θ)])}()
 end
+#TODO
 #WARNING the above might have been commented out whereas it is lines 27--29 in
 #the file coordinate_access that should have been commented out...
 
 
 """
-    reformat_updt_coord(updt_coord::Nothing, θ)
+    eadjust!(pu::ParamUpdate, cov_mat, mcmc_iter)
 
-If the user does not use indices of coordinates to be updated it is assumed that
-appropriate Val{(...)}() object is passed and nothing is done, use at your own risk
+Readjust the proposal dispersion
 """
-#reformat_updt_coord(updt_coord, θ) = updt_coord
-
 function readjust!(pu::ParamUpdate, cov_mat, mcmc_iter)
     at = pu.accpt_tracker
     p = pu.readjust_param
@@ -160,6 +181,12 @@ end
 #===============================================================================
                         Definition of an imputation step
 ===============================================================================#
+
+"""
+    struct Imputation{B,ST,T} <: MCMCUpdate
+
+Cointainer for various aspect of the imputation step
+"""
 struct Imputation{B,ST,T} <: MCMCUpdate
     accpt_tracker::Vector{AccptTracker{Int64}}
     accpt_history::Vector{T}
@@ -181,7 +208,11 @@ struct Imputation{B,ST,T} <: MCMCUpdate
                     readjust_param, [copy(ρs)])
     end
 end
+"""
+    readjust!(pu::Imputation, ::Any, mcmc_iter)
 
+Adaptively changes the  Crank-Nickolson parameter  `ρ`
+"""
 function readjust!(pu::Imputation, ::Any, mcmc_iter)
     at = pu.accpt_tracker
     p = pu.readjust_param
@@ -214,6 +245,25 @@ end
                         Overall schedule defining MCMC
 ===============================================================================#
 
+"""
+    MCMCSchedule{T}
+
+Special iterator for the MCMC schedule.
+Defines an iterator going step by step throught the update steps of the mcmc scheme
+defined as numbered actions. Each group of sequential actions
+is counted as single step for until the total `num_mcmc_steps` is reached.
+
+Provides the functionality to change the update action after a certain amount of steps
+through the `fuse` entry of the named tuple argument.
+
+    MCMCSchedule(100, [[1], [2,3]], (save=10^3, verbose=10^4, warm_up=100,
+                                readjust=(x->x%100==0), fuse=(x->false)))
+
+In this example, first step 1 is performed, then steps 2, 3 after each other.
+Will run 50 times step 1, 50 times step 2 followed by 3, saving the path every 10^3 times,
+printing summaries every 10^4, burning the first 100 iteration
+readjusting with the adaptive method every 100 iteration.
+"""
 struct MCMCSchedule{T}
     num_mcmc_steps::Int64
     updt_idx::Vector{Vector{Int64}}
@@ -249,6 +299,7 @@ struct MCMCSchedule{T}
     end
 end
 
+
 function Base.iterate(iter::MCMCSchedule, state=(iter.start, 1))
     element, i = state
 
@@ -273,7 +324,10 @@ function Base.eltype(iter::MCMCSchedule)
                Tuple{Array{Int64,1},Bool,Bool,Bool,Bool,Bool,Int64}}
 end
 transition(schedule::MCMCSchedule, elem) = mod1(elem + 1, length(schedule.updt_idx))
-
+"""
+    reschedule!(schedule::MCMCSchedule, idx_to_remove, new_idx)
+changes the schedule of the MCMC
+"""
 function reschedule!(schedule::MCMCSchedule, idx_to_remove, new_idx)
     for updt_indices in schedule.updt_idx
         updated = false
