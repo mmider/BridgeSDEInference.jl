@@ -5,3 +5,4 @@ deps/deps.jl
 temp.js.svg
 docs/build/
 output[0-9]*
+Manifest.toml

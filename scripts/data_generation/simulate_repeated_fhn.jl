@@ -28,7 +28,7 @@ num_obs = 100
 skip_ = div(length(tt), num_obs)
 
 Random.seed!(4)
-XX = [simulateSegment(0.0, x0[k], P, tt)[1][1:skip_:length(tt)-1] for k in 1:K]
+XX = [simulate_segment(0.0, x0[k], P, tt)[1][1:skip_:length(tt)-1] for k in 1:K]
 
 
 #df = DataFrame(time=XX[1].tt, x1=[x[1] for x in XX[1].yy],

@@ -24,7 +24,7 @@ using Bridge
  tt = 0.0:dt:T
 
  Random.seed!(4)
- XX, _ = simulateSegment(0.0, x0, P, tt)
+ XX, _ = simulate_segment(0.0, x0, P, tt)
 
  num_obs = 100
  skip = div(length(tt), num_obs)

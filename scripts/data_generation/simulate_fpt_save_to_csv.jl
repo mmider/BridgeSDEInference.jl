@@ -47,7 +47,7 @@ using Bridge
 
      for i in 1:N
          # simulate path segment
-         XX, _ = simulateSegment(0.0, x0, P, tt_temp)
+         XX, _ = simulate_segment(0.0, x0, P, tt_temp)
          # determine all relevant up-crossings on it
          upCrossings, recentlyUpSearch = findCrossings(XX, upLvl, downLvl,
                                                        recentlyUpSearch)

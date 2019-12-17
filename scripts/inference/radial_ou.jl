@@ -27,7 +27,7 @@ Pˣ = RadialOU(θ₀...)
 
 x0, dt, T = ℝ{1}(0.5), 1/5000, 1.0
 tt = 0.0:dt:T
-XX, _ = simulateSegment(0.0, x0, Pˣ, tt)
+XX, _ = simulate_segment(0.0, x0, Pˣ, tt)
 
 num_obs = 11
 skip = div(length(tt), num_obs-1)
