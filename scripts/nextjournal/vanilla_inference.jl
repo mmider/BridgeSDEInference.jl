@@ -14,7 +14,7 @@ L = @SMatrix [1. 0.]
 model_setup = DiffusionSetup(P_trgt, P_aux, PartObs())
 set_observations!(model_setup, [L for _ in P_aux], [Σ for _ in P_aux],
                   obs.values, obs.time)
-set_imputation_grid!(model_setup, 1/200)
+set_imputation_grid!(model_setup, 1/400)
 set_x0_prior!(model_setup, KnownStartingPt(x0))
 initialise!(eltype(x0), model_setup, Vern7(), false, NoChangePt(100))
 set_auxiliary!(model_setup; skip_for_save=10^0, adaptive_prop=NoAdaptation())
@@ -36,10 +36,6 @@ mcmc_setup = MCMCSetup(
       ParamUpdate(MetropolisHastingsUpdt(), 5, θ_init,
                   UniformRandomWalk(0.5, true), ImproperPosPrior(),
                   UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P_aux, 5))
-                  ),
-      ParamUpdate(ConjugateUpdt(), [1,2,3], θ_init, nothing,
-                  MvNormal(fill(0.0, 3), diagm(0=>fill(1000.0, 3))),
-                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P_aux, [1,2,3]))
                   ))
 
 schedule = MCMCSchedule(1*10^4, [[1,2,3,4,5]],
@@ -54,7 +50,9 @@ out = mcmc(mcmc_setup, schedule, model_setup)
 
 
 using PyPlot
-plot(out[1].time, out[1].paths[3])
+plot(out[1].time, out[1].paths[10])
+scatter(obs...)
+
 
 out[1].time
 out[1].paths[3]
