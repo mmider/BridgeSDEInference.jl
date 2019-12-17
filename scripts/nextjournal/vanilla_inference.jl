@@ -50,6 +50,9 @@ Random.seed!(4)
 out = mcmc(mcmc_setup, schedule, model_setup)
 
 
+
+
+
 using PyPlot
 plot(out[1].time, out[1].paths[3])
 
@@ -60,3 +63,5 @@ out[1].paths[3]
 for j in [1,2,3,5]
     plot([out[2].θ_chain[i][j] for i in 1:length(out[2].θ_chain)])
 end
+cred_interval(x, p = 0.95) = quantile(x, [(1-p)/2, 1-(1-p)/2])
+[cred_interval(getindex.(out[2].θ_chain, j)) for j in [1,2,3,5]]
