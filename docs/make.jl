@@ -4,6 +4,14 @@ makedocs(
     modules = [BridgeSDEInference],
     format = Documenter.HTML(
         #prettyurls = get(ENV, "CI", nothing) == "true"
+        mathengine = Documenter.MathJax(Dict(:TeX => Dict(
+    :equationNumbers => Dict(:autoNumber => "AMS"),
+    :Macros => Dict(
+        :ket => ["|#1\\rangle", 1],
+        :bra => ["\\langle#1|", 1],
+    ),
+    )))
+
     ),
     sitename="BridgeSDEInference.jl",
     pages = [

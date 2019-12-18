@@ -4,7 +4,7 @@ To run the MCMC sampler we need to pass a `setup` object that defines the
 statistical model. In this section we will show how to define a diffusion model
 using a pre-defined `DiffusionSetup`. Nonetheless, be aware that the logic of
 the MCMC sampler is independent from the model specification, so it is possible
-to use the `mcmc` routines from this package routine to run it on other
+to use the `mcmc` routines from this package and run them on other
 statistical models. For more information about these types of extensions see
 [Generic MCMC](@ref).
 
@@ -31,8 +31,8 @@ DiffusionSetup
 ```
 
 ## Observations
-To set the observations, apart from passing the observations and observation
-times it is necessary to pass the observational operators and as well as
+To set the observations, in addition to passing the observations and observation
+times it is necessary to pass the observational operators as well as
 covariance of the noise. Additionally, one can pass additional information
 about the [first passage time scheme](@ref FPT_header).
 ```julia
