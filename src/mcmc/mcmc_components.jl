@@ -144,7 +144,7 @@ get_dispersion(::Any) = 0.0
 IntContainer = Union{Number,NTuple{N,<:Integer},Vector{<:Integer}} where N
 
 """
-    reformat_updt_coord(updt_coord, θ) <:IntContainer
+    reformat_updt_coord(updt_coord::IntContainer, θ) 
 
 Single joint update of multiple parameters at once
 """
@@ -158,7 +158,7 @@ end
 
 
 """
-    eadjust!(pu::ParamUpdate, cov_mat, mcmc_iter)
+    readjust!(pu::ParamUpdate, cov_mat, mcmc_iter)
 
 Readjust the proposal dispersion
 """

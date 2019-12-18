@@ -4,7 +4,7 @@
 """
     mcmc(setup_mcmc::MCMCSetup, schedule::MCMCSchedule, setup)  <: ModelSetup
 
-function for running the mcmc. recieves as imput `MCMCSetup`, `MCMCschedule` and `setup`.
+function for running the mcmc. receives as imput `MCMCSetup`, `MCMCschedule` and `setup`.
 See [MCMCSetup](@ref), [MCMCSchedule](@ref). setup typically is DiffusionSetup making
 additional setup choices when using the MCMC infrastructure to sample diffusion processes.
 See [DiffusionSetup](@ref)
