@@ -17,7 +17,19 @@ import Base: last, getindex, length, display, eltype
 #===============================================================================
                         Workspace for the MCMC chain
 ===============================================================================#
+"""
+    struct MCMCWorkspace{T,S,V}
 
+Implements a few collections that the main mcmc sampler from the file
+`mcmc.jl` uses to keep track of the current state and history of where it
+was. The following structures are defined:
+- `θ_chain` for the parameter chain
+- `updates` #TODO
+- `pos` for the current position of the sampler
+- `mean` for the current sample mean of the sampler
+- `cov` for the current sample covariance matrix of sampler
+- `updates_hist` #TODO
+"""
 struct MCMCWorkspace{T,S,V}
     θ_chain::Vector{T}
     updates::S
@@ -112,14 +124,14 @@ end
 
 
 """
-    getindex(g::GibbsDefn, i::Int)
+    getindex(g::MCMCWorkspace, i::Int)
 
 Return `i`th definition of parameter update
 """
 getindex(g::MCMCWorkspace, i::Int) = g.updates[i]
 
 """
-    length(g::GibbsDefn{N})
+    length(g::MCMCWorkspace)
 
 Return the total number of parameter updates in a single Gibbs sweep
 """
@@ -134,7 +146,7 @@ set!(x::SingleElem{T}, y::T) where T = (x.val = y)
                     Workspace for the Diffusion Model
 ===============================================================================#
 """
-    Workspace{ObsScheme,S,TX,TW,R,ST}
+    Workspace{ObsScheme,S,TX,TW,R,TP,TZ}
 
 The main container of the `mcmc` function from `mcmc.jl` in which most data
 pertinent to sampling is stored
@@ -159,7 +171,7 @@ struct Workspace{ObsScheme,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     #recompute_ODEs::Vector{Bool}    # Info on whether to recompute H,Hν,c after resp. param updt
 
     """
-        Workspace(setup::MCMCSetup{ObsScheme})
+        Workspace(setup::DiffusionSetup{ObsScheme})
 
     Initialise workspace of the mcmc sampler according to a `setup` variable
     """
@@ -235,11 +247,10 @@ end
 
 
 """
-    savePath!(ws, wsXX, bXX)
+    save_imputed!(ws::Workspace)
 
-Save the entire path spanning all segments in `XX`. Only 1 in every `ws.skip`
-points is saved to reduce storage space. To-be-saved `XX` is set to `wsXX` or
-`bXX` depending on whether blocking is used.
+Save the entire path spanning all segments in `XX`. Only 1 in every `ws.skip_for_save`
+points is saved to reduce storage space.
 """
 function save_imputed!(ws::Workspace)
     skip = ws.skip_for_save
