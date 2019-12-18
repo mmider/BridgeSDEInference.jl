@@ -351,7 +351,9 @@ function find_proposal_law!(::Type{K}, setup::DiffusionSetup, solver, change_pt
 end
 
 """
-    initialise(::Type{K}, setup::DiffusionSetup; verbose=false)
+    initialise(::Type{K}, setup::DiffusionSetup; verbose=false,
+                        change_pt=NoChangePt())
+
 Initialise the internal containers of `setup`. Check if all the necessary data
 has been passed to `setup`
 """
@@ -365,7 +367,7 @@ function initialise!(::Type{K}, setup::DiffusionSetup, solver, verbose=false,
 end
 
 """
-    check_if_recompute_ODEs(setup::DiffusionSetup)
+    check_if_recompute_ODEs(Ps, updt_coord)
 
 Utility function for checking if H,Hν,c need to be re-computed for a respective
 parameter update

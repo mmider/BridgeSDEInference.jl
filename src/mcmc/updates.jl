@@ -15,16 +15,16 @@ import ForwardDiff: value # currently not needed, but will be
 ===============================================================================#
 
 """
-    impute!(ws::Workspace{OS,NoBlocking}, ll, verbose=false, it=NaN,
-            headstart=false) where OS
+    update!(updt::Imputation{NoBlocking}, ws::Workspace, θ, ll,
+                 step, ::Any, headstart=false)
 
 Imputation step of the MCMC scheme (without blocking).
 ...
 # Arguments
+- `updt`: [Imputation](@ref)
 - `ws`: workspace containing most containers and definitions of the chain
 - `ll`: log-likelihood of the old (previously accepted) diffusion path
-- `verbose`: whether to print update info while sampling
-- `it`: iteration index of the MCMC algorithm
+- `θ`: current parameter
 - `headstart`: flag for whether to 'ease into' fpt conditions
 ...
 """
