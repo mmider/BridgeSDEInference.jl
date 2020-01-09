@@ -13,7 +13,15 @@ function mcmc(setup_mcmc::MCMCSetup, schedule::MCMCSchedule, setups::Vector{T}) 
                 wss = [next(ws, ws_mcmc.updates[i]) for ws in wss]
                 lls, acc, θ = update!(ws_mcmc.updates[i], wss, θ, lls, step, aux)
                 aux = aux_params(ws_mcmc.updates[i], aux)
-                update!(ws_mcmc, acc, θ, i)
+                #TODO: make it nicer, currently we need a little dance here
+                dance = typeof(ws_mcmc.updates[i]) <: Imputation
+                dance && begin
+                    update!(ws_mcmc, acc[1], θ, i)
+                    for k in 2:length(setups)
+                        register_accpt!(ws_mcmc.updates[i], acc[k])
+                    end
+                end
+                !dance && update!(ws_mcmc, acc, θ, i)
                 step.verbose && print("\n")
             end
         end
@@ -67,7 +75,7 @@ function update!(pu::ParamUpdate{MetropolisHastingsUpdt},
     (logpdf(pu.priors, θᵒ) === -Inf) && (return lls, false, θ)
 
     llᵒs = copy(lls)
-    zᵒs = [copy(ws.z.val) for w in ws]
+    zᵒs = [copy(ws.z.val) for ws in wss]
     for k in 1:K
         ws = wss[k]
         WW, Pᵒ, P, XXᵒ, XX, fpt = ws.WW, ws.Pᵒ, ws.P, ws.XXᵒ, ws.XX, ws.fpt
