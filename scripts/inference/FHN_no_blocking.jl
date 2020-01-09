@@ -11,9 +11,9 @@ mkpath(OUT_DIR)
 
 #include(joinpath(SRC_DIR, "BridgeSDEInference.jl"))
 #using Main.BridgeSDEInference
-#include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
-using BridgeSDEInference
-const BSI = BridgeSDEInference
+include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
+#using BridgeSDEInference
+#const BSI = BridgeSDEInference
 using Distributions # to define priors
 using Random        # to seed the random number generator
 using DataFrames
