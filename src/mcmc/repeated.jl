@@ -85,7 +85,7 @@ function update!(pu::ParamUpdate{MetropolisHastingsUpdt},
 
         # find white noise which for a given θᵒ gives a correct starting point
         y = XX[1].yy[1]
-        zᵒ[k] = inv_start_pt(y, ws.x0_prior, Pᵒ[1])
+        zᵒs[k] = inv_start_pt(y, ws.x0_prior, Pᵒ[1])
 
         success = find_path_from_wiener!(XXᵒ, y, WW, Pᵒ, 1:m)
 
@@ -107,24 +107,24 @@ function update!(pu::ParamUpdate{MetropolisHastingsUpdt},
             swap!(XX, XXᵒ, P, Pᵒ, 1:m)
             set!(ws.z, zᵒs[k])
         end
-        return llᵒ, true, θᵒ
+        return llᵒs, true, θᵒ
     else
-        return ll, false, θ
+        return lls, false, θ
     end
 end
 
 
 function update!(pu::ParamUpdate{ConjugateUpdt}, wss::Vector{<:Workspace{OS}},
-                 θ, ll, step, blocking::NoBlocking) where OS
+                 θ, lls, step, blocking::NoBlocking) where OS
     K = length(wss)
 
     θᵒ = conjugate_draw(θ, [ws.XX for ws in wss], wss[1].P[1].Target, pu.priors[1], pu.updt_coord)
 
+    total_ll_old = sum(lls)
     for k in 1:K
         ws = wss[k]
         WW, P, XX, fpt = ws.WW, ws.P, ws.XX, ws.fpt
         m = length(WW)
-        θᵒ = conjugate_draw(θ, XX, P[1].Target, pu.priors[1], pu.updt_coord)   # sample new parameter
 
         update_laws!(P, θᵒ)
         pu.aux.recompute_ODEs && solve_back_rec!(blocking, pu.aux.solver, P) # compute (H, Hν, c)
@@ -139,10 +139,10 @@ function update!(pu::ParamUpdate{ConjugateUpdt}, wss::Vector{<:Workspace{OS}},
         llᵒ = logpdf(ws.x0_prior, y)
         llᵒ += path_log_likhd(OS(), XX, P, 1:m, fpt; skipFPT=true)
         llᵒ += lobslikelihood(P[1], y)
-        print_info(step, value(lls[k]), value(llᵒ))
         lls[k] = llᵒ
         set!(ws.z, z)
     end
+    print_info(step, sum(total_ll_old), sum(lls))
     return lls, true, θᵒ
 end
 
@@ -150,8 +150,8 @@ function conjugate_draw(θ, XX::Vector{<:Vector}, PT, prior, updtIdx)
     μ = mustart(updtIdx)
     𝓦 = μ*μ'
     ϑ = SVector(thetaex(updtIdx, θ))
-    for k in 1:length(XX)
-        μ, 𝓦 = _conjugate_draw(ϑ, μ, 𝓦, XX, PT, updtIdx)
+    for X in XX
+        μ, 𝓦 = _conjugate_draw(ϑ, μ, 𝓦, X, PT, updtIdx)
     end
     Σ = inv(𝓦 + inv(Matrix(prior.Σ)))
     Σ = (Σ + Σ')/2 # eliminates numerical inconsistencies

@@ -60,9 +60,10 @@ end
 """
     rand(G::KnownStartingPt, ::Any)
 
-If starting point is known then nothing can be sampled
+If starting point is known then nothing can be sampled, using convention of
+returning the known startin point
 """
-rand(G::KnownStartingPt, ::Any=nothing, ::Any=nothing) = nothing
+rand(G::KnownStartingPt, ::Any=nothing, ::Any=nothing) = G.y
 
 
 """
@@ -122,9 +123,10 @@ end
 """
     inv_start_pt(y, G::KnownStartingPt, P::GuidPropBridge)
 
-Starting point known, no need for dealing with white noise
+Starting point known, no need for dealing with white noise, use convention of
+returning `y`
 """
-inv_start_pt(y, G::KnownStartingPt, P::GuidPropBridge) = nothing
+inv_start_pt(y, G::KnownStartingPt, P::GuidPropBridge) = y
 
 """
     logpdf(::KnownStartingPt, y)

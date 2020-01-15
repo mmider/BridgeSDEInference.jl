@@ -60,7 +60,7 @@ mcmc_setup = MCMCSetup(
                   UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃s[1], [1,2,3]))
                   ))
 
-schedule = MCMCSchedule(1*10^4, [[1,2,3]],
+schedule = MCMCSchedule(5*10^4, [[1,2,3]],
                         (save=3*10^2, verbose=10^2, warm_up=100,
                          readjust=(x->x%100==0), fuse=(x->false)))
 
