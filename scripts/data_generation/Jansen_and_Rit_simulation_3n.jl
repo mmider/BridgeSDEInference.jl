@@ -5,8 +5,7 @@ using CSV
 using BridgeSDEInference
 
 # Home directory ".../BridgeSDEInference"
-HOME_DIR = "../../BridgeSDEInference"
-OUT_DIR = joinpath(HOME_DIR, "output")
+OUT_DIR ="./output"
 mkpath(OUT_DIR)
 FILENAME_OUT = joinpath(OUT_DIR, "jr_path_part_obs_3n.csv")
 
@@ -25,7 +24,7 @@ Random.seed!(4)
 XX, _ = simulate_segment(ℝ{3}(0.0, 0.0, 0.0), x0, P, tt)
 
 
-num_obs = 256*5
+num_obs = 256*2
 skip = div(length(tt), num_obs)
 Time = collect(tt)[1:skip:end]
 #observation x[2]- x[3]

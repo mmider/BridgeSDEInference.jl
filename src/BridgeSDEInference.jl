@@ -9,7 +9,7 @@ using ForwardDiff: value
 export FitzhughDiffusion, FitzhughDiffusionAux, ℝ
 export regularToAlter, alterToRegular, regularToConjug, conjugToRegular, display
 
-# Jansen_and_Rit_3n.jl
+# Jansen_and_Rit_simple.jl
 export JRNeuralDiffusion3n, JRNeuralDiffusion3nAux
 # types.jl
 export ImproperPrior, ImproperPosPrior, NoChangePt, SimpleChangePt
