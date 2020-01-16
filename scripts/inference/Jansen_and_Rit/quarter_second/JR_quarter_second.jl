@@ -11,7 +11,7 @@ using BridgeSDEInference
 
 
 HOME_DIR = joinpath(Base.source_dir(), "..", "..", "..", "..")
-AUX_DIR = joinpath(pwd(), "src", "auxiliary")
+AUX_DIR = joinpath(HOME_DIR, "src", "auxiliary")
 OUT_DIR = joinpath(HOME_DIR, "output")
 include(joinpath(AUX_DIR, "read_and_write_data.jl"))
 include(joinpath(AUX_DIR, "read_JR_data.jl"))
