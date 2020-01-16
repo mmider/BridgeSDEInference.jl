@@ -122,20 +122,29 @@ out.paths[end][1]
 using Makie
 
 p1 = scatter(obs_time, [obs[i][1] for i in 1:length(obs)],  markersize = 0.05)
-lines!(p1, out.time, [out.paths[end][i][2] - out.paths[end][i][3] for i in 1:length(out.paths[1])], color = (:red, 0.1))
 
+out.paths
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p1, out.time, [out.paths[j][i][2] - out.paths[j][i][3] for i in 1:length(out.paths[1])], color = (:red, 0.1))
+end
 p2 = Scene()
-lines!(p2, out.time, [out.paths[end][i][1]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
-
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p2, out.time, [out.paths[j][i][1]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
 p3 = Scene()
-lines!(p3, out.time, [out.paths[end][i][4]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
-p4 = Scene()
-lines!(p4, out.time, [out.paths[end][i][5]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p3, out.time, [out.paths[j][i][4]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
 
+p4 = Scene()
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p4, out.time, [out.paths[j][i][5]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
 
 p5 = Scene()
-lines!(p5, out.time, [out.paths[end][i][6]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
-out.paths
+for j in 1:length(out.paths)
+    lines!(p5, out.time, [out.paths[j][i][6]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
 
 pscene1 = hbox(
     vbox(p3, p5),
@@ -151,17 +160,19 @@ using Makie
 chain = chains.θ_chain
 param_b = Makie.lines([chain[i][4] for i in 1:length(chain)])
 Makie.lines!(param_b, [0.0, length(chain)],[50, 50], color = (:red, 0.5))
-
+param_b = Makie.title(param_b, "param b")
 param_μy = Makie.lines([chain[i][10] for i in 1:length(chain)])
 Makie.lines!(param_μy, [0.0, length(chain)],[220, 220], color = (:red, 0.5))
+param_μy = Makie.title(param_μy, "param μy")
 param_C = Makie.lines([chain[i][5] for i in 1:length(chain)])
 Makie.lines!(param_C, [0.0, length(chain)],[135, 135], color = (:red, 0.5))
+param_C =  Makie.title(param_C, "param C")
 param_σy = Makie.lines([chain[i][13] for i in 1:length(chain)])
 Makie.lines!(param_σy, [0.0, length(chain)],[2000, 2000], color = (:red, 0.5))
+param_σy =  Makie.title(param_σy, "param σy")
 
 pscene2 = hbox(
     vbox(param_μy, param_σy),
     vbox(param_b, param_C)
     )
-
 Makie.save(joinpath(Base.source_dir(), "output", "parameter_estimation1234.png"), pscene2)

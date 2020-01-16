@@ -121,21 +121,31 @@ error("STOP HERE")
 
 using Makie
 
+
 p1 = scatter(obs_time, [obs[i][1] for i in 1:length(obs)],  markersize = 0.05)
-lines!(p1, out.time, [out.paths[end][i][2] - out.paths[end][i][3] for i in 1:length(out.paths[1])], color = (:red, 0.1))
 
+out.paths
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p1, out.time, [out.paths[j][i][2] - out.paths[j][i][3] for i in 1:length(out.paths[1])], color = (:red, 0.1))
+end
 p2 = Scene()
-lines!(p2, out.time, [out.paths[end][i][1]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
-
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p2, out.time, [out.paths[j][i][1]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
 p3 = Scene()
-lines!(p3, out.time, [out.paths[end][i][4]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
-p4 = Scene()
-lines!(p4, out.time, [out.paths[end][i][5]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p3, out.time, [out.paths[j][i][4]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
 
+p4 = Scene()
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p4, out.time, [out.paths[j][i][5]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
 
 p5 = Scene()
-lines!(p5, out.time, [out.paths[end][i][6]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
-out.paths
+for j in 1:length(out.paths)
+    lines!(p5, out.time, [out.paths[j][i][6]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
 
 pscene1 = hbox(
     vbox(p3, p5),
