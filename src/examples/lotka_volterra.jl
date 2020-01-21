@@ -74,7 +74,7 @@ end
 
 # mean = ℝ{2}(P.γ/P.δ, P.α/P.β)
 function β(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
-    ℝ{2}(-P.γ/P.δ*P.α, P.α/P.β*P.γ)
+    ℝ{2}(P.γ/P.δ*P.α, -P.α/P.β*P.γ)
 end
 
 function σ(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
