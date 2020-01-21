@@ -17,10 +17,10 @@ include(joinpath(SRC_DIR, DIR, "utility_functions.jl"))
 Random.seed!(4)
 #θ₀ = [10.0, 28.0, 8.0/3.0, 3.0, 3.0, 3.0]
 
-θˣ = [1.5, 1.0, 3.0, 1.0, 0.1, 0.1]
+θˣ = [1.5, 1.0, 3.0, 1.0, 0.2, 0.2]
 Pˣ = LotkaVolterraDiffusion(θˣ...)
 
-x0, dt, T = ℝ{2}(2.0, 2.0), 1/5000, 10.0
+x0, dt, T = ℝ{2}(2.5, 2.), 1/5000, 20.0
 tt = 0.0:dt:T
 
 XX, _ = simulate_segment(ℝ{2}(0.0, 0.0), x0, Pˣ, tt)
@@ -31,7 +31,7 @@ Pˣ = LotkaVolterraDiffusion(θ_init...)
 
 skip = 2000
 
-Σdiagel = 10^0
+Σdiagel = 10.0^0
 Σ = @SMatrix[Σdiagel]#SMatrix{2,2}(1.0I)*Σdiagel
 L = @SMatrix[1.0 0.0]
 
@@ -77,15 +77,15 @@ mcmc_setup = MCMCSetup(
                   UniformRandomWalk(0.1, true), ImproperPosPrior(),
                   UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 6)), readj))
 
-schedule = MCMCSchedule(5*10^4, [[1,3,4,5]],
+schedule = MCMCSchedule(1*10^4, [[1],[3,4,5,6]],
                         (save=1*10^3, verbose=10^2, warm_up=100,
                          readjust=(x->x%100==0), fuse=(x->false)))
 
 Random.seed!(4)
 out = mcmc(mcmc_setup, schedule, model_setup)
-
+ws = out[2]
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
-plot_chains(out[2]; truth=θˣ)
+plot_chains(ws; truth=θˣ)
 #=
 plot_paths(out[1], out[2], schedule; obs=(times=obs_time[2:end],
                      vals=[[v[1] for v in obs_vals[2:end]],
