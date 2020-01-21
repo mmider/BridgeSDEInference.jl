@@ -20,7 +20,7 @@ Random.seed!(4)
 θˣ = [1.5, 1.0, 3.0, 1.0, 0.1, 0.1]
 Pˣ = LotkaVolterraDiffusion(θˣ...)
 
-x0, dt, T = ℝ{2}(1.0, 1.0), 1/5000, 10.0
+x0, dt, T = ℝ{2}(2.0, 2.0), 1/5000, 10.0
 tt = 0.0:dt:T
 
 XX, _ = simulate_segment(ℝ{2}(0.0, 0.0), x0, Pˣ, tt)
