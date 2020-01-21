@@ -27,23 +27,29 @@ end
 constdiff(::LotkaVolterraDiffusion) = true
 clone(P::LotkaVolterraDiffusion, θ) = LotkaVolterraDiffusion(θ...)
 params(P::LotkaVolterraDiffusion) = [P.α, P.β, P.γ, P.δ, P.σ1, P.σ2]
-
-nonhypo(P::LorenzCV, x) = x
-@inline hypo_a_inv(P::LorenzCV, t, x) = SDiagonal(1.0/P.σ1^2, 1.0/P.σ2^2)
-num_non_hypo(P::Type{<:LorenzCV}) = 2
-
-phi(::Val{0}, t, x, P::LorenzCV) = (zero(x[1]), zero(x[2]))
-phi(::Val{1}, t, x, P::LorenzCV) = (x[1], zero(x[2]))
-phi(::Val{2}, t, x, P::LorenzCV) = (-x[1]*x[2], zero(x[2]))
-phi(::Val{3}, t, x, P::LorenzCV) = (zero(x[1]), x[1]*x[2])
-phi(::Val{4}, t, x, P::LorenzCV) = (zero(x[1]), -x[2])
-phi(::Val{5}, t, x, P::LorenzCV) = (zero(x[1]), zero(x[2]))
-phi(::Val{6}, t, x, P::LorenzCV) = (zero(x[1]), zero(x[2]))
+domain(P::LotkaVolterraDiffusion) = LowerBoundedDomain((0.0, 0.0), (1,2))
 
 
+# <---------------------------------------------
+# this is optional, needed for conjugate updates
+
+nonhypo(P::LotkaVolterraDiffusion, x) = x
+@inline hypo_a_inv(P::LotkaVolterraDiffusion, t, x) = SDiagonal(1.0/P.σ1^2, 1.0/P.σ2^2)
+num_non_hypo(P::Type{<:LotkaVolterraDiffusion}) = 2
+
+phi(::Val{0}, t, x, P::LotkaVolterraDiffusion) = (zero(x[1]), zero(x[2]))
+phi(::Val{1}, t, x, P::LotkaVolterraDiffusion) = (x[1], zero(x[2]))
+phi(::Val{2}, t, x, P::LotkaVolterraDiffusion) = (-x[1]*x[2], zero(x[2]))
+phi(::Val{3}, t, x, P::LotkaVolterraDiffusion) = (zero(x[1]), x[1]*x[2])
+phi(::Val{4}, t, x, P::LotkaVolterraDiffusion) = (zero(x[1]), -x[2])
+phi(::Val{5}, t, x, P::LotkaVolterraDiffusion) = (zero(x[1]), zero(x[2]))
+phi(::Val{6}, t, x, P::LotkaVolterraDiffusion) = (zero(x[1]), zero(x[2]))
+
+#
+# <---------------------------------------------
 
 
-struct LotkaVolterraDiffusionAux{R,S1,S2} <: ContinuosTimeProcess{ℝ{2,R}}
+struct LotkaVolterraDiffusionAux{R,S1,S2} <: ContinuousTimeProcess{ℝ{2,R}}
     α::R
     β::R
     γ::R
@@ -61,23 +67,23 @@ struct LotkaVolterraDiffusionAux{R,S1,S2} <: ContinuosTimeProcess{ℝ{2,R}}
     end
 end
 
-function B(t, P::LotkaVolterraDiffusionAux{R,S1,S2}) where {T,S1,S2}
+function B(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
     @SMatrix [0.0 0.0; 0.0 0.0]
 end
 
-function β(t, P::LotkaVolterraDiffusionAux{R,S1,S2}) where {T,S1,S2}
+function β(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
     ℝ{2}(0.0, 0.0)
 end
 
-function σ(t, P::LotkaVolterraDiffusionAux{R,S1,S2}) where {T,S1,S2}
+function σ(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
     SDiagonal(P.σ1, P.σ2)
 end
 
-depends_on_params(::LotkaVolterraDiffusionAux{R,S1,S2}) where {T,S1,S2} = (5, 6)
+depends_on_params(::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2} = (5, 6)
 
-constdiff(::LotkaVolterraDiffusionAux{R,S1,S2}) where {T,S1,S2} = true
-b(t, x, P::LotkaVolterraDiffusionAux{R,S1,S2}) where {T,S1,S2} = B(t,P) * x + β(t,P)
-a(t, P::LotkaVolterraDiffusionAux{R,S1,S2}) where {T,S1,S2} = σ(t,P) * σ(t, P)'
+constdiff(::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2} = true
+b(t, x, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2} = B(t,P) * x + β(t,P)
+a(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2} = σ(t,P) * σ(t, P)'
 
 
 clone(P::LotkaVolterraDiffusionAux, θ) = LotkaVolterraDiffusionAux(θ..., P.t,
