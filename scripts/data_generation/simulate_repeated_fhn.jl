@@ -8,7 +8,6 @@ include(joinpath(SRC_DIR, "auxiliary", "data_simulation_fns.jl"))
 OUT_DIR = joinpath(Base.source_dir(), "..", "..", "output")
 mkpath(OUT_DIR)
 
-#include(joinpath(SRC_DIR, "fitzHughNagumo.jl"))
 param = :complexConjug
 FILENAME_OUT = joinpath(OUT_DIR,
                      "test_path_part_obs_"*String(param)*".csv")
@@ -28,8 +27,8 @@ num_obs = 100
 skip_ = div(length(tt), num_obs)
 
 Random.seed!(4)
-XX = [simulate_segment(0.0, x0[k], P, tt)[1][1:skip_:length(tt)-1] for k in 1:K]
 
+XX = [simulate_segment(0.0, x0[k], P, tt)[1][1:skip_:length(tt)-1] for k in 1:K]
 
 #df = DataFrame(time=XX[1].tt, x1=[x[1] for x in XX[1].yy],
 #            x2=[(i==1 ? x0[2] : NaN) for (i,t) in enumerate(Time)])

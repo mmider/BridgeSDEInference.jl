@@ -1,3 +1,7 @@
+using Bridge
+struct EulerMaruyamaBounded <: Bridge.SDESolver end
+const EulerMaruyama = EulerMaruyamaBounded
+
 _DIR = "general"
 include(joinpath(_DIR, "types.jl"))
 include(joinpath(_DIR, "coordinate_access.jl"))
@@ -31,6 +35,7 @@ include(joinpath(_DIR, "radial_ornstein_uhlenbeck.jl"))
 include(joinpath(_DIR, "lorenz_system.jl"))
 include(joinpath(_DIR, "lorenz_system_const_vola.jl"))
 include(joinpath(_DIR, "prokaryotic_autoregulatory_gene_network.jl"))
+include(joinpath(_DIR, "lotka_volterra.jl"))
 
 _DIR = "mcmc"
 include(joinpath(_DIR, "priors.jl"))
@@ -41,4 +46,4 @@ include(joinpath(_DIR, "fusion.jl"))
 include(joinpath(_DIR, "conjugate_updt.jl"))
 include(joinpath(_DIR, "updates.jl"))
 include(joinpath(_DIR, "mcmc.jl"))
-#include(joinpath(_DIR, "repeated.jl"))
+include(joinpath(_DIR, "repeated.jl"))

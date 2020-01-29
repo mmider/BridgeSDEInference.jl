@@ -46,7 +46,7 @@ function forcedSolve!(::EulerMaruyamaBounded, Y, u::T, W::SamplePath{S},
     for i in 1:N-1
         ww[..,i+1] += offset
         yy[.., i] = y
-        dWt = ww[.., i+1]-ww[.., i]em
+        dWt = ww[.., i+1]-ww[.., i]
         increm = _b((i,tt[i]), y, P)*(tt[i+1]-tt[i]) + _scale(dWt, σ(tt[i], y, P))
         y_new = y + increm
         offset_addon = zero(S)

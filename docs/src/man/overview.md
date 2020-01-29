@@ -12,19 +12,17 @@ need (and optionally might) be implemented to fully define a diffusion process.
 ## Stage 1 (b)
 Generate the data. Naturally in applied work the data is given and this step is
 skipped. However, for tests it is often convenient to work with simulated data.
-Data generation is not an internal part of the package; however some generic
-methods that allow for simulation of observations can be found in folders (...).
+Data generation is not an internal part of the package; however, some generic
+methods that allow for simulation of observations can be found in folders [scripts/data_generation/](https://github.com/mmider/BridgeSDEInference.jl/tree/master/scripts/data_generation).
 See also [Data Generation](./generate_data.md).
 
 ## Stage 2
-Define the model `setup`. This includes the type of a model together with
-all the necessary parametrisations is needed to fully spedcfor  of the
+Define the `ModelSetup`. This object should fully characterise the problem that is to be solved. In this package we implemented a `DiffusionSetup` for defining an inference problem for diffusion processes.
 
 ## Stage 3
 Define the MCMC chain. This amounts to specifying the range of possible
-transition steps (together with their transition kernels and priors) and the
-MCMC schedule which lists the order of steps and actions that need to be
-undertaken by the MCMC sampler.
+transition steps (together with their transition kernels and priors) by instantiating `MCMCSetup` object, as well as listing the order of steps and actions that need to be
+undertaken by the MCMC sampler in `MCMCSchedule`.
 
 ## Stage 4
 Run the `mcmc` function. This is a one-liner:
