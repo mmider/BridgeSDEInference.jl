@@ -18,7 +18,8 @@ include(joinpath(SRC_DIR, DIR, "utility_functions.jl"))
 Random.seed!(4)
 pop = 50_000_000
 K = 1.0
-θˣ = [0.37, 0.05, 0.1, 0.01, K]
+θˣ = [0.37, 0.05, 0.05, 0.01, K]
+
 Pˣ = SIR(θˣ...)
 
 x0, dt, T = ℝ{2}(1/pop, 0.), 1/5000, 30.0
@@ -37,8 +38,8 @@ Pˣ = SIR(θ_init...)
 length(XX.tt)
 skip = 20000
 
-Σdiagel = 10/pop
-Σ = SMatrix{2,2}(1.0I)*Σdiagel
+#Σdiagel =
+Σ = @SMatrix[5.0 0.0; 0.0 1.0]/pop
 L = @SMatrix[1.0 0.0; 0.0 1.0]
 
 obs_time, obs_vals = XX.tt[1:skip:end], [rand(Gaussian(L*x, Σ)) for x in XX.yy[1:skip:end]]
@@ -85,7 +86,7 @@ mcmc_setup = MCMCSetup(
                   UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 4)), readj),
       )
 
-schedule = MCMCSchedule(4*10^4, [[1],[2],[5]], #[[1],[2], [5]],
+schedule = MCMCSchedule(2*10^4, [[1],[2]], #[[1],[2], [5]],
                         (save=1*10^3, verbose=10^2, warm_up=100,
                          readjust=(x->x%100==0), fuse=(x->false)))
 
@@ -95,13 +96,13 @@ ws = out[2]
 
 θs = ws.θ_chain
 ±(a, b) = a - b, a + b
-beta, gamma =  [median(getindex.(θs, i)) for i in [1,2]] .± [std(getindex.(θs, i)) for i in [1,2]]
+beta, gamma, s1 =  [median(getindex.(θs, i)) for i in [1,2,3]] .± [std(getindex.(θs, i)) for i in [1,2, 3]]
+R0 = mean(getindex.(θs, 1)./getindex.(θs, 2)) ± std(getindex.(θs, 1)./getindex.(θs, 2))
 
 @show beta
 @show gamma
-
-mean(getindex.(θs, 1)./getindex.(θs, 2))
-std(getindex.(θs, 1)./getindex.(θs, 2))
+@show s1
+@show R0
 
 lines(getindex.(θs, 1))
 lines(getindex.(θs, 2))
