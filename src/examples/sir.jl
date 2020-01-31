@@ -3,7 +3,7 @@ using StaticArrays
 import Bridge: b, σ, B, β, a, constdiff
 const ℝ = SVector{N,T} where {N,T}
 import Base.display
-
+sq(x) = sqrt(max(x, 2e-10))
 struct SIR{T} <: ContinuousTimeProcess{SVector{2,T}}
     α::T
     β::T
@@ -14,8 +14,8 @@ end
 
 b(t, u, P::SIR) = @SVector [P.α*(P.k - u[1] - u[2])*u[1] - P.β*u[1], P.β*u[1]]
 σ(t, u, P::SIR) = @SMatrix Float64[
-    -P.σ1*(P.k - u[1] - u[2])*u[1]  -P.σ2*u[1]
-                0.0   P.σ2*u[1]
+    -P.σ1*sq((P.k - u[1] - u[2])*u[1])  -P.σ2*sq(u[1])
+                0.0   P.σ2*sq.(u[1])
     ]
 a(t, u, P::SIR) = σ(t, u, P)*σ(t, u, P)'
 constdiff(::SIR) = false
@@ -57,8 +57,8 @@ end
 
 function B(t, P::SIRAux)
 #    b(t, u, P::SIR) = @SVector [P.α*(P.k - u[1] - u[2])*u[1] - P.β*u[1], P.β*u[1]]
-    1000*@SMatrix [P.α -P.β;
-                    P.β -0.0]
+    @SMatrix [(P.α) -(P.β);
+              (P.β) -0.0]
 end
 
 # mean = ℝ{2}(P.γ/P.δ, P.α/P.β)
@@ -67,7 +67,7 @@ function β(t, P::SIRAux)
 end
 
 function σ(t, P::SIRAux)
-    @SMatrix Float64[
+    sq(0.0001)*@SMatrix Float64[
          -P.σ1  -P.σ2
           0.0   P.σ2
         ]

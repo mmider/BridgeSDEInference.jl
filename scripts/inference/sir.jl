@@ -15,14 +15,15 @@ using Bridge
 DIR = "auxiliary"
 include(joinpath(SRC_DIR, DIR, "data_simulation_fns.jl"))
 include(joinpath(SRC_DIR, DIR, "utility_functions.jl"))
-Random.seed!(4)
+Random.seed!(2)
 pop = 50_000_000
 K = 1.0
-θˣ = [0.37, 0.05, 0.05, 0.01, K]
+#θˣ = [0.37, 0.05, 0.05, 0.01, K]
+θˣ = [0.37, 0.05, 0.3/sqrt(pop), 1/sqrt(pop), K]
 
 Pˣ = SIR(θˣ...)
 
-x0, dt, T = ℝ{2}(1/pop, 0.), 1/5000, 30.0
+x0, dt, T = ℝ{2}(1/pop, 0.), 1/10000, 30.0
 tt = 0.0:dt:T
 
 XX, _ = simulate_segment(ℝ{2}(1.0, 0.0), x0, Pˣ, tt)
@@ -39,18 +40,19 @@ length(XX.tt)
 skip = 20000
 
 #Σdiagel =
-Σ = @SMatrix[5.0 0.0; 0.0 1.0]/pop
+Σ = @SMatrix[1.0 0.0; 0.0 0.5]/pop
 L = @SMatrix[1.0 0.0; 0.0 1.0]
 
 obs_time, obs_vals = XX.tt[1:skip:end], [rand(Gaussian(L*x, Σ)) for x in XX.yy[1:skip:end]]
 
 days = [0.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0, 25.0, 26.0, 27.0, 28.0, 29.0]
-cases = [1.0 0.0; 62.0 0.0; 121.0 0.1; 198.0 3.0; 291.0 6.0; 440.0 9.0; 571.0 17.0; 830.0 25.0; 1287.0 41.0; 1975.0 56.0; 2744.0 80.0; 4515.0 106.0; 5974.0 132.0; 7771.0 170.0]
+cases = [1.0 0.0; 62.0 0.0; 121.0 0.0; 198.0 3.0; 291.0 6.0; 440.0 9.0; 571.0 17.0; 830.0 25.0; 1287.0 41.0; 1975.0 56.0; 2744.0 80.0; 4515.0 106.0; 5974.0 132.0; 7771.0 170.0]
+
 if true
       obs_time = days
-      obs_vals = (1/pop)*reinterpret(SVector{2,Float64}, (cases)')
+      obs_vals = 1/pop*reinterpret(SVector{2,Float64}, [1 -1; 0 1]*cases') # first coordinate is I + R
 end
-
+obs_vals[end]
 P̃ = [SIRAux(θ_init..., t₀, u, T, v) for (t₀, T, u, v)
      in zip(obs_time[1:end-1], obs_time[2:end], obs_vals[1:end-1], obs_vals[2:end])]
 
@@ -66,9 +68,10 @@ set_auxiliary!(model_setup; skip_for_save=10^0,
 initialise!(eltype(x0), model_setup, Vern7(), false, NoChangePt(100))
 #:step, :scale, :min, :max, :trgt, :offset
 readj = (100, 0.001, 0.001, 999.9, 0.4, 50)
+readj2 = (100, 0.01, 0.05, 0.2, 0.7, 50)
 
 mcmc_setup = MCMCSetup(
-      Imputation(NoBlocking(), 0.99, Vern7()),
+      Imputation(NoBlocking(), 0.999, Vern7()),
       ParamUpdate(ConjugateUpdt(), [1,2], θ_init, nothing,
                   MvNormal(fill(0.0, 2), diagm(0=>fill(1000.0, 2))),
                   UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [1,2]))),
@@ -79,14 +82,14 @@ mcmc_setup = MCMCSetup(
                   UniformRandomWalk(0.01, true), ImproperPrior(),
                   UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 2)), readj),
       ParamUpdate(MetropolisHastingsUpdt(), 3, θ_init,
-                  UniformRandomWalk(0.1, true), ImproperPrior(),
-                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 3)), readj),
+                  UniformRandomWalk(0.1, true), ImproperPosPrior(),
+                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 3)), readj2),
       ParamUpdate(MetropolisHastingsUpdt(), 4, θ_init,
-                  UniformRandomWalk(0.1, true), ImproperPrior(),
-                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 4)), readj),
+                  UniformRandomWalk(0.1, true), ImproperPosPrior(),
+                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 4)), readj2),
       )
 
-schedule = MCMCSchedule(2*10^4, [[1],[2]], #[[1],[2], [5]],
+schedule = MCMCSchedule(1*10^4, [[1],[2],[5]], #[[1],[2], [5]],
                         (save=1*10^3, verbose=10^2, warm_up=100,
                          readjust=(x->x%100==0), fuse=(x->false)))
 
