@@ -139,6 +139,9 @@ state, history = mcmc(mcmc_setup, schedule, model_setup)
 # most importantly: parameter samples
 θs = history.θ_chain
 
+# Compare posterior mean with true parameters, for example
+@show [mean(θs) θˣ]
+
 ### Post processing: plot results
 
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))
