@@ -67,28 +67,28 @@ struct LotkaVolterraDiffusionAux{R,S1,S2} <: ContinuousTimeProcess{ℝ{2,R}}
     end
 end
 
-function B(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
+function B(t, P::LotkaVolterraDiffusionAux)
 #    ℝ{2}(P.α*x[1] - P.β*x[1]*x[2], P.δ*x[1]*x[2] - P.γ*x[2])
     @SMatrix [-0.0 -P.β*P.γ/P.δ; P.α*P.δ/P.β -0.0]
 end
 
 # mean = ℝ{2}(P.γ/P.δ, P.α/P.β)
-function β(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
+function β(t, P::LotkaVolterraDiffusionAux)
     ℝ{2}(P.γ/P.δ*P.α, -P.α/P.β*P.γ)
 end
 
-function σ(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
+function σ(t, P::LotkaVolterraDiffusionAux)
     SDiagonal(P.σ1, P.σ2)
 end
 
-function σ(t, x, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2}
+function σ(t, x, P::LotkaVolterraDiffusionAux)
     SDiagonal(P.σ1, P.σ2)
 end
-depends_on_params(::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2} = (1, 2, 3, 4, 5, 6)
+depends_on_params(::LotkaVolterraDiffusionAux) = (1, 2, 3, 4, 5, 6)
 
-constdiff(::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2} = true
-b(t, x, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2} = B(t,P) * x + β(t,P)
-a(t, P::LotkaVolterraDiffusionAux{T,S1,S2}) where {T,S1,S2} = σ(t,P) * σ(t, P)'
+constdiff(::LotkaVolterraDiffusionAux) = true
+b(t, x, P::LotkaVolterraDiffusionAux) = B(t,P) * x + β(t,P)
+a(t, P::LotkaVolterraDiffusionAux) = σ(t,P) * σ(t, P)'
 
 
 clone(P::LotkaVolterraDiffusionAux, θ) = LotkaVolterraDiffusionAux(θ..., P.t,

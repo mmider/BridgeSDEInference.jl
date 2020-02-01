@@ -3,7 +3,7 @@ OUT_DIR = joinpath(Base.source_dir(), "..", "..", "output")
 mkpath(OUT_DIR)
 
 
-include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
+#include(joinpath(SRC_DIR, "BridgeSDEInference_for_tests.jl"))
 
 using StaticArrays
 using Distributions
@@ -11,11 +11,16 @@ using Random
 # Let's generate the data
 # -----------------------
 using Bridge
+using Statistics, LinearAlgebra
+using GaussianDistributions
+using BridgeSDEInference
+using BridgeSDEInference: LotkaVolterraDiffusion, LotkaVolterraDiffusionAux
 DIR = "auxiliary"
 include(joinpath(SRC_DIR, DIR, "data_simulation_fns.jl"))
 include(joinpath(SRC_DIR, DIR, "utility_functions.jl"))
 Random.seed!(4)
 #θ₀ = [10.0, 28.0, 8.0/3.0, 3.0, 3.0, 3.0]
+const SDE = BridgeSDEInference
 
 θˣ = [1.5, 1.0, 3.0, 1.0, 0.2, 0.2]
 Pˣ = LotkaVolterraDiffusion(θˣ...)
