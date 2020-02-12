@@ -1,5 +1,6 @@
 using Bridge
 using StaticArrays
+using LinearAlgebra
 import Bridge: b, σ, B, β, a, constdiff
 const ℝ = SVector{N, T} where {N, T}
 
@@ -81,22 +82,27 @@ param_names(::JRNeuralDiffusion3n) = (:A, :a, :B, :b, :C, :νmax,
     :v0, :r, :μx, :μy, :μz, :σx, :σy, :σz)
 
 
-#### TODO AGAIN ####
-phi(::Val{0}, t, x, P::JRNeuralDiffusion3n) = (P.A*P.a*0.8P.C*sigm(P.C*x[1], P) - 2P.a*x[5] - P.a*P.a*x[2],)
-phi(::Val{10}, t, x, P::JRNeuralDiffusion3n) = (P.A*P.a,)
-phi(::Val{1}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{2}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{3}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{4}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{5}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{6}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{7}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{8}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{9}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{11}, t, x, P::JRNeuralDiffusion3n) = (0,)
-phi(::Val{12}, t, x, P::JRNeuralDiffusion3n) = (0,)
+#### Conjugate #####
+#### Three dimensional ####
+nonhypo(P::JRNeuralDiffusion3n, x) = x[4:6]
+@inline hypo_a_inv(P::JRNeuralDiffusion3n, t, x) = SMatrix{3,3}(Diagonal([P.σx^(-2), P.σy^(-2), P.σz^(-2)]))
+num_non_hypo(P::Type{<:JRNeuralDiffusion3n}) = 3
 
-
+phi(::Val{0}, t, x, P::JRNeuralDiffusion3n) = (0., P.A*P.a*0.8P.C*sigm(P.C*x[1], P) - 2P.a*x[5] - P.a*P.a*x[2], 0)
+phi(::Val{10}, t, x, P::JRNeuralDiffusion3n) = (0., P.A*P.a, 0.)
+phi(::Val{1}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{2}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{3}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{4}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{5}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{6}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{7}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{8}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{9}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{11}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{12}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{13}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
+phi(::Val{14}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
 """
     JRNeuralDiffusion3nAux{T, S1, S2} <: ContinuousTimeProcess{ℝ{6, T}}
 structure for a simple auxiliary process defined as integrated Wiener process
@@ -152,4 +158,4 @@ clone(P::JRNeuralDiffusion3nAux, θ) = JRNeuralDiffusion3nAux(θ[12], θ[13], θ
 clone(P::JRNeuralDiffusion3nAux, θ, v) = JRNeuralDiffusion3nAux(θ[12], θ[13], θ[14], P.t, zero(v), P.T, v)
 params(P::JRNeuralDiffusion3nAux) = [P.σx, P.σy, P.σz]
 param_names(P::JRNeuralDiffusion3nAux) = (:σx, :σy, :σz )
-depends_on_params(::JRNeuralDiffusion3nAux) = (12,13,14)
+depends_on_params(::JRNeuralDiffusion3nAux) = (12, 13, 14)
