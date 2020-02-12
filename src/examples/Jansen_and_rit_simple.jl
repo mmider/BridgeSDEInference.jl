@@ -88,7 +88,10 @@ nonhypo(P::JRNeuralDiffusion3n, x) = x[4:6]
 @inline hypo_a_inv(P::JRNeuralDiffusion3n, t, x) = SMatrix{3,3}(Diagonal([P.σx^(-2), P.σy^(-2), P.σz^(-2)]))
 num_non_hypo(P::Type{<:JRNeuralDiffusion3n}) = 3
 
-phi(::Val{0}, t, x, P::JRNeuralDiffusion3n) = (0., P.A*P.a*0.8P.C*sigm(P.C*x[1], P) - 2P.a*x[5] - P.a*P.a*x[2], 0)
+phi(::Val{0}, t, x, P::JRNeuralDiffusion3n) = (P.A*P.a*(P.μx + sigm(x[2] - x[3] , P)) - 2P.a*x[4] - P.a*P.a*x[1],
+                                                P.A*P.a*0.8P.C*sigm(P.C*x[1], P) - 2P.a*x[5] - P.a*P.a*x[2],
+                                                P.B*P.b*(P.μz +0.25P.C*sigm(0.25P.C*x[1], P)) - 2P.b*x[6] - P.b*P.b*x[3]
+                                                )
 phi(::Val{10}, t, x, P::JRNeuralDiffusion3n) = (0., P.A*P.a, 0.)
 phi(::Val{1}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
 phi(::Val{2}, t, x, P::JRNeuralDiffusion3n) = (0., 0., 0.)
