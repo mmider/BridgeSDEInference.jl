@@ -44,7 +44,7 @@ Pˣ = JRNeuralDiffusion3n(θ₀...)
 
 #P_auxiliary
 sigmas = θ₀[12:14]
-P̃ = [JRNeuralDiffusion3nAux(sigmas..., t₀, u[1], T, v[1]) for (t₀,T,u,v)
+P̃ = [JRNeuralDiffusion3nAux(sigmas..., t₀, u, T, v) for (t₀,T,u,v)
      in zip(obs_time[1:end - 1], obs_time[2:end], obs[1:end - 1], obs[2:end])]
 
 model_setup = DiffusionSetup(Pˣ,P̃, PartObs())
@@ -170,38 +170,94 @@ pscene1 = hbox(
 
 Makie.save(joinpath(Base.source_dir(), "output", "reconstructed_data_with_parameter_estimation1234.png"), pscene1)
 
+## Plots with simulated data
+
+T = findfirst(isequal(0.25), XX.tt)
+
+p1 = Scene(resolution = (5000, 3000))
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p1, out.time, [out.paths[j][i][1]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
+xlabel!(p1, "t")
+ylabel!(p1, "X1")
+lines!(p1, XX.tt[1:T], [XX.yy[i][1] for i in 1:T])
 
 
+p2 = lines(resolution = (5000, 3000), XX.tt[1:T], [XX.yy[i][2] for i in 1:T])
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p2, out.time, [out.paths[j][i][2] for i in 1:length(out.paths[1])], color = (:red, 0.1))
+end
+xlabel!(p2, "t")
+ylabel!(p2, "X2")
+
+p3= lines(resolution = (5000, 3000), XX.tt[1:T], [XX.yy[i][3] for i in 1:T])
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p3, out.time, [out.paths[j][i][3] for i in 1:length(out.paths[1])], color = (:red, 0.1))
+end
+xlabel!(p3, "t")
+ylabel!(p3, "X3")
+
+p4 = Scene(resolution = (5000, 3000))
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p4, out.time, [out.paths[j][i][4]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
+lines!(p4, XX.tt[1:T], [XX.yy[i][4] for i in 1:T])
+xlabel!(p4, "t")
+ylabel!(p4, "X4")
+
+p5 = Scene(resolution = (5000, 3000))
+for j in (length(out.paths)- 20):length(out.paths)
+    lines!(p5, out.time, [out.paths[j][i][5]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
+lines!(p5, XX.tt[1:T], [XX.yy[i][5] for i in 1:T])
+xlabel!(p5, "t")
+ylabel!(p5, "X5")
+
+p6 = Scene(resolution = (5000, 3000))
+for j in 1:length(out.paths)
+    lines!(p6, out.time, [out.paths[j][i][6]  for i in 1:length(out.paths[1])], color = (:red, 0.5))
+end
+lines!(p6, XX.tt[1:T], [XX.yy[i][6] for i in 1:T])
+xlabel!(p6, "t")
+ylabel!(p6, "X6")
+pscene1 = Scene()
+pscene1 = hbox(
+    vbox(p5, p6),
+    vbox(p3, p4),
+    vbox(p1, p2)
+)
+resize!(pscene1, 5000, 3000)
+Makie.save(joinpath(Base.source_dir(), "output", "simulated_reconstructed_path.png"), pscene1)
+
+## Smoothed process
 using Makie
 chain = chains.θ_chain
 param_b = Makie.lines([chain[i][4] for i in 1:length(chain)])
 Makie.lines!(param_b, [0.0, length(chain)],[50, 50], color = (:red, 0.5))
-param_b = Makie.title(param_b, "param b")
+ylabel!(param_b, "b")
 param_μy = Makie.lines([chain[i][10] for i in 1:length(chain)])
 Makie.lines!(param_μy, [0.0, length(chain)],[220, 220], color = (:red, 0.5))
-param_μy = Makie.title(param_μy, "param μy")
+ylabel!(param_μy, "μy")
 param_C = Makie.lines([chain[i][5] for i in 1:length(chain)])
 Makie.lines!(param_C, [0.0, length(chain)],[135, 135], color = (:red, 0.5))
-param_C =  Makie.title(param_C, "param C")
+ylabel!(param_C, "C")
 param_σy = Makie.lines([chain[i][13] for i in 1:length(chain)])
 Makie.lines!(param_σy, [0.0, length(chain)],[2000, 2000], color = (:red, 0.5))
-param_σy =  Makie.title(param_σy, "param σy")
+ylabel!(param_σy, "σy")
 param_A = Makie.lines([chain[i][1] for i in 1:length(chain)])
 Makie.lines!(param_A, [0.0, length(chain)],[3.25, 3.25], color = (:red, 0.5))
-param_A =  Makie.title(param_A, "param A")
-
+ylabel!(param_A, "A")
 param_a = Makie.lines([chain[i][2] for i in 1:length(chain)])
 Makie.lines!(param_a, [0.0, length(chain)],[100.0, 100.0], color = (:red, 0.5))
-param_a =  Makie.title(param_a, "param a")
-
+ylabel!(param_a, "a")
 
 pscene2 = hbox(
     vbox(param_μy, param_σy),
     vbox(param_b, param_C),
     vbox(param_A, param_a)
     )
-
-Makie.save(joinpath(Base.source_dir(), "output", "identifibility_fix_mu_y.png"), pscene2)
+resize!(pscene2, 6000, 3000)
+Makie.save(joinpath(Base.source_dir(), "output", "parameter_estimation.png"), pscene2)
 
 
 
