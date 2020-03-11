@@ -39,15 +39,7 @@ function dom_handler(session, request)
 
     particlecss = Asset(joinpath(@__DIR__,"particle.css"))
 
-    # init javascript
-    evaljs(session,  js"""
-        console.log("Hello");
-        iter = 1;
-        si = 0.0;
-        R1 = $(R1);
-        R2 = $(R2);
-        //setInterval(
-    """)
+
 
     #css("#slider", var"background-image"="linear-gradient(blue, green, blue)")
 
@@ -68,56 +60,67 @@ function dom_handler(session, request)
     js_scene = WGLMakie.to_jsscene(three, scene)
     mesh = js_scene.getObjectByName(string(objectid(splot)))
 
+    # init javascript
+    evaljs(session,  js"""
+        console.log("Hello");
+        iter = 1;
+        si = 0.0;
+        R1 = $(R1);
+        R2 = $(R2);
+        setInterval(
+            function (){
+                function randn_bm() {
+                    var u = 0, v = 0;
+                    while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+                    while(v === 0) v = Math.random();
+                    return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+                }
+                var mu = 0.2;
+                var mesh = $(mesh);
+                var K = $(K);
+                var n = $(n);
+                var dt = $(dt);
+                console.log(iter++);
+                var sqrtdt = $(sqrtdt);
+
+                k = iter%K;
+                var positions = mesh.geometry.attributes.offset.array;
+                var color = mesh.geometry.attributes.color.array;
+                console.log(color.length);
+                for ( var i = 0; i < n; i++ ) {
+                    inew = k*2*n + 2*i;
+                    iold = ((K + k - 1)%K)*2*n + 2*i;
+                    positions[inew] = (1 - mu*dt)*positions[iold] - 3*dt*positions[iold+1] + si*sqrtdt*randn_bm(); // x
+                    positions[inew+1] = (1 - mu*dt)*positions[iold+1] + 3*dt*positions[iold] + si*sqrtdt*randn_bm();
+                    color[k*4*n + 4*i] = 1.0;
+                    color[k*4*n + 4*i + 1] = 1.0;
+                    color[k*4*n + 4*i + 2] = 1.0;
+                    color[k*4*n + 4*i + 3] = 1.0;
+                    if (Math.random() < 0.01)
+                    {
+                        positions[inew] = (2*Math.random()-1)*R1;
+                        positions[inew+1] = (2*Math.random()-1)*R2;
+                    }
+
+                }
+                for ( var k = 0; k < K; k++ ) {
+                    for ( var i = 0; i < n; i++ ) {
+                        color[k*4*n + 4*i + 3] = 0.98*color[k*4*n + 4*i + 3];
+                    }
+                }
+                mesh.geometry.attributes.color.needsUpdate = true;
+                mesh.geometry.attributes.offset.needsUpdate = true;
+
+            }
+        , 50);
+    """)
+
     onjs(session, sliders.value, js"""function (value){
         si = value;
     }""")
 
-    onjs(session, button.value, js"""function (value){
-        function randn_bm() {
-            var u = 0, v = 0;
-            while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
-            while(v === 0) v = Math.random();
-            return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
-        }
-        var mu = 0.2;
-        var mesh = $(mesh);
-        var K = $(K);
-        var n = $(n);
-        var dt = $(dt);
-        console.log(iter++);
-        var sqrtdt = $(sqrtdt);
-
-        k = iter%K;
-        var positions = mesh.geometry.attributes.offset.array;
-        var color = mesh.geometry.attributes.color.array;
-        console.log(color.length);
-        for ( var i = 0; i < n; i++ ) {
-            inew = k*2*n + 2*i;
-            iold = ((K + k - 1)%K)*2*n + 2*i;
-            positions[inew] = (1 - mu*dt)*positions[iold] - 3*dt*positions[iold+1] + si*sqrtdt*randn_bm(); // x
-            positions[inew+1] = (1 - mu*dt)*positions[iold+1] + 3*dt*positions[iold] + si*sqrtdt*randn_bm();
-            color[k*4*n + 4*i] = 1.0;
-            color[k*4*n + 4*i + 1] = 1.0;
-            color[k*4*n + 4*i + 2] = 1.0;
-            color[k*4*n + 4*i + 3] = 1.0;
-            if (Math.random() < 0.01)
-            {
-                positions[inew] = (2*Math.random()-1)*R1;
-                positions[inew+1] = (2*Math.random()-1)*R2;
-            }
-
-        }
-        for ( var k = 0; k < K; k++ ) {
-            for ( var i = 0; i < n; i++ ) {
-                color[k*4*n + 4*i + 3] = 0.98*color[k*4*n + 4*i + 3];
-            }
-        }
-        mesh.geometry.attributes.color.needsUpdate = true;
-        mesh.geometry.attributes.offset.needsUpdate = true;
-
-    }""")
-    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters", DOM.div(sliders,  id="slider")),
-    DOM.p(nrs), DOM.p(button))
+    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), DOM.div(sliders,  id="slider"),
+    DOM.p(nrs))
 #    JSServe.onload(session, dom, js"""
 #        iter = 1;
 #    """)
@@ -134,4 +137,4 @@ app = JSServe.Application(
 )
 cl() = (close(app), "stopped")
 println("Done.")
-cl()
+#cl()
