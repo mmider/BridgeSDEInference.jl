@@ -17,48 +17,6 @@ using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, w
 using JSServe.DOM
 
 
-#=
-function dom_handler3(session, request)
-    R = 𝕏(1.5,6.0)
-    k = 50
-    n = 500
-
-
-    #c = 1
-    ms = 0.08
-    #i = 1;
-
-
-    x0 = zero(𝕏{2,Float32})
-    limits = FRect(-R[1], -R[2], 2R[1], 2R[2])
-    p = Scene(resolution=(800,800), limits=limits, backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22))
-
-    pts = [rebirth(1.0, R)(x0) for i in 1:n]
-    xraw = [copy(pts) for i in 1:k]
-    x = [Node(xraw[i]) for i in 1:k]
-    col = [Node(RGBA{Float32}(0.0, 0.0, 0.0, 0.0)) for i in 1:k]
-
-    for i in randperm(k)
-        scatter!(p, x[i], color = col[i], markersize = ms, #=show_axis = true,limits=limits,=#  glowwidth = 0.005, glowcolor = :white)
-    end
-    #update_cam!(p, limits)
-    axis = p[Axis]
-    axis[:grid, :linewidth] =  (1, 1)
-    axis[:grid, :linecolor] = (RGBA{Float32}(0.5, 0.7, 1.0, 0.5),RGBA{Float32}(0.5, 0.7, 1.0, 0.5))
-    axis[:names][:textsize] = (0.0,0.0)
-    axis[:ticks, :textcolor] = (RGBA{Float32}(0.5, 0.7, 1.0, 0.8),RGBA{Float32}(0.5, 0.7, 1.0, 0.8))
-    r = range(-R[1], 2R[1], length=100)
-
-    scene = p
-    three, canvas = WGLMakie.three_display(session, scene)
-    return DOM.div(canvas)
-end
-
-JSServe.with_session() do session, request
-    dom_handler2(session, request)
-end
-=#
-
 function dom_handler(session, request)
     global three, scene
 
@@ -72,6 +30,7 @@ function dom_handler(session, request)
 
     # init
     R = 𝕏(1.5,6.0)
+    R1, R2 = R
     limits = FRect(-R[1], -R[2], 2R[1], 2R[2])
     n = 800
     K = 80
@@ -85,6 +44,8 @@ function dom_handler(session, request)
         console.log("Hello");
         iter = 1;
         si = 0.0;
+        R1 = $(R1);
+        R2 = $(R2);
         //setInterval(
     """)
 
@@ -92,6 +53,7 @@ function dom_handler(session, request)
 
     scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
         backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = 0.03,
+        glowwidth = 0.005, glowcolor = :white,
         resolution=(600,600), limits = limits,
         )
     axis = scene[Axis]
@@ -138,6 +100,11 @@ function dom_handler(session, request)
             color[k*4*n + 4*i + 1] = 1.0;
             color[k*4*n + 4*i + 2] = 1.0;
             color[k*4*n + 4*i + 3] = 1.0;
+            if (Math.random() < 0.01)
+            {
+                positions[inew] = (2*Math.random()-1)*R1;
+                positions[inew+1] = (2*Math.random()-1)*R2;
+            }
 
         }
         for ( var k = 0; k < K; k++ ) {
