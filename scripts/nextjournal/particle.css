@@ -1,0 +1,5 @@
+#slider {
+   background-color: #778899;
+   width: 4cm;
+   background-image: linear-gradient(to right, #8888FF, #FFFF88, #8888FF);
+}
