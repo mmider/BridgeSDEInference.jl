@@ -21,9 +21,15 @@ function dom_handler(session, request)
     global three, scene
 
     # slider and field for sigma
-    sliders = JSServe.Slider(0.01:0.01:1)
-    nrs = JSServe.NumberInput(0.0)
-    linkjs(session, sliders.value, nrs.value)
+    slider1 = JSServe.Slider(0.01:0.01:1)
+    nrs1 = JSServe.NumberInput(0.0)
+    linkjs(session, slider1.value, nrs1.value)
+
+    # slider and field for beta
+    slider2 = JSServe.Slider(0.01:0.01:10)
+    nrs2 = JSServe.NumberInput(0.0)
+    linkjs(session, slider2.value, nrs2.value)
+
 
     # time wheel ;-)
     button = JSServe.Slider(1:109)
@@ -72,8 +78,11 @@ function dom_handler(session, request)
     js_scene = WGLMakie.to_jsscene(three, scene)
     mesh = js_scene.getObjectByName(string(objectid(splot)))
 
-    onjs(session, sliders.value, js"""function (value){
+    onjs(session, slider1.value, js"""function (value){
         si = value;
+    }""")
+    onjs(session, slider2.value, js"""function (value){
+        beta = value;
     }""")
 
     onjs(session, button.value, js"""function (value){
@@ -119,8 +128,8 @@ function dom_handler(session, request)
         mesh.geometry.attributes.offset.needsUpdate = true;
 
     }""")
-    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters", DOM.div(sliders,  id="slider")),
-    DOM.p(nrs), DOM.p(button))
+    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters", DOM.div(slider1,  id="slider1"), DOM.div(slider2,  id="slider2")),
+    DOM.p(nrs1), DOM.p(nrs2), DOM.p(button))
 #    JSServe.onload(session, dom, js"""
 #        iter = 1;
 #    """)
