@@ -9,7 +9,6 @@ rebirth(α, R) = x -> (rand() > α  ? x : (2rand(typeof(x)) .- 1).*R)
 const 𝕏 = SVector
 
 
-
 using Hyperscript, Markdown
 using JSServe, Observables
 using JSServe: Application, Session, evaljs, linkjs, div, active_sessions, Asset
