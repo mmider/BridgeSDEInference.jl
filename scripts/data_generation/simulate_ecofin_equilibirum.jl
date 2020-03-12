@@ -19,16 +19,16 @@ FILENAME_OUT2 = joinpath(OUT_DIR, "ecofin_path_indexes.csv")
 σ = 0.02
 P = EcoFinEq(ρ, δ, γ, κ, η, σ)
 # starting point under :regular parametrisation
-x0 = ℝ{3}(log(P.ρ/P.γ), 0.0, P.γ)
+x0 = ℝ{3}(log(P.ρ/P.γ), 0.0, P.γ - P.δ - P.σ^2)
 
 dt = 0.1/360
-T = 25.0
+T = 10.0
 tt = 0.0:dt:T
 
 Random.seed!(4)
 XX, _ = simulate_segment(ℝ{2}(0.0, 0.0), x0, P, tt)
 
-num_daily_obs = 25*360
+num_daily_obs = Int(T)*360
 skip = div(length(tt), num_daily_obs)
 Time = collect(tt)[1:skip:end]
 #observation x[2]- x[3]

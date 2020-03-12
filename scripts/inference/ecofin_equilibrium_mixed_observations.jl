@@ -27,10 +27,11 @@ filename2 = "ecofin_path_indexes.csv"
 
 # θ = [ρ, δ, γ, κ, η, σ]
 θ = [0.03, 0.05, 0.1, 0.2, 0.01, 0.02]
+θ₀ = [0.1, 0.05, 0.1, 0.4, 0.01, 0.02]
 
-Pˣ = EcoFinEq(θ...)
+Pˣ = EcoFinEq(θ₀...)
 
-P̃ = [EcoFinEqAux(θ..., t₀, u, T, v) for (t₀,T,u,v)
+P̃ = [EcoFinEqAux(θ₀..., t₀, u, T, v) for (t₀,T,u,v)
      in zip(obs_time[1:end - 1], obs_time[2:end], obs[1:end - 1], obs[2:end])]
 
 
@@ -41,8 +42,8 @@ L1 = @SMatrix [0. 0. 1.]
 L2 = @SMatrix [1. 0. 0.;
                0. 1. 0.;
                0. 0. 1.]
-
-Σdiagel = 10^(-4)
+1/360
+Σdiagel = 0.2/360
 Σ1 = @SMatrix [Σdiagel]
 Σ2 = L2*Σdiagel
 set_observations!(model_setup, [i%90 == 0 ? L2 : L1 for i in 1:length(obs)-1], [i%90 == 0 ? Σ2 : Σ1 for i in 1:length(obs)-1], obs, obs_time, fpt)
@@ -60,11 +61,22 @@ set_auxiliary!(model_setup; skip_for_save=10^0, adaptive_prop=NoAdaptation())
 pCN = 0.9
 imputation = Imputation(NoBlocking(), pCN, Vern7())
 
+readj = (100, 0.0001, 0.1, 999.9, 0.234, 50) # readjust_param
+readj2 = (100, 0.0001, 0.1, 999.9, 0.234, 50)
+#ρ, δ, γ, κ, η, σ
+p1 = ParamUpdate(MetropolisHastingsUpdt(), 1, θ₀,
+            UniformRandomWalk(1., true), ImproperPosPrior(),
+            UpdtAuxiliary(Vern7(), true) , readj
+            )
+p2 = ParamUpdate(MetropolisHastingsUpdt(), 4, θ₀,
+            UniformRandomWalk(1., true), ImproperPosPrior(),
+            UpdtAuxiliary(Vern7(), true) , readj
+            )
 
-mcmc_setup = MCMCSetup(imputation)
+mcmc_setup = MCMCSetup(imputation, p1, p2)
 
-schedule = MCMCSchedule(10^4, [[1]],
-                  (save=10^2, verbose=5*10^3, warm_up=100,
+schedule = MCMCSchedule(5*10^2, [[1], [2, 3, 2, 3]],
+                  (save=10^1, verbose=5*10, warm_up=10,
                    #readjust=(x->x%100==0), fuse=(x->false)))
                    readjust=(x->false), fuse=(x->false)))
 
@@ -75,19 +87,32 @@ out, chains = mcmc(mcmc_setup, schedule, model_setup)
 
 error("STOP HERE")
 using Makie
-p1 = scatter(obs_time, [(i-1)%90 == 0 ?  obs[i][3] : obs[i][1] for i in 1:length(obs)],  markersize = 0.05)
+p1 = scatter(obs_time, [(i-1)%90 == 0 ?  obs[i][3] : obs[i][1] for i in 1:length(obs)],  markersize = 0.1)
 for j in (length(out.paths)- 20):length(out.paths)
-    lines!(p1, out.time, [out.paths[j][i][3] for i in 1:length(out.paths[1])], color = (:red, 0.1))
+    lines!(p1, out.time, [out.paths[j][i][3] for i in 1:length(out.paths[1])], color = (:red, 0.01))
 end
 
-
-
-p2 = scatter(df2.time, df2.x1,  markersize = 0.0)
+p2 = scatter(df2.time, df2.x1,  markersize = 0.1)
 for j in (length(out.paths)- 20):length(out.paths)
-    lines!(p2, out.time, [out.paths[j][i][1] for i in 1:length(out.paths[1])], color = (:red, 0.1))
+    lines!(p2, out.time, [out.paths[j][i][1] for i in 1:length(out.paths[1])], color = (:red, 0.01))
 end
 
 p3 = scatter(df2.time, df2.x2,  markersize = 0.1)
 for j in (length(out.paths)- 20):length(out.paths)
-    lines!(p3, out.time, [out.paths[j][i][2] for i in 1:length(out.paths[1])], color = (:red, 0.1))
+    lines!(p3, out.time, [out.paths[j][i][2] for i in 1:length(out.paths[1])], color = (:red, 0.01))
 end
+
+
+p_final = hbox(p3, p2, p1)
+resize!(p_final, 5000,3000)
+save("output/smoothing.png", p_final)
+
+
+chain = chains.θ_chain
+param_ρ = Makie.lines([chain[i][1] for i in 1:length(chain)])
+Makie.lines!(param_ρ, [0.0, length(chain)],[0.03, 0.03], color = (:red, 0.5))
+save("output/estimate_rho.png", param_b)
+
+
+param_κ = Makie.lines([chain[i][4] for i in 1:length(chain)])
+Makie.lines!(param_κ, [0.0, length(chain)],[0.2, 0.2], color = (:red, 0.5))

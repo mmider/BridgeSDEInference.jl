@@ -37,7 +37,7 @@ end
 
 
 constdiff(::EcoFinEq) = false
-clone(::EcoFinEq, θ) = JRNeuralDiffusion3n(θ...)
+clone(::EcoFinEq, θ) = EcoFinEq(θ...)
 #Static vector
 params(P::EcoFinEq) = [P.ρ, P.δ, P.γ, P.κ, P.η, P.σ]
 param_names(::EcoFinEq) = (:ρ, :δ, :γ, :κ, :η, :σ)
