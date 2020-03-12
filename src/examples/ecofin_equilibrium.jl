@@ -22,16 +22,16 @@ struct EcoFinEq{T} <: ContinuousTimeProcess{ℝ{3, T}}
 end
 
 function b(t, x, P::EcoFinEq{T}) where T
-    ℝ{3, T}(x[3] - P.ρ - P.δ - 0.5*P.σ^2,
-    P.κ*P.γ/x[3] - 0.5*P.η^2/x[3]^2 + x[3] - P.κ - P.ρ - P.δ - 0.5*P.σ^2,
-    P.κ*(P.γ - x[3])
+    ℝ{3, T}(x[3] - P.ρ + 0.5*P.σ^2,
+    P.κ*P.γ/(x[3] + P.δ + P.σ^2) - 0.5*P.η^2/(x[3] + P.δ + P.σ^2)^2 + x[3] - P.κ - P.ρ + 0.5*P.σ^2,
+    P.κ*(P.γ - (P.δ + P.σ^2) - x[3])
     )
 end
 
 
 function σ(t, x, P::EcoFinEq{T}) where T
     @SMatrix    [P.σ 0.0;
-                P.σ  P.η/x[3];
+                P.σ  P.η/(x[3] + P.δ + P.σ^2);
                 0.0 P.η]
 end
 
@@ -74,9 +74,9 @@ end
 
 
 function β(t,  P::EcoFinEqAux)
-    ℝ{3}(-P.ρ - P.δ - 0.5*P.σ^2,
-    P.κ*P.γ/P.v[end] - 0.5*P.η^2/P.v[end]^2 - P.κ - P.ρ - P.δ - 0.5*P.σ^2,
-    P.κ*P.γ
+    ℝ{3}(-P.ρ + 0.5*P.σ^2,
+    P.κ*P.γ/(P.v[end] + P.δ + P.σ^2) - 0.5*P.η^2/(P.v[end]^2 + P.δ + P.σ^2) - P.κ - P.ρ + 0.5*P.σ^2,
+    P.κ*(P.γ - (P.δ + P.σ^2))
     )
 end
 # function β(t,  P::EcoFinEqAux)
@@ -98,7 +98,7 @@ end
 
 function σ(t, P::EcoFinEqAux)
     @SMatrix    [P.σ 0.0;
-                P.σ  P.η/P.v[end];
+                P.σ  P.η/(P.v[end] + P.δ + P.σ^2);
                 0.0 P.η]
 end
 
