@@ -38,13 +38,9 @@ function dom_handler(session, request)
     sqrtdt = sqrt(dt)
 
     particlecss = Asset(joinpath(@__DIR__,"particle.css"))
-
-
-
-    #css("#slider", var"background-image"="linear-gradient(blue, green, blue)")
-
-    scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
-        backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = 0.03,
+    ms = 0.03
+    global scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
+        backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = ms,
         glowwidth = 0.005, glowcolor = :white,
         resolution=(600,600), limits = limits,
         )
@@ -56,9 +52,13 @@ function dom_handler(session, request)
 
 
     splot = scene[end]
+    scatter!(scene, -R1:0.01:R1, sin.(-R1:0.01:R1), color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8), markersize=ms)
+    kplot = scene[end]
+
     three, canvas = WGLMakie.three_display(session, scene)
     js_scene = WGLMakie.to_jsscene(three, scene)
     mesh = js_scene.getObjectByName(string(objectid(splot)))
+    mesh2 = js_scene.getObjectByName(string(objectid(kplot)))
 
     # init javascript
     evaljs(session,  js"""
@@ -117,6 +117,16 @@ function dom_handler(session, request)
 
     onjs(session, sliders.value, js"""function (value){
         si = value;
+        var mesh = $(mesh2);
+        var positions = mesh.geometry.attributes.offset.array;
+        var color = mesh.geometry.attributes.color.array;
+
+        for ( var i = 0, l = positions.length; i < l; i += 2 ) {
+                    positions[i+1] = si*Math.sin(positions[i]);
+            }
+        mesh.geometry.attributes.offset.needsUpdate = true;
+        //mesh.geometry.attributes.color.needsUpdate = true;
+
     }""")
 
     dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), DOM.div(sliders,  id="slider"),
@@ -137,4 +147,5 @@ app = JSServe.Application(
 )
 cl() = (close(app), "stopped")
 println("Done.")
-#cl()
+#
+cl()
