@@ -18,11 +18,12 @@ include(joinpath(SRC_DIR, DIR, "utility_functions.jl"))
 Random.seed!(2)
 pop = 50_000_000
 #θˣ = [0.37, 0.05, 0.05, 0.01]
+#α, β, σ1, σ2
 θˣ = [0.37, 0.05, 0.3/sqrt(pop), 1.0/sqrt(pop)]
 
 Pˣ = SIR(θˣ...)
 
-x0, dt, T = ℝ{2}(1/pop, 0.), 1/10000, 30.0
+x0, dt, T = ℝ{2}(1/pop, 0.), 1/10000, 10.0
 tt = 0.0:dt:T
 
 Random.seed!(1)
@@ -30,14 +31,14 @@ XX, _ = simulate_segment(ℝ{2}(1.0, 0.0), x0, Pˣ, tt)
 last(XX)[2]*pop
 
 #lines(XX.tt, K .- sum.(XX.yy))
-lines(XX.tt, first.(XX.yy), color = :red)
-lines!(XX.tt,last.(XX.yy), color = :blue)
+lines(XX.tt, first.(XX.yy), color = :red) #infected
+lines!(XX.tt,last.(XX.yy), color = :blue) #recovered + dead people
 
-θ_init = copy(θˣ)
+θ_init = [0.5, 0.1, 0.3/sqrt(pop), 1.0/sqrt(pop)]
 Pˣ = SIR(θ_init...)
 
 length(XX.tt)
-skip = 20000
+skip = 2000
 
 #Σdiagel =
 Σ = @SMatrix[1.0 0.0; 0.0 0.5]/pop
@@ -70,27 +71,17 @@ initialise!(eltype(x0), model_setup, Vern7(), false, NoChangePt(100))
 readj = (100, 0.001, 0.001, 999.9, 0.4, 50)
 readj2 = (100, 0.01, 0.05, 0.2, 0.7, 50)
 
+
 mcmc_setup = MCMCSetup(
-      Imputation(NoBlocking(), 0.999, Vern7()),
-      #ParamUpdate(ConjugateUpdt(), [1,2], θ_init, nothing,
-      #            MvNormal(fill(0.0, 2), diagm(0=>fill(1000.0, 2))),
-      #            UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [1,2]))),
-      # ParamUpdate(MetropolisHastingsUpdt(), 1, θ_init,
-      #             UniformRandomWalk(0.1, true), ImproperPrior(),
-      #             UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 1)), readj),
-      # ParamUpdate(MetropolisHastingsUpdt(), 2, θ_init,
-      #             UniformRandomWalk(0.01, true), ImproperPrior(),
-      #             UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 2)), readj),
-      # ParamUpdate(MetropolisHastingsUpdt(), 3, θ_init,
-      #             UniformRandomWalk(0.1, true), ImproperPosPrior(),
-      #             UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 3)), readj2),
-      # ParamUpdate(MetropolisHastingsUpdt(), 4, θ_init,
-      #             UniformRandomWalk(0.1, true), ImproperPosPrior(),
-      #             UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, 4)), readj2),
+      Imputation(NoBlocking(), 0.99, Vern7()),
+      ParamUpdate(ConjugateUpdt(), [1,2], θ_init, nothing,
+                  MvNormal(fill(0.05, 2), diagm(0=>fill(1000.0, 2))),
+                  UpdtAuxiliary(Vern7(), check_if_recompute_ODEs(P̃, [1,2]))),
+
       )
 
-schedule = MCMCSchedule(10^2, [[1]],#[5]], #[[1],[2], [5]],
-                        (save=10^1, verbose=10^2, warm_up=100,
+schedule = MCMCSchedule(10^4, [[1],[2]], #[[1],[2], [5]],
+                        (save=10^2, verbose=10^2, warm_up=100,
                          readjust=(x->x%100==0), fuse=(x->false)))
 
 Random.seed!(4)
@@ -99,13 +90,17 @@ error("STOP HERE")
 
 
 using Makie
-ws = out[1]
+ws = out[2]
 
 
 θs = ws.θ_chain
 ±(a, b) = a - b, a + b
 beta, gamma, s1 =  [median(getindex.(θs, i)) for i in [1,2,3]] .± [std(getindex.(θs, i)) for i in [1,2, 3]]
 R0 = mean(getindex.(θs, 1)./getindex.(θs, 2)) ± std(getindex.(θs, 1)./getindex.(θs, 2))
+
+θs = ws.θ_chain
+
+
 
 @show beta
 @show gamma
@@ -114,6 +109,9 @@ R0 = mean(getindex.(θs, 1)./getindex.(θs, 2)) ± std(getindex.(θs, 1)./getind
 
 lines(getindex.(θs, 1))
 lines(getindex.(θs, 2))
+
+
+
 lines(getindex.(θs, 3))
 
 include(joinpath(SRC_DIR, DIR, "plotting_fns.jl"))

@@ -27,8 +27,8 @@ domain(P::SIR) = LowerBoundedDomain((0.0,), (1,))
 # <---------------------------------------------
 # this is optional, needed for conjugate updates
 phi(::Val{0}, t, u, P::SIR) = (zero(u[1]), zero(u[2]))
-#[P.α*(P.k - u[1] - u[2])*u[1] - P.β*u[1], P.β*u[1]]
-phi(::Val{1}, t, u, P::SIR) = ((P.k - u[1] - u[2])*u[1], zero(u[2]))
+#[P.α*(1 - u[1] - u[2])*u[1] - P.β*u[1], P.β*u[1]]
+phi(::Val{1}, t, u, P::SIR) = ((1 - u[1] - u[2])*u[1], zero(u[2]))
 phi(::Val{2}, t, u, P::SIR) = (-u[1], u[1])
 phi(::Val{3}, t, x, P::SIR) = (zero(x[1]), zero(x[2]))
 phi(::Val{4}, t, x, P::SIR) = (zero(x[1]), zero(x[2]))
