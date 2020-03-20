@@ -9,6 +9,7 @@ rebirth(α, R) = x -> (rand() > α  ? x : (2rand(typeof(x)) .- 1).*R)
 const 𝕏 = SVector
 
 
+
 using Hyperscript, Markdown
 using JSServe, Observables
 using JSServe: Application, Session, evaljs, linkjs, div, active_sessions, Asset
@@ -29,6 +30,20 @@ function dom_handler(session, request)
     nrs2 = JSServe.NumberInput(0.0)
     linkjs(session, slider2.value, nrs2.value)
 
+    # slider and field for gamma
+    slider3 = JSServe.Slider(0.01:0.01:10)
+    nrs3 = JSServe.NumberInput(0.0)
+    linkjs(session, slider3.value, nrs3.value)
+
+    # slider and field for s
+    slider4 = JSServe.Slider(0.01:0.01:10)
+    nrs4 = JSServe.NumberInput(0.0)
+    linkjs(session, slider4.value, nrs4.value)
+
+    # slider and field for esp
+    slider5 = JSServe.Slider(0.01:0.01:10)
+    nrs5 = JSServe.NumberInput(0.0)
+    linkjs(session, slider5.value, nrs5.value)
 
     # time wheel ;-)
     button = JSServe.Slider(1:109)
@@ -43,25 +58,9 @@ function dom_handler(session, request)
     sqrtdt = sqrt(dt)
 
     particlecss = Asset(joinpath(@__DIR__,"particle.css"))
-
-    # init javascript
-    evaljs(session,  js"""
-        console.log("Hello");
-        iter = 1;
-        eps = 0.1;
-        s = -0.8;
-        gamma = 1.5;
-        beta = 0.0;
-        si = 0.0;
-        R1 = $(R1);
-        R2 = $(R2);
-        //setInterval(
-    """)
-
-    #css("#slider", var"background-image"="linear-gradient(blue, green, blue)")
-
-    scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
-        backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = 0.03,
+    ms = 0.03
+    global scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
+        backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = ms,
         glowwidth = 0.005, glowcolor = :white,
         resolution=(600,600), limits = limits,
         )
@@ -73,62 +72,106 @@ function dom_handler(session, request)
 
 
     splot = scene[end]
+    scatter!(scene, -R1:0.01:R1, sin.(-R1:0.01:R1), color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8), markersize=ms)
+    kplot = scene[end]
+
     three, canvas = WGLMakie.three_display(session, scene)
     js_scene = WGLMakie.to_jsscene(three, scene)
     mesh = js_scene.getObjectByName(string(objectid(splot)))
+    mesh2 = js_scene.getObjectByName(string(objectid(kplot)))
 
-    onjs(session, slider1.value, js"""function (value){
-        si = value;
-    }""")
+    # init javascript
+    evaljs(session,  js"""
+        console.log("Hello");
+        console.log("Hello");
+        iter = 1;
+        eps = 0.1;
+        s = -0.8;
+        gamma = 1.5;
+        beta = 0.0;
+        si = 0.0;
+        R1 = $(R1);
+        R2 = $(R2);
+        setInterval(
+            function (){
+                function randn_bm() {
+                    var u = 0, v = 0;
+                    while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
+                    while(v === 0) v = Math.random();
+                    return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+                }
+                var mu = 0.2;
+                var mesh = $(mesh);
+                var K = $(K);
+                var n = $(n);
+                var dt = $(dt);
+                console.log(iter++);
+                var sqrtdt = $(sqrtdt);
+
+                k = iter%K;
+                var positions = mesh.geometry.attributes.offset.array;
+                var color = mesh.geometry.attributes.color.array;
+                console.log(color.length);
+                for ( var i = 0; i < n; i++ ) {
+                    inew = k*2*n + 2*i;
+                    iold = ((K + k - 1)%K)*2*n + 2*i;
+                    positions[inew] = positions[iold] + dt/eps*((1 - positions[iold]*positions[iold])*positions[iold] - positions[iold+1] - s); // x
+                    positions[inew+1] = positions[iold+1] + dt*(-positions[iold+1] + gamma*positions[iold] + beta) + si*sqrtdt*randn_bm();
+                    color[k*4*n + 4*i] = 1.0;
+                    color[k*4*n + 4*i + 1] = 1.0;
+                    color[k*4*n + 4*i + 2] = 1.0;
+                    color[k*4*n + 4*i + 3] = 1.0;
+                    if (Math.random() < 0.01)
+                    {
+                        positions[inew] = (2*Math.random()-1)*R1;
+                        positions[inew+1] = (2*Math.random()-1)*R2;
+                    }
+
+                }
+                for ( var k = 0; k < K; k++ ) {
+                    for ( var i = 0; i < n; i++ ) {
+                        color[k*4*n + 4*i + 3] = 0.98*color[k*4*n + 4*i + 3];
+                    }
+                }
+                mesh.geometry.attributes.color.needsUpdate = true;
+                mesh.geometry.attributes.offset.needsUpdate = true;
+
+            }
+        , 50);
+    """)
+
     onjs(session, slider2.value, js"""function (value){
         beta = value;
     }""")
 
-    onjs(session, button.value, js"""function (value){
-        function randn_bm() {
-            var u = 0, v = 0;
-            while(u === 0) u = Math.random(); //Converting [0,1) to (0,1)
-            while(v === 0) v = Math.random();
-            return Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
-        }
-        var mesh = $(mesh);
-        var K = $(K);
-        var n = $(n);
-        var dt = $(dt);
-        console.log(iter++);
-        var sqrtdt = $(sqrtdt);
+    onjs(session, slider3.value, js"""function (value){
+        gamma = value;
+    }""")
 
-        k = iter%K;
+    onjs(session, slider4.value, js"""function (value){
+        s = value;
+    }""")
+
+    onjs(session, slider5.value, js"""function (value){
+        eps = value;
+    }""")
+    onjs(session, slider1.value, js"""function (value){
+        si = value;
+        var mesh = $(mesh2);
         var positions = mesh.geometry.attributes.offset.array;
         var color = mesh.geometry.attributes.color.array;
-        console.log(color.length);
-        for ( var i = 0; i < n; i++ ) {
-            inew = k*2*n + 2*i;
-            iold = ((K + k - 1)%K)*2*n + 2*i;
-            positions[inew] = positions[iold] + dt/eps*((1 - positions[iold]*positions[iold])*positions[iold] - positions[iold+1] - s); // x
-            positions[inew+1] = positions[iold+1] + dt*(-positions[iold+1] + gamma*positions[iold] + beta) + si*sqrtdt*randn_bm();
-            color[k*4*n + 4*i] = 1.0;
-            color[k*4*n + 4*i + 1] = 1.0;
-            color[k*4*n + 4*i + 2] = 1.0;
-            color[k*4*n + 4*i + 3] = 1.0;
-            if (Math.random() < 0.01)
-            {
-                positions[inew] = (2*Math.random()-1)*R1;
-                positions[inew+1] = (2*Math.random()-1)*R2;
-            }
 
-        }
-        for ( var k = 0; k < K; k++ ) {
-            for ( var i = 0; i < n; i++ ) {
-                color[k*4*n + 4*i + 3] = 0.98*color[k*4*n + 4*i + 3];
+        for ( var i = 0, l = positions.length; i < l; i += 2 ) {
+                    positions[i+1] = si*Math.sin(positions[i]);
             }
-        }
-        mesh.geometry.attributes.color.needsUpdate = true;
         mesh.geometry.attributes.offset.needsUpdate = true;
+        //mesh.geometry.attributes.color.needsUpdate = true;
 
     }""")
-    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters", DOM.div(slider1,  id="slider1"), DOM.div(slider2,  id="slider2")),
-    DOM.p(nrs1), DOM.p(nrs2), DOM.p(button))
+
+    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters", DOM.div(slider1,  id="slider1"), DOM.div(slider2,  id="slider2"),
+        DOM.div(slider3,  id="slider3"),DOM.div(slider4,  id="slider4"), DOM.div(slider5,  id="slider5")),
+        DOM.p(nrs1), DOM.p(nrs2), DOM.p(nrs3), DOM.p(nrs4), DOM.p(nrs5), DOM.p(button))
 #    JSServe.onload(session, dom, js"""
 #        iter = 1;
 #    """)
@@ -143,7 +186,7 @@ app = JSServe.Application(
     parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
     verbose = false
 )
-
-#cl() = (close(app), "stopped")
+cl() = (close(app), "stopped")
 #println("Done.")
+#
 #cl()
