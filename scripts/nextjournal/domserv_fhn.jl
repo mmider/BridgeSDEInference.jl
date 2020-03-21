@@ -31,18 +31,18 @@ function dom_handler(session, request)
     linkjs(session, slider2.value, nrs2.value)
 
     # slider and field for gamma
-    slider3 = JSServe.Slider(0.01:0.01:10)
-    nrs3 = JSServe.NumberInput(0.0)
+    slider3 = JSServe.Slider(1.51:0.01:10)
+    nrs3 = JSServe.NumberInput(1.5)
     linkjs(session, slider3.value, nrs3.value)
 
     # slider and field for s
-    slider4 = JSServe.Slider(0.01:0.01:10)
+    slider4 = JSServe.Slider(0.00:0.01:10)
     nrs4 = JSServe.NumberInput(0.0)
     linkjs(session, slider4.value, nrs4.value)
 
     # slider and field for esp
-    slider5 = JSServe.Slider(0.01:0.01:10)
-    nrs5 = JSServe.NumberInput(0.0)
+    slider5 = JSServe.Slider(0.11:0.01:10)
+    nrs5 = JSServe.NumberInput(0.1)
     linkjs(session, slider5.value, nrs5.value)
 
     # time wheel ;-)
@@ -56,11 +56,16 @@ function dom_handler(session, request)
     K = 80
     dt = 0.001
     sqrtdt = sqrt(dt)
-
+    eps = 0.1;
+    s = -0.0;
+    gamma = 1.5;
+    beta = 0.0;
+    si = 0.0;
     particlecss = Asset(joinpath(@__DIR__,"particle.css"))
-    ms = 0.03
+    ms1 = 0.04
+    ms2 = 0.08
     global scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
-        backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = ms,
+        backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = ms1,
         glowwidth = 0.005, glowcolor = :white,
         resolution=(600,600), limits = limits,
         )
@@ -72,8 +77,10 @@ function dom_handler(session, request)
 
 
     splot = scene[end]
-    scatter!(scene, -R1:0.01:R1, sin.(-R1:0.01:R1), color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8), markersize=ms)
-    kplot = scene[end]
+    scatter!(scene, -R1:0.01:R1, (-R1:0.01:R1) .- (-R1:0.01:R1).^3 + s, color = RGBA{Float32}(255, 0.0, 4.0, 1.0), markersize=ms2)
+    kplot1 = scene[end]
+    scatter!(scene, -R1:0.01:R1, gamma*(-R1:0.01:R1) .+ beta , color = RGBA{Float32}(255, 0.0, 4.0, 1.0), markersize=ms2)
+    kplot2 = scene[end]
 
     three, canvas = WGLMakie.three_display(session, scene)
     js_scene = WGLMakie.to_jsscene(three, scene)
@@ -85,11 +92,11 @@ function dom_handler(session, request)
         console.log("Hello");
         console.log("Hello");
         iter = 1;
-        eps = 0.1;
-        s = -0.8;
-        gamma = 1.5;
-        beta = 0.0;
-        si = 0.0;
+        eps = $(eps);
+        s = $(s);
+        gamma = $(gamma);
+        beta = $(beta);
+        si = $(si);
         R1 = $(R1);
         R2 = $(R2);
         setInterval(
