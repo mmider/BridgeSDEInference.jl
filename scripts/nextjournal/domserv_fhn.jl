@@ -2,11 +2,9 @@ using JSServe, WGLMakie, AbstractPlotting
 using JSServe: JSServe.DOM, @js_str, onjs
 global three, scene
 
-using StaticArrays
 using Colors
 using Random
-rebirth(α, R) = x -> (rand() > α  ? x : (2rand(typeof(x)) .- 1).*R)
-const 𝕏 = SVector
+using WGLMakie: scatter, scatter!
 
 
 
@@ -42,16 +40,13 @@ function dom_handler(session, request)
     nrs4 = JSServe.NumberInput(0.0)
     linkjs(session, slider4.value, nrs4.value)
 
-    # slider and field for esp
+    # slider and field for eps
     slider5 = JSServe.Slider(0.11:0.01:10)
     nrs5 = JSServe.NumberInput(0.1)
     linkjs(session, slider5.value, nrs5.value)
 
-    # time wheel ;-)
-    button = JSServe.Slider(1:109)
-
     # init
-    R = 𝕏(1.5,6.0)
+    R = (1.5,6.0)
     R1, R2 = R
     limits = FRect(-R[1], -R[2], 2R[1], 2R[2])
     n = 800
@@ -65,7 +60,7 @@ function dom_handler(session, request)
     si = 0.0;
     particlecss = Asset(joinpath(@__DIR__,"particle.css"))
     ms1 = 0.04
-    ms2 = 0.08
+    ms2 = 0.04
     global scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
         backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = ms1,
         glowwidth = 0.005, glowcolor = :white,
@@ -79,9 +74,9 @@ function dom_handler(session, request)
 
 
     splot = scene[end]
-    scatter!(scene, -R1:0.01:R1, (-R1:0.01:R1) .- (-R1:0.01:R1).^3 .+ s, color = RGBA{Float32}(255, 0.0, 4.0, 1.0), markersize=ms2)
+    scatter!(scene, -R1:0.01:R1, (-R1:0.01:R1) .- (-R1:0.01:R1).^3 .+ s, color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8), markersize=ms2)
     kplot1 = scene[end]
-    scatter!(scene, -R1:0.01:R1, gamma*(-R1:0.01:R1) .+ beta , color = RGBA{Float32}(255, 0.0, 4.0, 1.0), markersize=ms2)
+    scatter!(scene, -R1:0.01:R1, gamma*(-R1:0.01:R1) .+ beta , color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8), markersize=ms2)
     kplot2 = scene[end]
 
     three, canvas = WGLMakie.three_display(session, scene)
@@ -146,7 +141,6 @@ function dom_handler(session, request)
                 var dt = $(dt);
                 console.log(iter++);
                 var sqrtdt = $(sqrtdt);
-
                 k = iter%K;
                 var positions = mesh.geometry.attributes.offset.array;
                 var color = mesh.geometry.attributes.color.array;
@@ -165,7 +159,6 @@ function dom_handler(session, request)
                         positions[inew] = (2*Math.random()-1)*R1;
                         positions[inew+1] = (2*Math.random()-1)*R2;
                     }
-
                 }
                 for ( var k = 0; k < K; k++ ) {
                     for ( var i = 0; i < n; i++ ) {
@@ -174,7 +167,6 @@ function dom_handler(session, request)
                 }
                 mesh.geometry.attributes.color.needsUpdate = true;
                 mesh.geometry.attributes.offset.needsUpdate = true;
-
             }
         , 50);
     """)
@@ -195,15 +187,12 @@ function dom_handler(session, request)
         eps = value;
     }""")
     onjs(session, slider1.value, js"""function (value){
-        sigma = value;
+        si = value;
     }""")
 
-    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters", DOM.div(slider1,  id="slider1"), DOM.div(slider2,  id="slider2"),
-        DOM.div(slider3,  id="slider3"),DOM.div(slider4,  id="slider4"), DOM.div(slider5,  id="slider5")),
-        DOM.p(nrs1), DOM.p(nrs2), DOM.p(nrs3), DOM.p(nrs4), DOM.p(nrs5), DOM.p(button))
-#    JSServe.onload(session, dom, js"""
-#        iter = 1;
-#    """)
+    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), "sigma", DOM.div(slider1,  id="slider1"),  DOM.p(nrs1), "beta", DOM.div(slider2,  id="slider2"), DOM.p(nrs2), "gamma",
+        DOM.div(slider3,  id="slider3"), DOM.p(nrs3), "s", DOM.div(slider4,  id="slider4"), DOM.p(nrs4), "eps", DOM.div(slider5,  id="slider5"), DOM.p(nrs5))
+
     println("running...")
     dom
 end
