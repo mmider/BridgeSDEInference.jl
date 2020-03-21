@@ -16,6 +16,8 @@ using JSServe: Application, Session, evaljs, linkjs, div, active_sessions, Asset
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 using JSServe.DOM
 
+#Import dataframe
+
 
 function dom_handler(session, request)
     global three, scene
@@ -57,7 +59,7 @@ function dom_handler(session, request)
     dt = 0.001
     sqrtdt = sqrt(dt)
     eps = 0.1;
-    s = -0.0;
+    s = 0.0;
     gamma = 1.5;
     beta = 0.0;
     si = 0.0;
@@ -77,7 +79,7 @@ function dom_handler(session, request)
 
 
     splot = scene[end]
-    scatter!(scene, -R1:0.01:R1, (-R1:0.01:R1) .- (-R1:0.01:R1).^3 + s, color = RGBA{Float32}(255, 0.0, 4.0, 1.0), markersize=ms2)
+    scatter!(scene, -R1:0.01:R1, (-R1:0.01:R1) .- (-R1:0.01:R1).^3 .+ s, color = RGBA{Float32}(255, 0.0, 4.0, 1.0), markersize=ms2)
     kplot1 = scene[end]
     scatter!(scene, -R1:0.01:R1, gamma*(-R1:0.01:R1) .+ beta , color = RGBA{Float32}(255, 0.0, 4.0, 1.0), markersize=ms2)
     kplot2 = scene[end]
@@ -85,8 +87,8 @@ function dom_handler(session, request)
     three, canvas = WGLMakie.three_display(session, scene)
     js_scene = WGLMakie.to_jsscene(three, scene)
     mesh = js_scene.getObjectByName(string(objectid(splot)))
-    mesh2 = js_scene.getObjectByName(string(objectid(kplot)))
-
+    mesh1 = js_scene.getObjectByName(string(objectid(kplot1)))
+    mesh2 = js_scene.getObjectByName(string(objectid(kplot2)))
     # init javascript
     evaljs(session,  js"""
         console.log("Hello");
@@ -99,6 +101,36 @@ function dom_handler(session, request)
         si = $(si);
         R1 = $(R1);
         R2 = $(R2);
+        updateklinebeta = function (value){
+            beta = value;
+            var mesh = $(mesh2);
+            var positions = mesh.geometry.attributes.offset.array;
+            for ( var i = 0, l = positions.length; i < l; i += 2 ) {
+                        positions[i+1] = beta + positions[i]*gamma;
+                }
+            mesh.geometry.attributes.offset.needsUpdate = true;
+            //mesh.geometry.attributes.color.needsUpdate = true;
+        }
+        updateklinegamma = function (value){
+            gamma = value;
+            var mesh = $(mesh2);
+            var positions = mesh.geometry.attributes.offset.array;
+            for ( var i = 0, l = positions.length; i < l; i += 2 ) {
+                        positions[i+1] = beta + positions[i]*gamma;
+                }
+            mesh.geometry.attributes.offset.needsUpdate = true;
+            //mesh.geometry.attributes.color.needsUpdate = true;
+        }
+        updateklines = function (value){
+            s = value;
+            var mesh = $(mesh1);
+            var positions = mesh.geometry.attributes.offset.array;
+            for ( var i = 0, l = positions.length; i < l; i += 2 ) {
+                        positions[i+1] = positions[i] - positions[i]*positions[i]*positions[i] + s;
+                }
+            mesh.geometry.attributes.offset.needsUpdate = true;
+            //mesh.geometry.attributes.color.needsUpdate = true;
+        }
         setInterval(
             function (){
                 function randn_bm() {
@@ -122,7 +154,7 @@ function dom_handler(session, request)
                 for ( var i = 0; i < n; i++ ) {
                     inew = k*2*n + 2*i;
                     iold = ((K + k - 1)%K)*2*n + 2*i;
-                    positions[inew] = positions[iold] + dt/eps*((1 - positions[iold]*positions[iold])*positions[iold] - positions[iold+1] - s); // x
+                    positions[inew] = positions[iold] + dt/eps*((1 - positions[iold]*positions[iold])*positions[iold] - positions[iold+1] + s); // x
                     positions[inew+1] = positions[iold+1] + dt*(-positions[iold+1] + gamma*positions[iold] + beta) + si*sqrtdt*randn_bm();
                     color[k*4*n + 4*i] = 1.0;
                     color[k*4*n + 4*i + 1] = 1.0;
@@ -148,32 +180,22 @@ function dom_handler(session, request)
     """)
 
     onjs(session, slider2.value, js"""function (value){
-        beta = value;
+        updateklinebeta(value);
     }""")
 
     onjs(session, slider3.value, js"""function (value){
-        gamma = value;
+        updateklinegamma(value);
     }""")
 
     onjs(session, slider4.value, js"""function (value){
-        s = value;
+        updateklines(value);
     }""")
 
     onjs(session, slider5.value, js"""function (value){
         eps = value;
     }""")
     onjs(session, slider1.value, js"""function (value){
-        si = value;
-        var mesh = $(mesh2);
-        var positions = mesh.geometry.attributes.offset.array;
-        var color = mesh.geometry.attributes.color.array;
-
-        for ( var i = 0, l = positions.length; i < l; i += 2 ) {
-                    positions[i+1] = si*Math.sin(positions[i]);
-            }
-        mesh.geometry.attributes.offset.needsUpdate = true;
-        //mesh.geometry.attributes.color.needsUpdate = true;
-
+        sigma = value;
     }""")
 
     dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters", DOM.div(slider1,  id="slider1"), DOM.div(slider2,  id="slider2"),
@@ -193,7 +215,8 @@ app = JSServe.Application(
     parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
     verbose = false
 )
+
 cl() = (close(app), "stopped")
 #println("Done.")
 #
-#cl()
+cl()
