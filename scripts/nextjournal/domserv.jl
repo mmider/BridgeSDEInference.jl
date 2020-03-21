@@ -67,7 +67,7 @@ function dom_handler(session, request)
         si = 0.0;
         R1 = $(R1);
         R2 = $(R2);
-        function updatekline(value){
+        updatekline = function (value){
             si = value;
             var mesh = $(mesh2);
             var positions = mesh.geometry.attributes.offset.array;
