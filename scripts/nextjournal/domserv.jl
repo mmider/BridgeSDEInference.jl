@@ -52,7 +52,7 @@ function dom_handler(session, request)
 
 
     splot = scene[end]
-    scatter!(scene, -R1:0.01:R1, sin.(-R1:0.01:R1), color = RGBA{Float32}(0.5, 0.7, 1.0, 0.8), markersize=ms)
+    scatter!(scene, -R1:0.01:R1, sin.(-R1:0.01:R1), color = RGBA{Float32}(255, 0.0, 4.0, 1.0), markersize=ms)
     kplot = scene[end]
 
     three, canvas = WGLMakie.three_display(session, scene)
@@ -67,6 +67,17 @@ function dom_handler(session, request)
         si = 0.0;
         R1 = $(R1);
         R2 = $(R2);
+        function updatekline(value){
+            si = value;
+            var mesh = $(mesh2);
+            var positions = mesh.geometry.attributes.offset.array;
+            var color = mesh.geometry.attributes.color.array;
+            for ( var i = 0, l = positions.length; i < l; i += 2 ) {
+                        positions[i+1] = si*Math.sin(positions[i]);
+                }
+            mesh.geometry.attributes.offset.needsUpdate = true;
+            //mesh.geometry.attributes.color.needsUpdate = true;
+        }
         setInterval(
             function (){
                 function randn_bm() {
@@ -114,19 +125,8 @@ function dom_handler(session, request)
             }
         , 50);
     """)
-
     onjs(session, sliders.value, js"""function (value){
-        si = value;
-        var mesh = $(mesh2);
-        var positions = mesh.geometry.attributes.offset.array;
-        var color = mesh.geometry.attributes.color.array;
-
-        for ( var i = 0, l = positions.length; i < l; i += 2 ) {
-                    positions[i+1] = si*Math.sin(positions[i]);
-            }
-        mesh.geometry.attributes.offset.needsUpdate = true;
-        //mesh.geometry.attributes.color.needsUpdate = true;
-
+      updatekline(value);
     }""")
 
     dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), DOM.div(sliders,  id="slider"),
@@ -146,6 +146,6 @@ app = JSServe.Application(
     verbose = false
 )
 cl() = (close(app), "stopped")
-println("Done.")
+#println("Done.")
 #
 cl()
