@@ -20,48 +20,50 @@ using JSServe.DOM
 function dom_handler(session, request)
     global three, scene
 
-    # slider and field for sigma
-    slider1 = JSServe.Slider(0.01:0.01:1)
-    nrs1 = JSServe.NumberInput(0.0)
-    linkjs(session, slider1.value, nrs1.value)
-
-    # slider and field for beta
-    slider2 = JSServe.Slider(0.01:0.01:10)
-    nrs2 = JSServe.NumberInput(0.0)
-    linkjs(session, slider2.value, nrs2.value)
-
-    # slider and field for gamma
-    slider3 = JSServe.Slider(1.51:0.01:10)
-    nrs3 = JSServe.NumberInput(1.5)
-    linkjs(session, slider3.value, nrs3.value)
-
-    # slider and field for s
-    slider4 = JSServe.Slider(0.00:0.01:10)
-    nrs4 = JSServe.NumberInput(0.0)
-    linkjs(session, slider4.value, nrs4.value)
-
-    # slider and field for eps
-    slider5 = JSServe.Slider(0.11:0.01:10)
-    nrs5 = JSServe.NumberInput(0.1)
-    linkjs(session, slider5.value, nrs5.value)
-
-    # init
-    R = (1.5,6.0)
-    R1, R2 = R
-    limits = FRect(-R[1], -R[2], 2R[1], 2R[2])
-    n = 800
-    K = 80
-    dt = 0.001
-    sqrtdt = sqrt(dt)
     eps = 0.1;
     s = 0.0;
     gamma = 1.5;
     beta = 0.0;
     si = 0.0;
+
+    # slider and field for sigma
+    slider1 = JSServe.Slider(0.01:0.01:1, si)
+    nrs1 = JSServe.NumberInput(0.0)
+    linkjs(session, slider1.value, nrs1.value)
+
+    # slider and field for beta
+    slider2 = JSServe.Slider(0.01:0.01:10, beta)
+    nrs2 = JSServe.NumberInput(0.0)
+    linkjs(session, slider2.value, nrs2.value)
+
+    # slider and field for gamma
+    slider3 = JSServe.Slider(1.51:0.01:10, gamma)
+    nrs3 = JSServe.NumberInput(1.5)
+    linkjs(session, slider3.value, nrs3.value)
+
+    # slider and field for s
+    slider4 = JSServe.Slider(0.00:0.01:10, s)
+    nrs4 = JSServe.NumberInput(0.0)
+    linkjs(session, slider4.value, nrs4.value)
+
+    # slider and field for eps
+    slider5 = JSServe.Slider(0.11:0.01:10, eps)
+    nrs5 = JSServe.NumberInput(0.1)
+    linkjs(session, slider5.value, nrs5.value)
+
+    # init
+    R = (1.5,3.0)
+    R1, R2 = R
+    limits = FRect(-R[1], -R[2], 2R[1], 2R[2])
+    n = 500
+    K = 200
+    dt = 0.0005
+    sqrtdt = sqrt(dt)
+
     particlecss = Asset(joinpath(@__DIR__,"particle.css"))
-    ms1 = 0.04
-    ms2 = 0.04
-    global scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
+    ms1 = 0.02
+    ms2 = 0.02
+    global scene = scatter(repeat(R1*(2rand(n) .- 1), outer=K), repeat(R2*(2rand(n) .- 1),outer=K), color = fill((:white,0f0), n*K),
         backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = ms1,
         glowwidth = 0.005, glowcolor = :white,
         resolution=(600,600), limits = limits,
@@ -154,7 +156,7 @@ function dom_handler(session, request)
                     color[k*4*n + 4*i + 1] = 1.0;
                     color[k*4*n + 4*i + 2] = 1.0;
                     color[k*4*n + 4*i + 3] = 1.0;
-                    if (Math.random() < 0.01)
+                    if (Math.random() < 0.001)
                     {
                         positions[inew] = (2*Math.random()-1)*R1;
                         positions[inew+1] = (2*Math.random()-1)*R2;
@@ -190,13 +192,18 @@ function dom_handler(session, request)
         si = value;
     }""")
 
-    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), "sigma", DOM.div(slider1,  id="slider1"),  DOM.p(nrs1), "beta", DOM.div(slider2,  id="slider2"), DOM.p(nrs2), "gamma",
-        DOM.div(slider3,  id="slider3"), DOM.p(nrs3), "s", DOM.div(slider4,  id="slider4"), DOM.p(nrs4), "eps", DOM.div(slider5,  id="slider5"), DOM.p(nrs5))
-
+    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), DOM.table(
+    DOM.tr(DOM.td("sigma"), DOM.td("beta"), DOM.td("gamma"), DOM.td("s"), DOM.td("eps")),
+    DOM.tr(
+        DOM.td(DOM.div(slider1,  id="slider1"), DOM.div(nrs1)),
+        DOM.td(DOM.div(slider2,  id="slider2"), DOM.div(nrs2)),
+        DOM.td(DOM.div(slider3,  id="slider3"), DOM.div(nrs3)),
+        DOM.td(DOM.div(slider4,  id="slider4"), DOM.div(nrs4)),
+        DOM.td(DOM.div(slider5,  id="slider5"), DOM.div(nrs5))
+       )))
     println("running...")
     dom
 end
-
 
 app = JSServe.Application(
     dom_handler,
