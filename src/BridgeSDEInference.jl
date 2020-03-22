@@ -5,6 +5,10 @@ using Statistics, Random, LinearAlgebra
 using ForwardDiff
 using ForwardDiff: value
 
+#sir.jl
+export SIR, SIRAux
+
+
 # fitzHughNagumo.jl
 export FitzhughDiffusion, FitzhughDiffusionAux, ℝ
 export regularToAlter, alterToRegular, regularToConjug, conjugToRegular, display

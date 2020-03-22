@@ -21,7 +21,7 @@ constdiff(::SIR) = false
 clone(P::SIR, θ) = SIR(θ...)
 params(P::SIR) = [P.α, P.β, P.σ1, P.σ2]
 #domain(P::SIR) = LowerBoundedDomain((0.0, 0.0), (1,2))
-domain(P::SIR) = LowerBoundedDomain((0.0,), (1,))
+domain(P::SIR) = LowerBoundedDomain((0.0, 0.0), (1, 2))
 
 
 # <---------------------------------------------
