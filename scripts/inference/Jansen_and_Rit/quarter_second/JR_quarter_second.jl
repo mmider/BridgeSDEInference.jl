@@ -26,12 +26,16 @@ filename = "jr_path_part_obs_3n.csv"
 (df, x0, obs, obs_time, fpt,
       fptOrPartObs) = readDataJRmodel(Val(fptObsFlag), joinpath(OUT_DIR, filename))
 #take sub set of data: 1 second
-obs = obs[1:64]
+obs = obs[1:64] .+ randn(64)*sqrt(10^(-2))
 obs_time = obs_time[1:64]
+
+df1 = DataFrame(obs_time = obs_time, obs = obs)
+CSV.write("./frank/df1.csv", df1)
+
 
 # Initial parameter guess
 θ_true = [3.25, 100.0, 22.0, 50.0 , 135.0, 5.0, 6.0, 0.56, 0.0, 220.0, 0.0, 0.01, 2000.0, 1.0]
-θ₀ =     [3.25, 100.0, 22.0, 50.0 , 135.0, 5.0, 6.0, 0.56, 0.0, 220.0, 0.0, 0.01, 2000.0, 1.0]
+θ₀ = [3.25, 130.0, 22.0, 80.0 , 175.0, 5.0, 6.0, 0.56, 0.0, 150.0, 0.0, 0.01, 2200.0, 1.0]
 # Boolean for parameters to update
 #param_bool = [0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0]
 #θ₀ = θ_true.*(1 .+ 0.5.*param_bool.*randn(length(θ_true)))
@@ -103,39 +107,67 @@ p5 = ParamUpdate(MetropolisHastingsUpdt(), 2, θ₀,
             UniformRandomWalk(0.05, true), ImproperPosPrior(),
             UpdtAuxiliary(Vern7(), false) , readj
             )
-
-p6 = ParamUpdate(MetropolisHastingsUpdt(), 1, θ₀,
-            UniformRandomWalk(0.05, true), ImproperPosPrior(),
-            UpdtAuxiliary(Vern7(), false) , readj
-            )
 #mcmc_setup = MCMCSetup(imputation, p1, p5, p3, p4)
 mcmc_setup = MCMCSetup(imputation, p1, p2, p3, p4, p5)
 
 
 #mcmc_setup = MCMCSetup(imputation, p4)
 #readjust=(x->x%100==0)
-schedule = MCMCSchedule(10^4, [[1], [2,3,4,6], [5]],
-                  (save=10^2, verbose=5*10^3, warm_up=100,
+schedule = MCMCSchedule(5*10^4, [[1], [2,3,4,6], [5]],
+                  (save=10^2, verbose=5*10^3, warm_up=10^2,
                    #readjust=(x->x%100==0), fuse=(x->false)))
-                   readjust=(x->false), fuse=(x->false)))
+                   readjust=(x->x%100==0), fuse=(x->false)))
 
 
 Random.seed!(4)
 out, chains = mcmc(mcmc_setup, schedule, model_setup)
 
-println("")
-#println("acceptance rates for the for parameters are")
-#println("A: ", mean(chains.updates[6].accpt_history), " b: ", mean(chains.updates[2].accpt_history), ", μy: ",mean(chains.updates[3].accpt_history),
-#        " C: ", mean(chains.updates[4].accpt_history), " σy: ", mean(chains.updates[5].accpt_history))
-
 
 # out.paths
 # length(0:0.0001:obs_time[100])
 error("STOP HERE")
-###PLOTTING###
+###Frank dataframes###
 
+time = repeat(out.time, length(out.paths))
+function save_df(out)
+    I = length(out.time)
+    J = length(out.paths)
+    x1 = zeros(J*I)
+    x2 = zeros(J*I)
+    x3 = zeros(J*I)
+    x4 = zeros(J*I)
+    x5 = zeros(J*I)
+    x6 = zeros(J*I)
+    iter = fill(0, J*I)
+    k = 1
+    for j in 1:J
+        for i in 1:I
+            x1[k], x2[k] = (out.paths[j][i][1], out.paths[j][i][2])
+            x3[k], x4[k] = (out.paths[j][i][3], out.paths[j][i][4])
+            x5[k], x6[k] = (out.paths[j][i][5], out.paths[j][i][6])
+            iter[k] = j
+            k = k + 1
+        end
+    end
+    x1, x2, x3, x4, x5, x6, iter
+end
+
+x1, x2, x3, x4, x5, x6, iter = save_df(out)
+
+
+df2 = DataFrame(time = time, iter = iter, x1 = x1, x2 = x2, x3 = x3, x4 = x4, x5 = x5, x6 = x6)
+CSV.write("./frank/df2.csv", df2)
+
+
+chain = chains.θ_chain
+df3 = DataFrame(iter = 1:length(chain), par_a = [chain[i][2] for i in 1:length(chain)], par_b = [chain[i][4] for i in 1:length(chain)],
+                par_C = [chain[i][5] for i in 1:length(chain)], par_muy = [chain[i][10] for i in 1:length(chain)],
+                 par_sigmay = [chain[i][13] for i in 1:length(chain)])
+CSV.write("./frank/df3.csv", df3)
+
+######################
+#PLOTTING
 using Makie
-
 
 p1 = scatter(obs_time, [obs[i][1] for i in 1:length(obs)],  markersize = 0.05)
 
