@@ -101,7 +101,7 @@ include(joinpath(_DIR, "radial_ornstein_uhlenbeck.jl"))
 include(joinpath(_DIR, "lorenz_system.jl"))
 include(joinpath(_DIR, "lorenz_system_const_vola.jl"))
 include(joinpath(_DIR, "prokaryotic_autoregulatory_gene_network.jl"))
-include(joinpath(_DIR, "Jansen_and_Rit_simple.jl"))
+include(joinpath(_DIR, "jansen_and_rit.jl"))
 
 _DIR = "mcmc"
 include(joinpath(_DIR, "priors.jl"))
