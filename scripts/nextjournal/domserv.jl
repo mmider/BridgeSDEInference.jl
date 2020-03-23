@@ -8,7 +8,9 @@ using Random
 rebirth(α, R) = x -> (rand() > α  ? x : (2rand(typeof(x)) .- 1).*R)
 const 𝕏 = SVector
 
-
+using FileIO
+using Makie: band
+using GLMakie
 
 using Hyperscript, Markdown
 using JSServe, Observables
@@ -16,9 +18,15 @@ using JSServe: Application, Session, evaljs, linkjs, div, active_sessions, Asset
 using JSServe: @js_str, onjs, Button, TextField, Slider, JSString, Dependency, with_session
 using JSServe.DOM
 
-
 function dom_handler(session, request)
     global three, scene
+
+    if @isdefined dom
+        dom != nothing && return dom
+    end
+
+    WGLMakie.activate!()
+
 
     # slider and field for sigma
     sliders = JSServe.Slider(0.01:0.01:1)
@@ -38,6 +46,8 @@ function dom_handler(session, request)
     sqrtdt = sqrt(dt)
 
     particlecss = Asset(joinpath(@__DIR__,"particle.css"))
+    global sliderbg = Asset(joinpath(@__DIR__,"slider1.png"))
+
     ms = 0.03
     global scene = scatter(repeat(2randn(n), outer=K), repeat(2randn(n),outer=K), color = fill(:white, n*K),
         backgroundcolor = RGB{Float32}(0.04, 0.11, 0.22), markersize = ms,
@@ -71,12 +81,10 @@ function dom_handler(session, request)
             si = value;
             var mesh = $(mesh2);
             var positions = mesh.geometry.attributes.offset.array;
-            var color = mesh.geometry.attributes.color.array;
             for ( var i = 0, l = positions.length; i < l; i += 2 ) {
                         positions[i+1] = si*Math.sin(positions[i]);
                 }
             mesh.geometry.attributes.offset.needsUpdate = true;
-            //mesh.geometry.attributes.color.needsUpdate = true;
         }
         setInterval(
             function (){
@@ -128,12 +136,11 @@ function dom_handler(session, request)
     onjs(session, sliders.value, js"""function (value){
       updatekline(value);
     }""")
+    sliderbgurl = JSServe.url(sliderbg)
+    style_obs = Observable("  background-repeat: no-repeat; background-image: url($sliderbgurl);")
 
-    dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), DOM.div(sliders,  id="slider"),
+    global dom = DOM.div(particlecss, DOM.p(canvas), DOM.p("Parameters"), DOM.div(sliders,  id="slider", style=style_obs),
     DOM.p(nrs))
-#    JSServe.onload(session, dom, js"""
-#        iter = 1;
-#    """)
     println("running...")
     dom
 end
@@ -145,7 +152,14 @@ app = JSServe.Application(
     parse(Int, get(ENV, "WEBIO_HTTP_PORT", "8081")),
     verbose = false
 )
-cl() = (close(app), "stopped")
-#println("Done.")
+function cl()
+    close(app)
+    global dom = nothing
+end
+println("Done.")
 #
+if false
+
 cl()
+
+end
