@@ -151,7 +151,7 @@ set!(x::SingleElem{T}, y::T) where T = (x.val = y)
 The main container of the `mcmc` function from `mcmc.jl` in which most data
 pertinent to sampling is stored
 """
-struct Workspace{ObsScheme,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
+struct Workspace{ObsScheme,S,TX,TW,R,TP,TL,TZ}# ,Q, where Q = eltype(result)
     # Related to imputed path
     Wnr::Wiener{S}         # Wiener, driving law
     XXᵒ::Vector{TX}        # Diffusion proposal paths
@@ -167,6 +167,7 @@ struct Workspace{ObsScheme,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
     time::Vector{Float64}           # Storage with time axis
     # Related to the starting point
     x0_prior::TP
+    ll::TL
     z::SingleElem{TZ}
     #recompute_ODEs::Vector{Bool}    # Info on whether to recompute H,Hν,c after resp. param updt
 
@@ -197,10 +198,12 @@ struct Workspace{ObsScheme,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
             end
             y = XX[i].yy[end]
         end
+
         y = x0_guess
         ll = ( logpdf(x0_prior, y)
                + path_log_likhd(ObsScheme(), XX, P, 1:m, fpt, skipFPT=true)
                + lobslikelihood(P[1], y) )
+        TL = typeof(ll)
 
         XXᵒ, WWᵒ, Pᵒ = deepcopy(XX), deepcopy(WW), deepcopy(P)
 
@@ -213,17 +216,16 @@ struct Workspace{ObsScheme,S,TX,TW,R,TP,TZ}# ,Q, where Q = eltype(result)
         _time = collect(Iterators.flatten(p.tt[1:skip:end-1] for p in P))
 
          #check_if_recompute_ODEs(setup)
-         (workspace = new{ObsScheme,S,TX,TW,R,TP,TZ}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ,
+         new{ObsScheme,S,TX,TW,R,TP,TL,TZ}(Wnr, XXᵒ, XX, WWᵒ, WW, Pᵒ,
                                                      P, fpt, skip, [], _time,
-                                                     x0_prior, z),
-          ll = ll, θ = params(P[1].Target))
+                                                     x0_prior, ll, z)
     end
 
     function Workspace(ws::Workspace{ObsScheme,S,TX,TW,R̃,TP,TZ}, P::Vector{R},
                        Pᵒ::Vector{R}) where {ObsScheme,S,TX,TW,R̃,R,TP,TZ}
-        new{ObsScheme,S,TX,TW,R,TP,TZ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW, Pᵒ,
+        new{ObsScheme,S,TX,TW,R,TP,TL,TZ}(ws.Wnr, ws.XXᵒ, ws.XX, ws.WWᵒ, ws.WW, Pᵒ,
                                        P, ws.fpt, ws.skip_for_save, ws.paths,
-                                       ws.time, ws.x0_prior, ws.z)
+                                       ws.time, ws.x0_prior, ws.ll, ws.z)
     end
 end
 
@@ -274,5 +276,7 @@ function create_workspace(setup::MCMCSetup, schedule::MCMCSchedule, θ)
 end
 
 function create_workspace(setup::T) where {T <: ModelSetup}
-    Workspace(setup)
+    ws = Workspace(setup)
+    θ = params(ws.P[1].Target)
+    ws, ws.ll, θ
 end
