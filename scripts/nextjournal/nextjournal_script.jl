@@ -92,4 +92,10 @@ schedule = MCMCSchedule(1*10^3, [[1,2,3,4,5]],
 
 Random.seed!(4)
 Profile.init()
-@profile out = mcmc(mcmc_setup, schedule, model_setup);
+setup_mcmc = mcmc_setup
+setup = model_setup
+ws, ll, θ = BridgeSDEInference.create_workspace(setup)
+ws_mcmc = BridgeSDEInference.create_workspace(setup_mcmc, schedule, θ)
+adpt = BridgeSDEInference.adaptation_object(setup, ws)
+Profile.clear()
+@profile out = BridgeSDEInference.mcmc_(setup_mcmc, schedule, setup, ws, ll, θ, ws_mcmc, adpt)
