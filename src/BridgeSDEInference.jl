@@ -5,6 +5,10 @@ using Statistics, Random, LinearAlgebra
 using ForwardDiff
 using ForwardDiff: value
 
+#sir.jl
+export SIR, SIRAux
+
+
 # fitzHughNagumo.jl
 export FitzhughDiffusion, FitzhughDiffusionAux, ℝ
 export regularToAlter, alterToRegular, regularToConjug, conjugToRegular, display
@@ -103,6 +107,7 @@ include(joinpath(_DIR, "lorenz_system_const_vola.jl"))
 include(joinpath(_DIR, "prokaryotic_autoregulatory_gene_network.jl"))
 include(joinpath(_DIR, "Jansen_and_Rit_simple.jl"))
 include(joinpath(_DIR, "lotka_volterra.jl"))
+include(joinpath(_DIR, "sir.jl"))
 
 _DIR = "mcmc"
 include(joinpath(_DIR, "priors.jl"))

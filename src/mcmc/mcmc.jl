@@ -13,7 +13,9 @@ function mcmc(setup_mcmc::MCMCSetup, schedule::MCMCSchedule, setup::T) where T <
     ws, ll, θ = create_workspace(setup)
     ws_mcmc = create_workspace(setup_mcmc, schedule, θ)
     adpt = adaptation_object(setup, ws)
-
+    mcmc_(setup_mcmc, schedule, setup, ws, ll, θ, ws_mcmc, adpt)
+end
+function mcmc_(setup_mcmc, schedule, setup, ws, ll, θ, ws_mcmc, adpt)
     aux = nothing
     for step in schedule
         step.save && save_imputed!(ws)
